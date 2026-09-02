@@ -1,0 +1,24 @@
+name: Build Windows EXE
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'TraderPlannerPro.py'
+      - '.github/workflows/build-windows.yml'
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build EXE
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          pyinstaller --onefile --windowed --name TraderPlannerPro TraderPlannerPro.py
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TraderPlannerPro-Windows11
+          path: dist/TraderPlannerPro.exe
