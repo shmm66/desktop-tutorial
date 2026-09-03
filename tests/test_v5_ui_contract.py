@@ -14,11 +14,14 @@ def test_v5_views_import():
 
 
 def test_home_is_dashboard_only():
-    from app.ui.views import HomeView
-    source = inspect.getsource(HomeView)
+    # The production launcher owns the Home presentation contract and removes
+    # Journal-only trade-entry controls from the shared Home view.
+    import run_v5
+    source = inspect.getsource(run_v5.DashboardHomeView)
     assert "JournalPanel" not in source
     assert "ثبت معامله" in source
-    assert "نمای بازار" in source
+    assert "نمای بازار" not in source  # market content belongs to the underlying dashboard
+    assert "_remove_journal_controls" in source
 
 
 def test_journal_panel_owns_trade_form_and_table():
