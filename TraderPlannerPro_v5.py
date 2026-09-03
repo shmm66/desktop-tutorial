@@ -28,7 +28,6 @@ PALETTE = {
 PERSIAN_FONT = "B Titr"
 ENGLISH_FONT = "Times New Roman"
 
-# Capture the real Tk classes before replacing tk.Button/tk.Canvas/etc.
 _ORIGINAL_CLASSES = {
     name: getattr(tk, name)
     for name in (
@@ -123,8 +122,6 @@ def _canvas_rectangle(self, *args, **kwargs):
             kwargs[key] = _map_color(kwargs[key])
     return _original_canvas_rectangle(self, *args, **kwargs)
 
-
-# Patch methods on the real Canvas class, then expose wrapped widget constructors.
 _ORIGINAL_CANVAS.create_line = _canvas_line
 _ORIGINAL_CANVAS.create_text = _canvas_text
 _ORIGINAL_CANVAS.create_rectangle = _canvas_rectangle
@@ -155,9 +152,26 @@ def _style_map(self, tag, *args, **kwargs):
 ttk.Style.configure = _style_configure
 ttk.Style.map = _style_map
 
-# Resolve V4 both from a normal source checkout and from a PyInstaller bundle.
 _base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 _v4_path = os.path.join(_base_dir, "TraderPlannerPro_v4.py")
 if not os.path.isfile(_v4_path):
     raise FileNotFoundError(f"Bundled application component not found: {_v4_path}")
-runpy.run_path(_v4_path, run_name="__main__")
+
+# V4 defines App.title(), which shadows Tk's window-title method. Loading it as
+# __main__ therefore calls the page-title method before self.content exists.
+# Load V4 without executing its main block, then instantiate a tiny compatibility
+# subclass whose one-argument title call is the real window-title operation.
+_v4 = runpy.run_path(_v4_path, run_name="TraderPlannerPro_v4")
+_BaseApp = _v4["App"]
+_V4_APP_NAME = _v4.get("APP", "Trader Planner Pro")
+
+
+class App(_BaseApp):
+    def title(self, a, b=""):
+        if not b:
+            return tk.Tk.title(self, a)
+        return super().title(a, b)
+
+
+if __name__ == "__main__":
+    App().mainloop()
