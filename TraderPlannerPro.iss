@@ -1,14 +1,16 @@
 #define MyAppName "Trader Planner Pro"
-#define MyAppVersion "4.0.0"
+#define MyAppVersion "5.0.0"
 #define MyAppExeName "TraderPlannerPro.exe"
 [Setup]
 AppId={{8D6D0F58-7D16-4C1B-9D0C-20A4F1B8C901}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppPublisher="Seyed Hadi Mir Mohammad"
+AppCopyright="Copyright (c) 2026 Seyed Hadi Mir Mohammad, Gorgan, Iran"
 DefaultDirName={autopf}\Trader Planner Pro
 DefaultGroupName=Trader Planner Pro
 OutputDir=installer
-OutputBaseFilename=TraderPlannerPro_Setup_v4
+OutputBaseFilename=TraderPlannerPro_Setup_v5
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
