@@ -1,10 +1,14 @@
-name: Build Windows EXE
+name: Build Windows EXE + Installer
 on:
   workflow_dispatch:
   push:
+    branches: [ main ]
     paths:
       - 'TraderPlannerPro.py'
+      - 'requirements.txt'
+      - 'TraderPlannerPro.iss'
       - '.github/workflows/build-windows.yml'
+
 jobs:
   build:
     runs-on: windows-latest
@@ -13,12 +17,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build EXE
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip pyinstaller
-          pyinstaller --onefile --windowed --name TraderPlannerPro TraderPlannerPro.py
-      - name: Upload EXE artifact
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+      - name: Build EXE
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro.py
+      - name: Build installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: TraderPlannerPro.iss
+          options: /O+
+      - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-Windows11
+          name: TraderPlannerPro-Windows11-EXE
           path: dist/TraderPlannerPro.exe
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: TraderPlannerPro-Windows11-Installer
+          path: installer/TraderPlannerPro_Setup.exe
