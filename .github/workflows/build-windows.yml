@@ -36,9 +36,15 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install runtime/build dependencies
-        run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
+        run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-api-python-client google-auth-oauthlib tzdata
+      - name: Verify Tk submodules required by bundled V4
+        shell: python
+        run: |
+          import tkinter.messagebox
+          import tkinter.filedialog
+          print('Tk messagebox/filedialog imports OK')
       - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --add-data "TraderPlannerPro_v4.py;." TraderPlannerPro_v5.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --add-data "TraderPlannerPro_v4.py;." --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog TraderPlannerPro_v5.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
