@@ -5,6 +5,12 @@ from tkinter import ttk
 
 from app.core.config import AppConfig, APP_NAME, APP_VERSION
 from .theme import ACCENT, BG, MUTED, SURFACE, SURFACE_2, TEXT, apply
+
+# views.py is intentionally loaded after this compatibility alias because
+# Tkinter owns BooleanVar; ttk does not expose it on all supported Python builds.
+if not hasattr(ttk, "BooleanVar"):
+    ttk.BooleanVar = tk.BooleanVar  # type: ignore[attr-defined]
+
 from .views import CalculatorView, ChecklistView, HomeView, JournalView, MarketView, PlannerView, ReportsView, SessionsView, SettingsView
 
 
