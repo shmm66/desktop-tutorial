@@ -30,7 +30,7 @@ def test_sqlite_round_trip_and_market_filter(tmp_path) -> None:
     initialize(path)
     conn = connect(path)
     try:
-        assert migrate(conn) == 2
+        assert migrate(conn) == 3
         repo = SQLiteJournalRepository(conn)
         forex = repo.save(make_entry(AssetClass.FOREX))
         repo.save(make_entry(AssetClass.CRYPTO))
