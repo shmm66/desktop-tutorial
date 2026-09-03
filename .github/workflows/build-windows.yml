@@ -22,6 +22,12 @@ jobs:
         with:
           path: TraderPlannerPro.iss
           options: /O+
+      - name: Verify installer exists
+        shell: powershell
+        run: |
+          $p = Join-Path $PWD 'installer\TraderPlannerPro_Setup_v3.exe'
+          if (!(Test-Path $p)) { Write-Host 'Installer files:'; Get-ChildItem -Recurse installer -ErrorAction SilentlyContinue; throw "Installer not found: $p" }
+          Get-Item $p | Format-List FullName,Length
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
@@ -31,4 +37,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TraderPlannerPro-Windows11-Installer
-          path: installer/TraderPlannerPro_Setup.exe
+          path: installer/TraderPlannerPro_Setup_v3.exe
