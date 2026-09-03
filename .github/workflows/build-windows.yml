@@ -64,12 +64,15 @@ jobs:
         run: |
           $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
           if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
+          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           $p = Start-Process -FilePath $exe -PassThru
           Start-Sleep -Seconds 8
+          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | ForEach-Object { if ($_.Id -ne $p.Id) { Write-Host "Detected child app process $($_.Id)" } }
           if ($p.HasExited) {
             throw "TraderPlannerPro.exe exited during startup with code $($p.ExitCode)"
           }
-          Stop-Process -Id $p.Id -Force
+          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 2
           Write-Host 'EXE startup smoke test passed.'
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
@@ -81,8 +84,9 @@ jobs:
         run: |
           $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Select-Object -First 1
           if (-not $installer) { throw 'Installer EXE was not produced.' }
+          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           $testRoot = Join-Path $env:TEMP 'TraderPlannerPro-CI-Test'
-          if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force }
+          if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Path $testRoot | Out-Null
           $installDir = Join-Path $testRoot 'App'
           $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$installDir") -Wait -PassThru
@@ -92,12 +96,16 @@ jobs:
           $p = Start-Process -FilePath $installedExe -PassThru
           Start-Sleep -Seconds 8
           if ($p.HasExited) { throw "Installed EXE exited during startup with code $($p.ExitCode)" }
-          Stop-Process -Id $p.Id -Force
+          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 2
           $uninstaller = Join-Path $installDir 'unins000.exe'
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller not found: $uninstaller" }
           $un = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
+          Start-Sleep -Seconds 2
+          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           if (Test-Path $installedExe) { throw 'Installed EXE still exists after uninstall.' }
+          if (Test-Path $installDir) { Write-Host "Install directory remains; checking for files..."; Get-ChildItem $installDir -Force -ErrorAction SilentlyContinue }
           Write-Host 'Installer -> install -> launch -> uninstall -> verify passed.'
           if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
       - name: Verify installer artifact exists
