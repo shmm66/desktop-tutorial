@@ -10,9 +10,11 @@ from app.services.trade_service import TradeService
 def test_migrations_are_idempotent(tmp_path: Path):
     db_path = tmp_path / "test.db"
     with connect(db_path) as conn:
-        assert migrate(conn) == 1
-        assert migrate(conn) == 1
-        assert conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 1
+        # V5 currently has migrations 1 and 2. The first call applies both;
+        # the second call must be a no-op and return the same latest version.
+        assert migrate(conn) == 2
+        assert migrate(conn) == 2
+        assert conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 2
 
 
 def test_trade_round_trip(tmp_path: Path):
