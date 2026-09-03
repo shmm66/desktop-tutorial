@@ -8,31 +8,34 @@ from app.services.trade_service import TradeService
 
 
 def test_migrations_are_idempotent(tmp_path: Path):
-    conn = connect(tmp_path / "test.db")
-    assert migrate(conn) == 1
-    assert migrate(conn) == 1
-    assert conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 1
+    db_path = tmp_path / "test.db"
+    with connect(db_path) as conn:
+        assert migrate(conn) == 1
+        assert migrate(conn) == 1
+        assert conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 1
 
 
 def test_trade_round_trip(tmp_path: Path):
-    conn = connect(tmp_path / "test.db")
-    migrate(conn)
-    service = TradeService(TradeRepository(conn))
-    trade_id = service.record_trade(Trade(market="forex", symbol="EURUSD", direction="long", pnl=25.0))
-    row = TradeRepository(conn).get(trade_id)
-    assert row is not None
-    assert row["market"] == "forex"
-    assert row["symbol"] == "EURUSD"
-    assert row["pnl"] == 25.0
+    db_path = tmp_path / "test.db"
+    with connect(db_path) as conn:
+        migrate(conn)
+        service = TradeService(TradeRepository(conn))
+        trade_id = service.record_trade(Trade(market="forex", symbol="EURUSD", direction="long", pnl=25.0))
+        row = TradeRepository(conn).get(trade_id)
+        assert row is not None
+        assert row["market"] == "forex"
+        assert row["symbol"] == "EURUSD"
+        assert row["pnl"] == 25.0
 
 
 def test_service_rejects_invalid_market(tmp_path: Path):
-    conn = connect(tmp_path / "test.db")
-    migrate(conn)
-    service = TradeService(TradeRepository(conn))
-    try:
-        service.record_trade(Trade(market="stocks", symbol="AAPL", direction="long"))
-    except ValueError as exc:
-        assert "market" in str(exc)
-    else:
-        raise AssertionError("invalid market was accepted")
+    db_path = tmp_path / "test.db"
+    with connect(db_path) as conn:
+        migrate(conn)
+        service = TradeService(TradeRepository(conn))
+        try:
+            service.record_trade(Trade(market="stocks", symbol="AAPL", direction="long"))
+        except ValueError as exc:
+            assert "market" in str(exc)
+        else:
+            raise AssertionError("invalid market was accepted")
