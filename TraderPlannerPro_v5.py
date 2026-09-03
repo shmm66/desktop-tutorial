@@ -2,12 +2,14 @@
 # Copyright (c) 2026 Seyed Hadi Mir Mohammad (سید هادی میر محمد), Gorgan, Iran.
 """V5 visual layer: modern pastel UI + bilingual typography over the tested V4 application.
 
-Important: keep references to the original Tk classes/methods before monkey-patching
-module attributes.  This prevents the Canvas.create_* patch from dereferencing the
-wrapped factory instead of the real Tk Canvas class.
+The V4 application is bundled as data by the Windows build and resolved relative to
+PyInstaller's extraction directory. This avoids relying on the installer's working
+directory, which caused FileNotFoundError on installed builds.
 """
 
+import os
 import runpy
+import sys
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk
@@ -153,4 +155,9 @@ def _style_map(self, tag, *args, **kwargs):
 ttk.Style.configure = _style_configure
 ttk.Style.map = _style_map
 
-runpy.run_path("TraderPlannerPro_v4.py", run_name="__main__")
+# Resolve V4 both from a normal source checkout and from a PyInstaller bundle.
+_base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+_v4_path = os.path.join(_base_dir, "TraderPlannerPro_v4.py")
+if not os.path.isfile(_v4_path):
+    raise FileNotFoundError(f"Bundled application component not found: {_v4_path}")
+runpy.run_path(_v4_path, run_name="__main__")
