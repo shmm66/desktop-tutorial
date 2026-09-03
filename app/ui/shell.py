@@ -6,12 +6,11 @@ from tkinter import ttk
 from app.core.config import AppConfig, APP_NAME, APP_VERSION
 from .theme import ACCENT, BG, MUTED, SURFACE, SURFACE_2, TEXT, apply
 
-# views.py is intentionally loaded after this compatibility alias because
-# Tkinter owns BooleanVar; ttk does not expose it on all supported Python builds.
 if not hasattr(ttk, "BooleanVar"):
     ttk.BooleanVar = tk.BooleanVar  # type: ignore[attr-defined]
 
-from .views import CalculatorView, ChecklistView, HomeView, JournalView, MarketView, PlannerView, ReportsView, SessionsView, SettingsView
+from .journal_panel import JournalPanel
+from .views import CalculatorView, ChecklistView, HomeView, MarketView, PlannerView, ReportsView, SessionsView, SettingsView
 
 
 class AppShell(tk.Tk):
@@ -59,7 +58,7 @@ class AppShell(tk.Tk):
                 "home":lambda:HomeView(self.content,self.config_obj,self.show),
                 "planner":lambda:PlannerView(self.content,self.config_obj),
                 "checklist":lambda:ChecklistView(self.content),
-                "journal":lambda:JournalView(self.content,self.config_obj),
+                "journal":lambda:JournalPanel(self.content,self.config_obj),
                 "calculator":lambda:CalculatorView(self.content),
                 "market":lambda:MarketView(self.content),
                 "sessions":lambda:SessionsView(self.content),
