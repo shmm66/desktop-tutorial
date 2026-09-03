@@ -19,7 +19,7 @@ jobs:
         run: python -m pip install --upgrade pip pytest pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
       - name: Compile V5 application
         run: |
-          python -m py_compile app/main.py
+          python -m py_compile run_v5.py
           python -m compileall -q app tests
       - name: Run tests
         run: python -m pytest
@@ -34,9 +34,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install runtime/build dependencies
-        run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
+        run: python -m pip install --upgrade pip pytest pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
       - name: Build V5 EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro app/main.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro run_v5.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
