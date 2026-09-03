@@ -1,9 +1,9 @@
-name: CI + Windows EXE + Installer
+name: V5 CI + Windows EXE + Installer
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, 'v5-architecture-migration' ]
   pull_request:
     branches: [ main ]
 
@@ -17,13 +17,12 @@ jobs:
           python-version: '3.12'
       - name: Install test/build dependencies
         run: python -m pip install --upgrade pip pytest pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
-      - name: Syntax check
+      - name: Compile V5 application
         run: |
-          python -m py_compile TraderPlannerPro_v3.py
-          python -m py_compile TraderPlannerPro_v4.py
-          python -m py_compile tests/test_smoke.py
+          python -m py_compile app/main.py
+          python -m compileall -q app tests
       - name: Run tests
-        run: python -m pytest -q
+        run: python -m pytest
 
   package:
     needs: quality
@@ -36,26 +35,28 @@ jobs:
           python-version: '3.12'
       - name: Install runtime/build dependencies
         run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
-      - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro_v4.py
+      - name: Build V5 EXE
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro app/main.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: TraderPlannerPro.iss
           options: /O+
-      - name: Verify installer
+      - name: Verify artifacts
         shell: powershell
         run: |
-          $candidates = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Select-Object -First 1
-          if (-not $candidates) { Get-ChildItem -Recurse; throw 'Installer EXE was not produced.' }
-          $candidates | Format-List FullName,Length
-      - name: Upload EXE
+          if (-not (Test-Path 'dist\TraderPlannerPro.exe')) { throw 'V5 EXE was not produced.' }
+          $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Select-Object -First 1
+          if (-not $installer) { Get-ChildItem -Recurse; throw 'Installer EXE was not produced.' }
+          Get-Item 'dist\TraderPlannerPro.exe' | Format-List FullName,Length
+          $installer | Format-List FullName,Length
+      - name: Upload V5 EXE
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-Windows11-EXE
+          name: TraderPlannerPro-Windows11-EXE-V5
           path: dist/TraderPlannerPro.exe
-      - name: Upload Installer
+      - name: Upload V5 Installer
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-Windows11-Installer
+          name: TraderPlannerPro-Windows11-Installer-V5
           path: '**/*Setup*.exe'
