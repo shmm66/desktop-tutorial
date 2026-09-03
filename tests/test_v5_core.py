@@ -10,8 +10,11 @@ def test_database_initializes_and_has_expected_tables():
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "test.sqlite3"
         initialize(path)
-        with connect(path) as conn:
+        conn = connect(path)
+        try:
             tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        finally:
+            conn.close()
         assert {"profiles", "trading_accounts", "trades", "daily_plans", "settings"} <= tables
 
 
