@@ -77,9 +77,15 @@ def connect(path: Path) -> sqlite3.Connection:
 
 
 def initialize(path: Path) -> None:
+    """Create the base schema and run all pending migrations consistently."""
     conn = connect(path)
     try:
+        # Base tables are safe to create repeatedly; migrate() then records and
+        # applies any schema upgrades, including the planner task persistence.
         conn.executescript(SCHEMA)
+        from .migrations import migrate
+
+        migrate(conn)
         conn.execute(
             "INSERT INTO app_meta(key, value) VALUES('schema_version', ?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
