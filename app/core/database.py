@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -77,9 +77,6 @@ def connect(path: Path) -> sqlite3.Connection:
 
 
 def initialize(path: Path) -> None:
-    # sqlite3.Connection.__exit__ commits/rolls back but does not close the
-    # connection. Explicitly close it so callers can safely remove the DB on
-    # Windows, where an open handle prevents unlinking the file.
     conn = connect(path)
     try:
         conn.executescript(SCHEMA)
