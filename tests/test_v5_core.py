@@ -7,6 +7,8 @@ from app.services.risk import position_size, risk_amount
 
 
 def test_database_initializes_and_has_expected_tables():
+    # Explicitly close the SQLite connection: sqlite3's context manager commits/rolls back
+    # but does not close the connection, which can leave the database locked on Windows.
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "test.sqlite3"
         initialize(path)
