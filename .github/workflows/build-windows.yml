@@ -14,9 +14,11 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
       - name: Syntax check
-        run: python -m py_compile TraderPlannerPro_v3.py
+        run: |
+          python -m py_compile TraderPlannerPro_v3.py
+          python -m py_compile TraderPlannerPro_v4.py
       - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro_v3.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro_v4.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
@@ -31,10 +33,10 @@ jobs:
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-Windows11-EXE
+          name: TraderPlannerPro-Windows11-EXE-v4
           path: dist/TraderPlannerPro.exe
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-Windows11-Installer
+          name: TraderPlannerPro-Windows11-Installer-v4
           path: installer/TraderPlannerPro_Setup_v3.exe
