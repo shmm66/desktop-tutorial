@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest an improvement for Trader Planner Pro
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem would this feature solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Home
+        - Daily Planner
+        - Trading Plan
+        - Checklist
+        - Forex Journal
+        - Crypto Journal
+        - Risk Manager
+        - Forex Calculator
+        - Market Data
+        - Sessions
+        - Forex Factory
+        - Reports
+        - Google Drive
+        - Localization
+        - Other
+    validations:
+      required: true
