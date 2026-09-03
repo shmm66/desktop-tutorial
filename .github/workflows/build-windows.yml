@@ -19,6 +19,7 @@ jobs:
         run: python -m pip install --upgrade pip pytest pyinstaller
       - name: Syntax check
         run: |
+          python -m py_compile TraderPlannerPro_v7.py
           python -m py_compile TraderPlannerPro_v6.py
           python -m py_compile TraderPlannerPro_v5.py
           python -m py_compile tests/test_smoke.py
@@ -41,7 +42,7 @@ jobs:
         run: |
           import tkinter, tkinter.font, tkinter.messagebox, tkinter.filedialog
           print('Tk imports OK')
-      - name: Build EXE from V6
+      - name: Build EXE from V7
         run: >-
           pyinstaller --noconfirm --clean --onefile --windowed
           --name TraderPlannerPro
@@ -52,7 +53,9 @@ jobs:
           --hidden-import json
           --hidden-import csv
           --hidden-import datetime
-          TraderPlannerPro_v6.py
+          --hidden-import pathlib
+          --hidden-import shutil
+          TraderPlannerPro_v7.py
       - name: Launch EXE smoke test
         shell: powershell
         run: |
