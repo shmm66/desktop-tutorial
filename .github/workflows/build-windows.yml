@@ -3,13 +3,6 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'TraderPlannerPro_v2.py'
-      - 'build_fix.py'
-      - 'requirements.txt'
-      - 'TraderPlannerPro.iss'
-      - '.github/workflows/build-windows.yml'
-
 jobs:
   build:
     runs-on: windows-latest
@@ -18,12 +11,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install PyInstaller
-        run: python -m pip install --upgrade pip pyinstaller
-      - name: Validate and patch build source
-        run: python build_fix.py
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
+      - name: Syntax check
+        run: python -m py_compile TraderPlannerPro_v3.py
       - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro_v2.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro_v3.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
