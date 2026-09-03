@@ -24,7 +24,14 @@ def migration_2(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE trades ADD COLUMN {name} {definition}")
 
 
-MIGRATIONS: dict[int, Migration] = {1: migration_1, 2: migration_2}
+def migration_3(conn: sqlite3.Connection) -> None:
+    """Persist the editable daily planner task list without coupling SQLite to UI widgets."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(daily_plans)").fetchall()}
+    if "tasks_json" not in columns:
+        conn.execute("ALTER TABLE daily_plans ADD COLUMN tasks_json TEXT NOT NULL DEFAULT '[]'")
+
+
+MIGRATIONS: dict[int, Migration] = {1: migration_1, 2: migration_2, 3: migration_3}
 
 
 def migrate(conn: sqlite3.Connection) -> int:
