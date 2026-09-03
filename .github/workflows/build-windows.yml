@@ -20,6 +20,7 @@ jobs:
       - name: Compile V5 application
         run: |
           python -m py_compile run_v5.py
+          python -m py_compile run_session_widget.py
           python -m compileall -q app tests
       - name: Run tests
         run: python -m pytest
@@ -37,6 +38,8 @@ jobs:
         run: python -m pip install --upgrade pip pytest pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
       - name: Build V5 EXE
         run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro run_v5.py
+      - name: Build Session Clock widget EXE
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerProSessionClock run_session_widget.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
@@ -46,15 +49,21 @@ jobs:
         shell: powershell
         run: |
           if (-not (Test-Path 'dist\TraderPlannerPro.exe')) { throw 'V5 EXE was not produced.' }
+          if (-not (Test-Path 'dist\TraderPlannerProSessionClock.exe')) { throw 'Session Clock widget EXE was not produced.' }
           $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Select-Object -First 1
           if (-not $installer) { Get-ChildItem -Recurse; throw 'Installer EXE was not produced.' }
-          Get-Item 'dist\TraderPlannerPro.exe' | Format-List FullName,Length
+          Get-Item 'dist\TraderPlannerPro.exe','dist\TraderPlannerProSessionClock.exe' | Format-List FullName,Length
           $installer | Format-List FullName,Length
       - name: Upload V5 EXE
         uses: actions/upload-artifact@v4
         with:
           name: TraderPlannerPro-Windows11-EXE-V5
           path: dist/TraderPlannerPro.exe
+      - name: Upload Session Clock widget
+        uses: actions/upload-artifact@v4
+        with:
+          name: TraderPlannerPro-Windows11-SessionClock-V5
+          path: dist/TraderPlannerProSessionClock.exe
       - name: Upload V5 Installer
         uses: actions/upload-artifact@v4
         with:
