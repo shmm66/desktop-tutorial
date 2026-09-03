@@ -1,9 +1,12 @@
 # Trader Planner Pro V5 — polished pastel release entrypoint
 # Copyright (c) 2026 Seyed Hadi Mir Mohammad (سید هادی میر محمد), Gorgan, Iran.
-"""V5 visual layer: modern pastel UI + bilingual typography over the tested V4 application."""
+"""V5 visual layer: modern pastel UI + bilingual typography over the tested V4 application.
 
-import ctypes
-import os
+Important: keep references to the original Tk classes/methods before monkey-patching
+module attributes.  This prevents the Canvas.create_* patch from dereferencing the
+wrapped factory instead of the real Tk Canvas class.
+"""
+
 import runpy
 import tkinter as tk
 import tkinter.font as tkfont
@@ -23,14 +26,31 @@ PALETTE = {
 PERSIAN_FONT = "B Titr"
 ENGLISH_FONT = "Times New Roman"
 
+# Capture the real Tk classes before replacing tk.Button/tk.Canvas/etc.
+_ORIGINAL_CLASSES = {
+    name: getattr(tk, name)
+    for name in (
+        "Frame", "Label", "Button", "Entry", "Text", "Canvas",
+        "Checkbutton", "Radiobutton", "Listbox", "Scale",
+    )
+    if hasattr(tk, name)
+}
+_ORIGINAL_CANVAS = _ORIGINAL_CLASSES["Canvas"]
+_original_canvas_line = _ORIGINAL_CANVAS.create_line
+_original_canvas_text = _ORIGINAL_CANVAS.create_text
+_original_canvas_rectangle = _ORIGINAL_CANVAS.create_rectangle
+
+
 def _has_persian(text):
     return any("\u0600" <= ch <= "\u06ff" for ch in str(text or ""))
+
 
 def _font_exists(family):
     try:
         return family.lower() in {f.lower() for f in tkfont.families()}
     except tk.TclError:
         return False
+
 
 def _choose_font(text, requested):
     size, weight = 10, "normal"
@@ -46,10 +66,12 @@ def _choose_font(text, requested):
         family = "Georgia"
     return (family, size, weight)
 
+
 def _map_color(value):
     if isinstance(value, str):
         return PALETTE.get(value.lower(), value)
     return value
+
 
 def _patch_kwargs(kwargs):
     for key in (
@@ -69,28 +91,21 @@ def _patch_kwargs(kwargs):
         kwargs.setdefault("cursor", "hand2")
     return kwargs
 
+
 def _wrap_widget(cls, name):
     def factory(*args, **kwargs):
         if name == "Button":
             kwargs["_tpp_control"] = "button"
         return cls(*args, **_patch_kwargs(kwargs))
+    factory.__name__ = name
     return factory
 
-for _name in (
-    "Frame", "Label", "Button", "Entry", "Text", "Canvas",
-    "Checkbutton", "Radiobutton", "Listbox", "Scale",
-):
-    if hasattr(tk, _name):
-        setattr(tk, _name, _wrap_widget(getattr(tk, _name), _name))
-
-_original_canvas_line = tk.Canvas.create_line
-_original_canvas_text = tk.Canvas.create_text
-_original_canvas_rectangle = tk.Canvas.create_rectangle
 
 def _canvas_line(self, *args, **kwargs):
     if "fill" in kwargs:
         kwargs["fill"] = _map_color(kwargs["fill"])
     return _original_canvas_line(self, *args, **kwargs)
+
 
 def _canvas_text(self, *args, **kwargs):
     if "fill" in kwargs:
@@ -99,18 +114,25 @@ def _canvas_text(self, *args, **kwargs):
         kwargs["font"] = _choose_font(kwargs.get("text", ""), kwargs["font"])
     return _original_canvas_text(self, *args, **kwargs)
 
+
 def _canvas_rectangle(self, *args, **kwargs):
     for key in ("fill", "outline"):
         if key in kwargs:
             kwargs[key] = _map_color(kwargs[key])
     return _original_canvas_rectangle(self, *args, **kwargs)
 
-tk.Canvas.create_line = _canvas_line
-tk.Canvas.create_text = _canvas_text
-tk.Canvas.create_rectangle = _canvas_rectangle
+
+# Patch methods on the real Canvas class, then expose wrapped widget constructors.
+_ORIGINAL_CANVAS.create_line = _canvas_line
+_ORIGINAL_CANVAS.create_text = _canvas_text
+_ORIGINAL_CANVAS.create_rectangle = _canvas_rectangle
+
+for _name, _cls in _ORIGINAL_CLASSES.items():
+    setattr(tk, _name, _wrap_widget(_cls, _name))
 
 _original_style_configure = ttk.Style.configure
 _original_style_map = ttk.Style.map
+
 
 def _style_configure(self, tag, *args, **kwargs):
     _patch_kwargs(kwargs)
@@ -120,11 +142,13 @@ def _style_configure(self, tag, *args, **kwargs):
         kwargs.setdefault("headingfont", _choose_font("", (ENGLISH_FONT, 10, "bold")))
     return _original_style_configure(self, tag, *args, **kwargs)
 
+
 def _style_map(self, tag, *args, **kwargs):
     for state in ("background", "foreground", "fieldbackground"):
         if state in kwargs and isinstance(kwargs[state], list):
             kwargs[state] = [(s, _map_color(v)) for s, v in kwargs[state]]
     return _original_style_map(self, tag, *args, **kwargs)
+
 
 ttk.Style.configure = _style_configure
 ttk.Style.map = _style_map
