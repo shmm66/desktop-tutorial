@@ -38,7 +38,7 @@ jobs:
       - name: Install runtime/build dependencies
         run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
       - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro_v5.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --add-data "TraderPlannerPro_v4.py;." TraderPlannerPro_v5.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
