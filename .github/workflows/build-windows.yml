@@ -1,22 +1,41 @@
-name: Build Windows EXE + Installer
+name: CI + Windows EXE + Installer
+
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
-  build:
+  quality:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
-        run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
+      - name: Install test/build dependencies
+        run: python -m pip install --upgrade pip pytest pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
       - name: Syntax check
         run: |
           python -m py_compile TraderPlannerPro_v3.py
           python -m py_compile TraderPlannerPro_v4.py
+          python -m py_compile tests/test_smoke.py
+      - name: Run tests
+        run: python -m pytest -q
+
+  package:
+    needs: quality
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime/build dependencies
+        run: python -m pip install --upgrade pip pyinstaller reportlab openpyxl google-api-python-client google-auth google-auth-oauthlib tzdata
       - name: Build EXE
         run: pyinstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro TraderPlannerPro_v4.py
       - name: Build installer
@@ -24,19 +43,19 @@ jobs:
         with:
           path: TraderPlannerPro.iss
           options: /O+
-      - name: Verify installer exists
+      - name: Verify installer
         shell: powershell
         run: |
-          $p = Join-Path $PWD 'installer\TraderPlannerPro_Setup_v3.exe'
-          if (!(Test-Path $p)) { Write-Host 'Installer files:'; Get-ChildItem -Recurse installer -ErrorAction SilentlyContinue; throw "Installer not found: $p" }
-          Get-Item $p | Format-List FullName,Length
+          $candidates = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Select-Object -First 1
+          if (-not $candidates) { Get-ChildItem -Recurse; throw 'Installer EXE was not produced.' }
+          $candidates | Format-List FullName,Length
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-Windows11-EXE-v4
+          name: TraderPlannerPro-Windows11-EXE
           path: dist/TraderPlannerPro.exe
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-Windows11-Installer-v4
-          path: installer/TraderPlannerPro_Setup_v3.exe
+          name: TraderPlannerPro-Windows11-Installer
+          path: '**/*Setup*.exe'
