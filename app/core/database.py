@@ -77,10 +77,17 @@ def connect(path: Path) -> sqlite3.Connection:
 
 
 def initialize(path: Path) -> None:
-    with connect(path) as conn:
+    # sqlite3.Connection.__exit__ commits/rolls back but does not close the
+    # connection. Explicitly close it so callers can safely remove the DB on
+    # Windows, where an open handle prevents unlinking the file.
+    conn = connect(path)
+    try:
         conn.executescript(SCHEMA)
         conn.execute(
             "INSERT INTO app_meta(key, value) VALUES('schema_version', ?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (str(SCHEMA_VERSION),),
         )
+        conn.commit()
+    finally:
+        conn.close()
