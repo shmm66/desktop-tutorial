@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Install test/build dependencies
         run: python -m pip install --upgrade pip pytest pyinstaller pillow
       - name: Syntax check
@@ -39,10 +39,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Install build dependencies
         run: python -m pip install --upgrade pip pyinstaller pillow
-      - name: Build EXE from V7.0.3 launcher
+      - name: Build EXE
         run: >-
           pyinstaller --noconfirm --clean --onefile --windowed
           --name TraderPlannerPro
@@ -66,7 +66,7 @@ jobs:
         run: |
           $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
           if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
-          if ((Get-Item $exe).Length -lt 1000000) { throw 'EXE is unexpectedly small.' }
+          if ((Get-Item $exe).Length -lt 1000000) { throw "EXE is unexpectedly small." }
       - name: Launch EXE smoke test
         shell: powershell
         run: |
@@ -80,11 +80,11 @@ jobs:
         with:
           path: TraderPlannerPro.iss
           options: /O+
-      - name: Installer install-launch-uninstall smoke test
+      - name: Installer smoke test
         shell: powershell
         run: |
           $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $installer) { throw 'Installer EXE was not produced.' }
+          if (-not $installer) { throw "Installer EXE was not produced." }
           $testRoot = Join-Path $env:TEMP 'TraderPlannerPro-CI-Test'
           if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Path $testRoot | Out-Null
@@ -92,43 +92,33 @@ jobs:
           $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$installDir") -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer failed with exit code $($install.ExitCode)" }
           $installedExe = Join-Path $installDir 'TraderPlannerPro.exe'
-          if (-not (Test-Path $installedExe)) { throw "Installed EXE not found: $installedExe" }
+          if (-not (Test-Path $installedExe)) { throw "Installed EXE not found." }
           $p = Start-Process -FilePath $installedExe -PassThru
           Start-Sleep -Seconds 8
-          if ($p.HasExited) { throw "Installed EXE exited during startup with code $($p.ExitCode)" }
+          if ($p.HasExited) { throw "Installed EXE exited during startup." }
           Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           $uninstaller = Join-Path $installDir 'unins000.exe'
-          if (-not (Test-Path $uninstaller)) { throw "Uninstaller not found: $uninstaller" }
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller not found." }
           $un = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
-          Start-Sleep -Seconds 2
-          if (Test-Path $installedExe) { throw 'Installed EXE still exists after uninstall.' }
-          Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue
-      - name: Publish V7.0.3 release assets
-        if: github.ref == 'refs/heads/feature/trader-planner-pro-7-0-3-profiles-dashboard'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: powershell
-        run: |
-          $releaseTag = 'v7.0.3'
-          $title = 'Trader Planner Pro V7.0.3'
-          $notes = @'
-## Trader Planner Pro V7.0.3
+          if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-Patch release with:
-- visible 3D logo branding
-- customizable and reorderable Checklist
-- Trading Plan versioning and A4 PNG export
-- independent journal profiles with separate initial capital
-- home dashboard bar/pie analytics
-- migration of existing V7.0.2 local data without deleting the previous data file
-- Windows installer upgrade path using the existing AppId
-'@
-          gh release view $releaseTag *> $null
-          if ($LASTEXITCODE -ne 0) {
-            Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
-            gh release create $releaseTag --target $env:GITHUB_SHA --title $title --notes-file release-notes.md
-          }
-          $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $installer) { throw 'Installer asset not found for release upload.' }
-          gh release upload $releaseTag (Join-Path $PWD 'dist\TraderPlannerPro.exe') $installer.FullName --clobber
+      - name: Publish V7.0.3 Release
+        if: github.ref == 'refs/heads/feature/trader-planner-pro-7-0-3-profiles-dashboard'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v7.0.3
+          name: Trader Planner Pro V7.0.3
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: false
+          body: |
+            ## Trader Planner Pro V7.0.3
+
+            Windows patch release.
+            Includes the 3D logo, customizable Checklist, versioned Trading Plan with A4 export, independent journal profiles, and dashboard charts.
+
+          files: |
+            dist/TraderPlannerPro.exe
+            installer/TraderPlannerPro_Setup_v7.0.3.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
