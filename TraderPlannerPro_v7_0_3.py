@@ -1,0 +1,798 @@
+from __future__ import annotations
+
+import csv
+import json
+import os
+import re
+import shutil
+import sys
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from uuid import uuid4
+
+import tkinter as tk
+from tkinter import filedialog, messagebox, simpledialog, ttk
+
+from logo_3d import create_logo_image
+
+APP = "Trader Planner Pro"
+VERSION = "7.0.3"
+ROOT = Path.home() / "TraderPlannerPro"
+DATA = ROOT / "data.json"
+SCREENSHOTS = ROOT / "Screenshots"
+REPORTS = ROOT / "TradingPlans"
+
+PLAN_FIELDS = [
+    "نام استراتژی", "نسخه استراتژی", "بازارهای مجاز", "تایم‌فریم‌های اصلی",
+    "ستاپ‌های مجاز", "شرایط ورود", "شرایط عدم ورود", "حداکثر ریسک هر معامله (%)",
+    "حداکثر ضرر روزانه (%)", "حداکثر معاملات روزانه", "قانون خروج",
+    "قانون توقف بعد از باخت", "قوانین روانشناسی", "اهداف ماهانه",
+]
+LEGACY_PLAN_FIELDS = [
+    "بازارهای مجاز", "تایم‌فریم‌های اصلی", "ستاپ‌های مجاز", "شرایط ورود",
+    "شرایط عدم ورود", "حداکثر ریسک هر معامله (%)", "حداکثر ضرر روزانه (%)",
+    "حداکثر معاملات روزانه", "قانون خروج", "قانون توقف بعد از باخت",
+    "قوانین روانشناسی", "اهداف ماهانه",
+]
+DEFAULT_CHECKLIST = [
+    ("جهت و ساختار بازار مشخص است", "Market Structure"),
+    ("نقدینگی و ناحیه مهم مشخص است", "Liquidity"),
+    ("ستاپ مطابق Trading Plan است", "Trading Plan"),
+    ("تریگر ورود تایید شده است", "Entry Model"),
+    ("ریسک و حجم محاسبه شده", "Risk"),
+    ("حد ضرر قبل از ورود مشخص است", "Risk"),
+    ("R:R قابل قبول است", "Risk"),
+    ("خبر مهم بررسی شده است", "News"),
+    ("حالت روانی مناسب است", "Psychology"),
+    ("FOMO / Revenge ندارم", "Psychology"),
+    ("بعد از ورود قانون را تغییر نمی‌دهم", "Discipline"),
+]
+FIELDS = [
+    "Date","Symbol","Direction","Session","Timeframe","Entry","Stop Loss","Take Profit",
+    "Position Size","Risk %","Risk $","R:R","Setup","Market Structure","Liquidity",
+    "Entry Model","Emotion Before","Emotion During","Emotion After","Mistake",
+    "Result","Result (R)","P&L","Lesson","Notes","Screenshot",
+]
+
+C = {
+    "bg": "#0A1018", "panel": "#111A26", "panel2": "#172230", "soft": "#1D2B3A",
+    "text": "#EAF2F7", "muted": "#90A3B3", "accent": "#27D3B0", "gold": "#F2C46D",
+    "danger": "#FF6F7D", "line": "#27384A", "blue": "#63A7FF",
+}
+
+TASKS = [
+    ("07:00","بیداری + آب + نور صبح","سلامت"),("07:15","صبحانه","غذا"),
+    ("07:45","ورزش / پیاده‌روی صبح 30–45 دقیقه","ورزش"),("08:35","دوش + آماده‌سازی میز","روتین"),
+    ("09:00","MARK UP — ساختار، روند، نقدینگی و نواحی","MARK UP"),
+    ("10:45","استراحت 15 دقیقه","استراحت"),("11:00","MARK UP — سناریوی A/B و نقاط ابطال","MARK UP"),
+    ("12:30","ثبت سناریو + بررسی خبرها","تحلیل"),("13:00","پایان MARK UP + بستن چارت","پایان"),
+    ("14:30","مرور پلن + آماده‌سازی سشن","آماده‌سازی"),("15:30","TRADING — فقط ستاپ‌های مجاز","TRADING"),
+    ("17:10","TRADING — ادامه سشن","TRADING"),("19:00","پایان قطعی ترید","پایان"),
+    ("21:00","ژورنال + اسکرین‌شات + درس روز","ژورنال"),("21:40","مطالعه / بک‌تست سبک","یادگیری"),
+    ("22:30","خاموشی صفحه‌نمایش","خواب"),("23:30","خواب","خواب"),
+]
+
+def default_checklist():
+    return [
+        {"id": str(uuid4()), "title": title, "category": category, "required": True, "done": False, "source": "default"}
+        for title, category in DEFAULT_CHECKLIST
+    ]
+
+def empty_profile(name="Main Profile", market="Crypto", currency="USD", initial_balance=0.0):
+    return {
+        "id": str(uuid4()), "name": name, "market": market, "currency": currency,
+        "initial_balance": float(initial_balance or 0), "created_at": datetime.now().isoformat(timespec="seconds"),
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+        "journals": {"Forex": [], "Crypto": []},
+        "plans": [], "active_plan_id": None, "plan_draft": {k: "" for k in PLAN_FIELDS},
+        "checklist": default_checklist(),
+    }
+
+def empty_db():
+    today = date.today()
+    tasks = {}
+    for offset in range(-30, 180):
+        day = (today + timedelta(days=offset)).isoformat()
+        tasks[day] = [
+            {"id": f"{day}-{i}", "time": t, "title": title, "cat": cat, "done": False}
+            for i, (t, title, cat) in enumerate(TASKS)
+        ]
+    p = empty_profile()
+    return {"version": 703, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks}
+
+def numeric(value):
+    try:
+        return float(str(value).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return 0.0
+
+def migrate_payload(old):
+    base = empty_db()
+    if not isinstance(old, dict):
+        return base
+    # Preserve legacy daily planner.
+    if isinstance(old.get("tasks"), dict):
+        base["tasks"] = old["tasks"]
+    if isinstance(old.get("profiles"), list) and old["profiles"]:
+        base["profiles"] = old["profiles"]
+        active = old.get("active_profile_id") or base["profiles"][0].get("id")
+        base["active_profile_id"] = active
+        for p in base["profiles"]:
+            p.setdefault("id", str(uuid4()))
+            p.setdefault("name", "Profile")
+            p.setdefault("market", "Crypto")
+            p.setdefault("currency", "USD")
+            p.setdefault("initial_balance", 0.0)
+            p.setdefault("journals", {"Forex": [], "Crypto": []})
+            p["journals"].setdefault("Forex", []); p["journals"].setdefault("Crypto", [])
+            p.setdefault("plans", [])
+            p.setdefault("active_plan_id", None)
+            p.setdefault("plan_draft", {k: "" for k in PLAN_FIELDS})
+            p.setdefault("checklist", default_checklist())
+            for item in p["checklist"]:
+                item.setdefault("id", str(uuid4())); item.setdefault("done", False)
+        base["version"] = 703
+        return base
+    # V7.0.2 -> profile migration without data loss.
+    legacy_profile = old.get("profile") if isinstance(old.get("profile"), dict) else {}
+    p = empty_profile(
+        legacy_profile.get("name") or "Main Profile",
+        old.get("market") if old.get("market") in ("Forex", "Crypto") else "Crypto",
+        legacy_profile.get("account_currency") or "USD",
+        numeric(legacy_profile.get("starting_balance")),
+    )
+    journals = old.get("journals") if isinstance(old.get("journals"), dict) else {}
+    p["journals"]["Forex"] = list(journals.get("Forex") or [])
+    p["journals"]["Crypto"] = list(journals.get("Crypto") or [])
+    legacy_plan = old.get("plan") if isinstance(old.get("plan"), dict) else {}
+    for k in LEGACY_PLAN_FIELDS:
+        p["plan_draft"][k] = str(legacy_plan.get(k, ""))
+    p["plan_draft"]["نام استراتژی"] = "Migrated Trading Plan"
+    if any(v.strip() for v in p["plan_draft"].values()):
+        p["plans"].append({
+            "id": str(uuid4()), "title": "Migrated Trading Plan",
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "fields": dict(p["plan_draft"]),
+        })
+        p["active_plan_id"] = p["plans"][-1]["id"]
+    legacy_check = old.get("check") if isinstance(old.get("check"), dict) else {}
+    if legacy_check:
+        p["checklist"] = [
+            {"id": str(uuid4()), "title": str(k), "category": "Migrated",
+             "required": True, "done": bool(v), "source": "v7.0.2"}
+            for k, v in legacy_check.items()
+        ]
+    base["profiles"] = [p]
+    base["active_profile_id"] = p["id"]
+    base["version"] = 703
+    return base
+
+def load_db(path=DATA):
+    try:
+        old = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        old = None
+    return migrate_payload(old)
+
+DB = load_db()
+
+def save_db(path=DATA):
+    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(DB, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+def active_profile():
+    pid = DB.get("active_profile_id")
+    for p in DB["profiles"]:
+        if p.get("id") == pid:
+            return p
+    DB["active_profile_id"] = DB["profiles"][0]["id"]
+    return DB["profiles"][0]
+
+def safe(value):
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", str(value)).strip("_") or "Unknown"
+
+def screenshot_folder(row, root=SCREENSHOTS, market=None):
+    day = safe((row or {}).get("Date") or date.today().isoformat())
+    market = safe(market or active_profile().get("market", "Crypto"))
+    symbol = safe((row or {}).get("Symbol") or "Unknown")
+    folder = Path(root) / safe(active_profile().get("id")) / day / market / symbol
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+def attach_screenshot(row, source, root=SCREENSHOTS, market=None):
+    source = Path(source)
+    if not source.is_file():
+        return ""
+    folder = screenshot_folder(row, root, market)
+    stamp = datetime.now().strftime("%H%M%S")
+    ext = source.suffix.lower() or ".png"
+    target = folder / f"{safe(row.get('Date'))}_{safe(row.get('Symbol'))}_{safe(row.get('Direction',''))}_{stamp}{ext}"
+    shutil.copy2(source, target)
+    return str(target)
+
+def upsert_trade(profile, market, row, index=None):
+    row = {key: str(row.get(key, "")) for key in FIELDS}
+    row["Date"] = row["Date"] or date.today().isoformat()
+    if not row["Symbol"].strip():
+        raise ValueError("Symbol is required")
+    rows = profile["journals"].setdefault(market, [])
+    if index is None:
+        rows.append(row)
+    else:
+        if not 0 <= index < len(rows):
+            raise IndexError(index)
+        rows[index] = row
+    profile["updated_at"] = datetime.now().isoformat(timespec="seconds")
+
+def result_num(row):
+    return numeric(row.get("Result (R)", 0))
+
+def find_font():
+    candidates = [
+        r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\segoeuib.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for item in candidates:
+        if Path(item).exists():
+            return item
+    return None
+
+def export_plan_a4(profile, title, fields):
+    from PIL import Image, ImageDraw, ImageFont
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    path = REPORTS / f"{safe(profile['name'])}_{safe(title)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    W, H = 2480, 3508
+    img = Image.new("RGB", (W, H), "#0A1018")
+    draw = ImageDraw.Draw(img)
+    font_path = find_font()
+    try:
+        f_title = ImageFont.truetype(font_path, 68) if font_path else ImageFont.load_default()
+        f_head = ImageFont.truetype(font_path, 34) if font_path else ImageFont.load_default()
+        f_body = ImageFont.truetype(font_path, 28) if font_path else ImageFont.load_default()
+        f_small = ImageFont.truetype(font_path, 22) if font_path else ImageFont.load_default()
+    except OSError:
+        f_title = f_head = f_body = f_small = ImageFont.load_default()
+    def rtl(text, xy, font, fill):
+        try:
+            draw.text(xy, text, font=font, fill=fill, anchor="ra", direction="rtl")
+        except TypeError:
+            draw.text(xy, text, font=font, fill=fill, anchor="ra")
+    draw.rounded_rectangle((70, 70, W-70, H-70), radius=48, fill="#111A26", outline="#27D3B0", width=4)
+    draw.rounded_rectangle((110, 110, W-110, 400), radius=38, fill="#172230")
+    rtl("TRADER PLANNER PRO", (W-170, 185), f_title, "#27D3B0")
+    rtl(title, (W-170, 275), f_head, "#F2C46D")
+    rtl(f"پروفایل: {profile['name']}  |  بازار: {profile['market']}  |  سرمایه اولیه: {profile['initial_balance']:,.2f} {profile['currency']}",
+        (W-170, 350), f_small, "#EAF2F7")
+    y = 480
+    for key in PLAN_FIELDS:
+        value = str(fields.get(key, "")).strip() or "—"
+        draw.rounded_rectangle((140, y, W-140, y+150), radius=24, fill="#172230", outline="#27384A", width=2)
+        rtl(key, (W-190, y+38), f_head, "#27D3B0")
+        text = value if len(value) <= 95 else value[:92] + "…"
+        rtl(text, (W-190, y+105), f_body, "#EAF2F7")
+        y += 175
+        if y > H-250:
+            break
+    rtl(f"Exported {datetime.now().strftime('%Y-%m-%d %H:%M')}", (W-170, H-115), f_small, "#90A3B3")
+    img.save(path, "PNG", optimize=True)
+    return path
+
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title(f"{APP} V{VERSION}")
+        self.geometry("1520x960"); self.minsize(1180, 760); self.configure(bg=C["bg"])
+        self.cur = "home"; self.day = date.today().isoformat(); self.market = active_profile().get("market", "Crypto")
+        self.menu_open = False
+        self.style = ttk.Style(self)
+        self.style.theme_use("clam")
+        self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
+                             rowheight=38, borderwidth=0, font=("Segoe UI", 10))
+        self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
+        self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
+        self._logo_photo = None
+        self.build_shell()
+        self.show("home")
+        self.after(500, self.clock)
+
+    def build_shell(self):
+        top = tk.Frame(self, bg=C["bg"]); top.pack(fill="x", padx=18, pady=14)
+        tk.Button(top, text="☰", command=self.toggle_menu, bg=C["panel2"], fg=C["text"], relief="flat",
+                  font=("Segoe UI", 18, "bold"), width=3).pack(side="left")
+        try:
+            logo_path = create_logo_image(Path(tempfile_path()), 260)
+            from PIL import Image, ImageTk
+            self._logo_photo = ImageTk.PhotoImage(Image.open(logo_path).convert("RGBA").resize((62,62)))
+            tk.Label(top, image=self._logo_photo, bg=C["bg"]).pack(side="left", padx=(12,4))
+        except Exception:
+            pass
+        brand = tk.Frame(top, bg=C["bg"]); brand.pack(side="left")
+        tk.Label(brand, text=APP, bg=C["bg"], fg=C["text"], font=("Segoe UI", 21, "bold")).pack(anchor="w")
+        tk.Label(brand, text="PRO TRADING WORKSPACE", bg=C["bg"], fg=C["accent"], font=("Segoe UI", 8, "bold")).pack(anchor="w")
+        self.clock_label = tk.Label(top, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 10, "bold")); self.clock_label.pack(side="right")
+        self.profile_combo = ttk.Combobox(top, state="readonly", width=22, justify="right")
+        self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
+        self.profile_combo.pack(side="right", padx=10)
+        self.market_btn = tk.Button(top, text=self.market, command=self.change_market, bg=C["soft"], fg=C["text"],
+                                    relief="flat", font=("Segoe UI", 10, "bold"), padx=14, pady=8)
+        self.market_btn.pack(side="right", padx=6)
+        self.refresh_profile_selector()
+        self.content = tk.Frame(self, bg=C["bg"]); self.content.pack(fill="both", expand=True, padx=16)
+        self.menu = tk.Frame(self, bg=C["panel"], width=300, highlightbackground=C["line"], highlightthickness=1)
+        self.menu.place(x=-310, y=0, relheight=1)
+        tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"], font=("Segoe UI", 17, "bold")).pack(anchor="w", padx=22, pady=24)
+        for text, key in [
+            ("⌂  Home","home"),("◫  برنامه روزانه","daily"),("◈  Trading Plan","plan"),
+            ("✓  Checklist","check"),("▣  Journal","journal"),("⚙  تنظیمات","settings")
+        ]:
+            tk.Button(self.menu, text=text, command=lambda k=key:self.go(k), anchor="w",
+                      bg=C["panel"], fg=C["text"], activebackground=C["soft"], relief="flat",
+                      font=("Segoe UI",11), padx=22, pady=11).pack(fill="x")
+
+    def refresh_profile_selector(self):
+        names = [p.get("name", "Profile") for p in DB["profiles"]]
+        self.profile_combo["values"] = names
+        p = active_profile()
+        try: self.profile_combo.current(names.index(p["name"]))
+        except ValueError: self.profile_combo.current(0)
+
+    def on_profile_change(self, _=None):
+        idx = self.profile_combo.current()
+        if idx < 0: return
+        DB["active_profile_id"] = DB["profiles"][idx]["id"]
+        self.market = active_profile().get("market", "Crypto")
+        self.market_btn.config(text=self.market)
+        save_db(); self.show(self.cur)
+
+    def toggle_menu(self):
+        self.menu.place_configure(x=0 if not self.menu_open else -310); self.menu_open = not self.menu_open
+
+    def go(self, key):
+        if self.menu_open: self.toggle_menu()
+        self.show(key)
+
+    def show(self, key):
+        self.cur = key
+        for widget in self.content.winfo_children(): widget.destroy()
+        getattr(self, key)()
+
+    def clock(self):
+        self.clock_label.config(text=datetime.now().strftime("%Y-%m-%d  |  %H:%M:%S"))
+        self.after(500, self.clock)
+
+    def heading(self, title, sub=""):
+        tk.Label(self.content, text=title, bg=C["bg"], fg=C["text"], font=("Segoe UI",22,"bold")).pack(anchor="e", pady=(8,2))
+        if sub: tk.Label(self.content, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI",10)).pack(anchor="e", pady=(0,10))
+
+    def card(self, parent, padx=1):
+        return tk.Frame(parent, bg=C["panel"], highlightbackground=C["line"], highlightthickness=padx)
+
+    def btn(self, parent, text, cmd, primary=False, **kw):
+        return tk.Button(parent, text=text, command=cmd, bg=C["accent"] if primary else C["soft"],
+                         fg="#061019" if primary else C["text"], activebackground=C["gold"], relief="flat",
+                         font=("Segoe UI",10,"bold"), padx=13, pady=8, **kw)
+
+    def profile_panel(self, parent):
+        box = self.card(parent); box.pack(fill="x", pady=8)
+        left = tk.Frame(box, bg=C["panel"]); left.pack(side="left", fill="x", expand=True, padx=14, pady=12)
+        self.btn(left, "＋ پروفایل جدید", self.add_profile, True).pack(side="left", padx=3)
+        self.btn(left, "ویرایش پروفایل", self.edit_profile).pack(side="left", padx=3)
+        self.btn(left, "حذف پروفایل", self.delete_profile).pack(side="left", padx=3)
+        p = active_profile()
+        tk.Label(box, text=f"پروفایل فعال: {p['name']}   |   سرمایه اولیه: {p['initial_balance']:,.2f} {p['currency']}",
+                 bg=C["panel"], fg=C["gold"], font=("Segoe UI",11,"bold")).pack(side="right", padx=14, pady=12)
+
+    def add_profile(self):
+        self.profile_dialog()
+
+    def edit_profile(self):
+        self.profile_dialog(active_profile())
+
+    def profile_dialog(self, profile=None):
+        dlg=tk.Toplevel(self); dlg.title("پروفایل ژورنال"); dlg.geometry("520x360"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        vals = {
+            "name": tk.StringVar(value=(profile or {}).get("name","")),
+            "market": tk.StringVar(value=(profile or {}).get("market","Crypto")),
+            "currency": tk.StringVar(value=(profile or {}).get("currency","USD")),
+            "initial": tk.StringVar(value=str((profile or {}).get("initial_balance",0))),
+        }
+        labels=[("نام پروفایل","name"),("بازار پیش‌فرض","market"),("ارز سرمایه","currency"),("سرمایه اولیه","initial")]
+        for i,(label,key) in enumerate(labels):
+            tk.Label(dlg,text=label,bg=C["bg"],fg=C["muted"]).grid(row=i,column=1,padx=16,pady=12,sticky="e")
+            if key=="market":
+                w=ttk.Combobox(dlg,textvariable=vals[key],values=["Crypto","Forex"],state="readonly",justify="right")
+            else:
+                w=tk.Entry(dlg,textvariable=vals[key],bg=C["soft"],fg=C["text"],relief="flat",justify="right")
+            w.grid(row=i,column=0,padx=16,pady=12,sticky="ew")
+        dlg.columnconfigure(0, weight=1)
+        def submit():
+            name=vals["name"].get().strip() or "Profile"
+            initial=numeric(vals["initial"].get())
+            if profile:
+                profile.update(name=name,market=vals["market"].get(),currency=vals["currency"].get().strip() or "USD",initial_balance=initial)
+            else:
+                p=empty_profile(name,vals["market"].get(),vals["currency"].get().strip() or "USD",initial)
+                DB["profiles"].append(p); DB["active_profile_id"]=p["id"]
+            save_db(); dlg.destroy(); self.market=active_profile()["market"]; self.market_btn.config(text=self.market); self.refresh_profile_selector(); self.show(self.cur)
+        self.btn(dlg,"ذخیره پروفایل",submit,True).grid(row=5,column=0,padx=16,pady=16,sticky="e")
+        self.btn(dlg,"انصراف",dlg.destroy).grid(row=5,column=1,padx=16,pady=16,sticky="w")
+
+    def delete_profile(self):
+        if len(DB["profiles"]) <= 1:
+            return messagebox.showinfo("پروفایل","حداقل یک پروفایل باید باقی بماند.",parent=self)
+        p=active_profile()
+        if messagebox.askyesno("حذف پروفایل",f"پروفایل «{p['name']}» و ژورنال آن حذف شود؟",parent=self):
+            DB["profiles"]=[x for x in DB["profiles"] if x["id"]!=p["id"]]
+            DB["active_profile_id"]=DB["profiles"][0]["id"]; save_db()
+            self.market=active_profile()["market"]; self.refresh_profile_selector(); self.show("home")
+
+    def change_market(self):
+        p=active_profile(); p["market"]="Forex" if p.get("market")=="Crypto" else "Crypto"
+        self.market=p["market"]; self.market_btn.config(text=self.market); p["updated_at"]=datetime.now().isoformat(timespec="seconds")
+        save_db(); self.show(self.cur)
+
+    def home(self):
+        p=active_profile(); self.market=p.get("market","Crypto")
+        self.heading("داشبورد حرفه‌ای", "پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه")
+        self.profile_panel(self.content)
+        hero=tk.Frame(self.content,bg=C["bg"]); hero.pack(fill="x", pady=6)
+        for title,value,accent in [
+            ("تعداد معاملات", len(p["journals"][self.market]), C["text"]),
+            ("Win Rate", f"{self.win_rate(p['journals'][self.market]):.1f}%", C["accent"]),
+            ("Net R", f"{sum(result_num(x) for x in p['journals'][self.market]):.2f} R", C["gold"]),
+            ("سرمایه اولیه", f"{p['initial_balance']:,.2f} {p['currency']}", C["text"]),
+        ]:
+            box=self.card(hero); box.pack(side="left",fill="both",expand=True,padx=4)
+            tk.Label(box,text=title,bg=C["panel"],fg=C["muted"]).pack(anchor="w",padx=16,pady=(14,2))
+            tk.Label(box,text=value,bg=C["panel"],fg=accent,font=("Segoe UI",18,"bold")).pack(anchor="w",padx=16,pady=(0,14))
+        lower=tk.Frame(self.content,bg=C["bg"]); lower.pack(fill="both",expand=True,pady=12)
+        left=self.card(lower); left.pack(side="left",fill="both",expand=True,padx=4)
+        right=self.card(lower); right.pack(side="left",fill="both",expand=True,padx=4)
+        tk.Label(left,text="نمودار عملکرد معاملات",bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=15,pady=10)
+        self.draw_bar_chart(left,p["journals"][self.market])
+        tk.Label(right,text="توزیع نتایج ژورنال",bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=15,pady=10)
+        self.draw_pie_chart(right,p["journals"][self.market])
+        self.btn(self.content,"＋ ثبت معامله جدید",self.add_trade,True).pack(anchor="e",padx=6,pady=8)
+
+    def win_rate(self, rows):
+        if not rows: return 0.0
+        wins=sum(1 for r in rows if result_num(r)>0)
+        return wins/len(rows)*100.0
+
+    def draw_bar_chart(self, parent, rows):
+        c=tk.Canvas(parent,bg=C["panel"],highlightthickness=0,height=270); c.pack(fill="x",padx=10,pady=6)
+        vals=[result_num(r) for r in rows[-12:]] or [0]; lo=min(vals); hi=max(vals,1); span=max(hi-lo,1)
+        w=max(480,parent.winfo_width() or 700); h=240; pad=35; bw=max(18,(w-2*pad)/max(len(vals),1)-12)
+        c.create_line(pad,h//2,w-pad,h//2,fill=C["line"])
+        for i,v in enumerate(vals):
+            x1=pad+i*(bw+12); x2=x1+bw; y0=h//2; y1=y0-(v/span)*(h*.34)
+            color=C["accent"] if v>=0 else C["danger"]
+            c.create_rectangle(x1,min(y0,y1),x2,max(y0,y1),fill=color,outline="")
+            c.create_text((x1+x2)/2,h-15,text=str(len(rows)-len(vals)+i+1),fill=C["muted"],font=("Segoe UI",8))
+        c.create_text(w-8,12,text="آخرین معاملات | R",anchor="ne",fill=C["muted"],font=("Segoe UI",8))
+
+    def draw_pie_chart(self,parent,rows):
+        c=tk.Canvas(parent,bg=C["panel"],highlightthickness=0,height=270); c.pack(fill="x",padx=10,pady=6)
+        wins=sum(1 for r in rows if result_num(r)>0); losses=sum(1 for r in rows if result_num(r)<0); be=max(len(rows)-wins-losses,0)
+        counts=[wins,losses,be]; total=sum(counts)
+        if total==0:
+            c.create_text(340,120,text="هنوز داده‌ای برای نمودار نیست",fill=C["muted"],font=("Segoe UI",11)); return
+        colors=[C["accent"],C["danger"],C["gold"]]; labels=["برد","باخت","خنثی"]
+        start=0
+        box=(120,30,340,250)
+        for count,color,label in zip(counts,colors,labels):
+            extent=360*count/total
+            if count: c.create_arc(*box,start=start,extent=extent,fill=color,outline=C["panel"])
+            start += extent
+        y=60
+        for count,color,label in zip(counts,colors,labels):
+            c.create_rectangle(390,y,408,y+18,fill=color,outline=""); c.create_text(420,y+9,text=f"{label}: {count}",anchor="w",fill=C["text"],font=("Segoe UI",10))
+            y+=34
+
+    def daily(self):
+        self.heading("برنامه روزانه","قابل ویرایش، قابل تیک‌زدن و ذخیره روی همان مسیر داده قبلی")
+        nav=tk.Frame(self.content,bg=C["bg"]); nav.pack(fill="x",pady=4)
+        self.btn(nav,"روز قبل",lambda:self.shift_day(-1)).pack(side="left")
+        tk.Label(nav,text=self.day,bg=C["bg"],fg=C["text"],font=("Segoe UI",12,"bold")).pack(side="left",padx=15)
+        self.btn(nav,"روز بعد",lambda:self.shift_day(1)).pack(side="left")
+        self.btn(nav,"＋ فعالیت جدید",self.add_task,True).pack(side="right",padx=3)
+        self.btn(nav,"ویرایش",self.edit_task).pack(side="right",padx=3); self.btn(nav,"حذف",self.delete_task).pack(side="right",padx=3)
+        tasks=DB["tasks"].setdefault(self.day,[])
+        wrap=tk.Frame(self.content,bg=C["bg"]); wrap.pack(fill="both",expand=True,pady=10)
+        self.task_tree=ttk.Treeview(wrap,columns=("done","time","title","cat"),show="headings",selectmode="browse")
+        for col,txt in [("done","✓"),("time","زمان"),("title","فعالیت"),("cat","دسته")]: self.task_tree.heading(col,text=txt)
+        self.task_tree.column("done",width=55,anchor="center"); self.task_tree.column("time",width=100,anchor="center")
+        self.task_tree.column("cat",width=160,anchor="e"); self.task_tree.column("title",anchor="e")
+        for i,item in enumerate(tasks):
+            self.task_tree.insert("", "end", iid=str(i), values=("☑" if item.get("done") else "☐",item.get("time",""),item.get("title",""),item.get("cat","")))
+        self.task_tree.pack(side="left",fill="both",expand=True)
+        ttk.Scrollbar(wrap,orient="vertical",command=self.task_tree.yview).pack(side="right",fill="y")
+        self.task_tree.bind("<Double-1>",lambda e:self.toggle_selected_task())
+
+    def toggle_selected_task(self):
+        sel=self.task_tree.selection()
+        if not sel:return
+        idx=int(sel[0]); DB["tasks"][self.day][idx]["done"]=not bool(DB["tasks"][self.day][idx].get("done")); save_db(); self.show("daily")
+
+    def shift_day(self,delta):
+        self.day=(date.fromisoformat(self.day)+timedelta(days=delta)).isoformat()
+        if not DB["tasks"].get(self.day):
+            DB["tasks"][self.day]=[
+                {"id":f"{self.day}-{i}","time":t,"title":title,"cat":cat,"done":False}
+                for i,(t,title,cat) in enumerate(TASKS)
+            ]
+        save_db(); self.show("daily")
+
+    def task_dialog(self,item=None):
+        dlg=tk.Toplevel(self); dlg.title("ویرایش فعالیت" if item else "فعالیت جدید"); dlg.geometry("560x320"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        vals={k:tk.StringVar(value=(item or {}).get(k,"")) for k in ("time","title","cat")}
+        for i,(label,key) in enumerate([("زمان","time"),("عنوان","title"),("دسته","cat")]):
+            tk.Label(dlg,text=label,bg=C["bg"],fg=C["muted"]).grid(row=i,column=1,padx=14,pady=12,sticky="e")
+            tk.Entry(dlg,textvariable=vals[key],bg=C["soft"],fg=C["text"],relief="flat",justify="right").grid(row=i,column=0,padx=14,pady=12,sticky="ew")
+        dlg.columnconfigure(0,weight=1)
+        def submit():
+            if not vals["title"].get().strip(): return messagebox.showwarning("ورودی ناقص","عنوان فعالیت را وارد کن",parent=dlg)
+            if item: item.update({k:v.get().strip() for k,v in vals.items()})
+            else: DB["tasks"].setdefault(self.day,[]).append({"id":str(uuid4()),"time":vals["time"].get().strip(),"title":vals["title"].get().strip(),"cat":vals["cat"].get().strip(),"done":False})
+            save_db(); dlg.destroy(); self.show("daily")
+        self.btn(dlg,"ذخیره",submit,True).grid(row=4,column=0,padx=14,pady=16,sticky="e")
+        self.btn(dlg,"انصراف",dlg.destroy).grid(row=4,column=1,padx=14,pady=16)
+
+    def add_task(self): self.task_dialog()
+    def edit_task(self):
+        sel=self.task_tree.selection()
+        if not sel:return messagebox.showinfo("انتخاب فعالیت","ابتدا یک فعالیت را انتخاب کن")
+        self.task_dialog(DB["tasks"][self.day][int(sel[0])])
+    def delete_task(self):
+        sel=self.task_tree.selection()
+        if not sel:return messagebox.showinfo("انتخاب فعالیت","ابتدا یک فعالیت را انتخاب کن")
+        idx=int(sel[0]); item=DB["tasks"][self.day][idx]
+        if messagebox.askyesno("حذف فعالیت",f"«{item.get('title','')}» حذف شود؟",parent=self):
+            DB["tasks"][self.day].pop(idx); save_db(); self.show("daily")
+
+    def journal(self):
+        p=active_profile(); self.market=p["market"]; rows=p["journals"][self.market]
+        self.heading(f"Journal — {self.market}",f"پروفایل: {p['name']} | ژورنال {self.market} مستقل از پروفایل‌های دیگر")
+        bar=tk.Frame(self.content,bg=C["bg"]); bar.pack(fill="x",pady=3)
+        self.btn(bar,"＋ ثبت معامله",self.add_trade,True).pack(side="left",padx=3)
+        self.btn(bar,"ویرایش",self.edit_trade).pack(side="left",padx=3); self.btn(bar,"حذف",self.delete_trade).pack(side="left",padx=3)
+        self.btn(bar,"خروجی CSV",self.export_journal).pack(side="left",padx=3)
+        self.btn(bar,"باز کردن پوشه تصاویر",lambda:self.open_path(SCREENSHOTS / safe(p["id"]))).pack(side="left",padx=3)
+        qv=tk.StringVar(); tk.Label(bar,text="جستجو:",bg=C["bg"],fg=C["muted"]).pack(side="right")
+        ent=tk.Entry(bar,textvariable=qv,width=30,justify="right",bg=C["soft"],fg=C["text"],relief="flat"); ent.pack(side="right",padx=6)
+        ent.bind("<KeyRelease>",lambda e:self.fill_journal_tree(qv.get()))
+        self.jtree=ttk.Treeview(self.content,columns=("date","symbol","direction","session","tf","entry","sl","tp","r","pnl","setup","result"),show="headings",selectmode="browse")
+        heads={"date":"تاریخ","symbol":"نماد","direction":"جهت","session":"سشن","tf":"TF","entry":"Entry","sl":"SL","tp":"TP","r":"R","pnl":"P&L","setup":"Setup","result":"نتیجه"}
+        for col in self.jtree["columns"]:
+            self.jtree.heading(col,text=heads[col]); self.jtree.column(col,width=95,anchor="center")
+        self.jtree.column("symbol",width=115); self.jtree.column("setup",width=150)
+        self.jtree.pack(fill="both",expand=True,pady=10)
+        self.jtree.bind("<Double-1>",lambda e:self.edit_trade()); self.fill_journal_tree()
+
+    def fill_journal_tree(self,q=""):
+        for item in self.jtree.get_children(): self.jtree.delete(item)
+        rows=active_profile()["journals"][self.market]; query=q.strip().lower()
+        for i,row in enumerate(rows):
+            if query and query not in " ".join(str(row.get(k,"")) for k in FIELDS).lower(): continue
+            self.jtree.insert("", "end", iid=str(i), values=(
+                row.get("Date",""),row.get("Symbol",""),row.get("Direction",""),row.get("Session",""),
+                row.get("Timeframe",""),row.get("Entry",""),row.get("Stop Loss",""),row.get("Take Profit",""),
+                row.get("Result (R)",""),row.get("P&L",""),row.get("Setup",""),row.get("Result","")
+            ))
+
+    def edit_trade(self):
+        sel=self.jtree.selection()
+        if not sel:return messagebox.showinfo("انتخاب معامله","ابتدا یک معامله را انتخاب کن")
+        self.trade_dialog(active_profile()["journals"][self.market][int(sel[0])],int(sel[0]))
+    def delete_trade(self):
+        sel=self.jtree.selection()
+        if not sel:return messagebox.showinfo("انتخاب معامله","ابتدا یک معامله را انتخاب کن")
+        idx=int(sel[0]); row=active_profile()["journals"][self.market][idx]
+        if messagebox.askyesno("حذف معامله",f"معامله {row.get('Symbol','')} حذف شود؟",parent=self):
+            active_profile()["journals"][self.market].pop(idx); save_db(); self.show("journal")
+    def add_trade(self): self.trade_dialog()
+
+    def trade_dialog(self,row=None,index=None):
+        dlg=tk.Toplevel(self); dlg.title(("ویرایش" if row else "ثبت")+f" معامله — {self.market}"); dlg.geometry("1180x800"); dlg.minsize(1020,700); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        outer=tk.Frame(dlg,bg=C["bg"]); outer.pack(fill="both",expand=True,padx=18,pady=14)
+        left=self.card(outer); right=self.card(outer); left.pack(side="left",fill="both",expand=True,padx=6); right.pack(side="left",fill="both",expand=True,padx=6)
+        vals={}; widgets={}
+        groups_left=[("اطلاعات معامله",["Date","Symbol","Direction","Session","Timeframe"]),("قیمت و ریسک",["Entry","Stop Loss","Take Profit","Position Size","Risk %","Risk $","R:R"]),("تحلیل",["Setup","Market Structure","Liquidity","Entry Model"])]
+        groups_right=[("روانشناسی",["Emotion Before","Emotion During","Emotion After","Mistake"]),("نتیجه",["Result","Result (R)","P&L","Lesson","Notes"]),("اسکرین‌شات",["Screenshot"])]
+        options={
+            "Direction":["LONG","SHORT"],"Result":["WIN","LOSS","BE"],
+            "Session":["Asia","London","New York","Overlap","Other"],
+            "Timeframe":["1m","3m","5m","15m","30m","1H","4H","D","W"],
+            "Emotion Before":["Calm","Focused","FOMO","Fear","Greedy","Neutral"],
+            "Emotion During":["Calm","Focused","FOMO","Fear","Greedy","Neutral"],
+            "Emotion After":["Satisfied","Neutral","Frustrated","Angry","Confident"],
+        }
+        def section(parent,title,fields):
+            box=tk.Frame(parent,bg=C["panel2"]); box.pack(fill="x",padx=12,pady=7)
+            tk.Label(box,text=title,bg=C["panel2"],fg=C["accent"],font=("Segoe UI",12,"bold")).grid(row=0,column=0,columnspan=2,sticky="e",padx=8,pady=(9,5))
+            for r,key in enumerate(fields,1):
+                tk.Label(box,text=key,bg=C["panel2"],fg=C["muted"],font=("Segoe UI",9)).grid(row=r,column=1,padx=7,pady=5,sticky="e")
+                v=tk.StringVar(value=str((row or {}).get(key,""))); vals[key]=v
+                w=ttk.Combobox(box,textvariable=v,values=options[key],state="readonly",justify="right") if key in options else tk.Entry(box,textvariable=v,justify="right",bg=C["soft"],fg=C["text"],relief="flat")
+                widgets[key]=w; w.grid(row=r,column=0,padx=7,pady=5,sticky="ew"); box.columnconfigure(0,weight=1)
+        for t,f in groups_left: section(left,t,f)
+        for t,f in groups_right: section(right,t,f)
+        if not row:
+            vals["Date"].set(date.today().isoformat()); vals["Direction"].set("LONG"); vals["Result"].set("BE")
+        shot=widgets["Screenshot"]
+        controls=tk.Frame(shot.master,bg=C["panel2"]); controls.grid(row=2,column=0,columnspan=2,sticky="ew",padx=7,pady=(0,8))
+        def browse():
+            src=filedialog.askopenfilename(title="انتخاب اسکرین‌شات",filetypes=[("Images","*.png *.jpg *.jpeg *.webp *.bmp"),("All","*.*")],parent=dlg)
+            if src: vals["Screenshot"].set(src)
+        self.btn(controls,"انتخاب تصویر",browse).pack(side="left")
+        self.btn(controls,"باز کردن پوشه",lambda:self.open_path(screenshot_folder({"Date":vals["Date"].get(),"Symbol":vals["Symbol"].get()}))).pack(side="left",padx=6)
+        footer=tk.Frame(dlg,bg=C["bg"]); footer.pack(fill="x",padx=24,pady=8)
+        def submit():
+            data={k:v.get().strip() for k,v in vals.items()}
+            if not data.get("Symbol"): return messagebox.showwarning("ورودی ناقص","Symbol را وارد کن",parent=dlg)
+            src=data.get("Screenshot","")
+            if src and Path(src).is_file(): data["Screenshot"]=attach_screenshot(data,src,market=self.market)
+            elif row is not None: data["Screenshot"]=row.get("Screenshot","")
+            upsert_trade(active_profile(),self.market,data,index); save_db(); dlg.destroy(); self.show("journal")
+        self.btn(footer,"ذخیره معامله",submit,True).pack(side="right",padx=5); self.btn(footer,"انصراف",dlg.destroy).pack(side="right",padx=5)
+
+    def export_journal(self):
+        rows=active_profile()["journals"][self.market]
+        if not rows:return messagebox.showinfo("ژورنال خالی","معامله‌ای برای خروجی وجود ندارد",parent=self)
+        target=filedialog.asksaveasfilename(title="ذخیره CSV",defaultextension=".csv",initialfile=f"{self.market}_Journal_{date.today().isoformat()}.csv",filetypes=[("CSV","*.csv")])
+        if not target:return
+        with open(target,"w",newline="",encoding="utf-8-sig") as h:
+            writer=csv.DictWriter(h,fieldnames=FIELDS); writer.writeheader(); writer.writerows(rows)
+        messagebox.showinfo("انجام شد","خروجی CSV ذخیره شد",parent=self)
+
+    def plan(self):
+        p=active_profile()
+        self.heading("Trading Plan","پلن را ویرایش کن، به‌عنوان نسخه مستقل ذخیره کن و خروجی A4 بگیر")
+        toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=4)
+        self.btn(toolbar,"💾 ذخیره به‌عنوان Trading Plan",self.save_plan,True).pack(side="left",padx=3)
+        self.btn(toolbar,"🖼 خروجی A4",self.export_current_plan).pack(side="left",padx=3)
+        self.btn(toolbar,"نسخه‌های ذخیره‌شده",self.plan_history).pack(side="left",padx=3)
+        title_var=tk.StringVar(value=self.current_plan_title())
+        tk.Label(toolbar,text="عنوان نسخه فعلی:",bg=C["bg"],fg=C["muted"]).pack(side="right",padx=5)
+        tk.Entry(toolbar,textvariable=title_var,width=30,justify="right",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right")
+        wrap=tk.Frame(self.content,bg=C["bg"]); wrap.pack(fill="both",expand=True,pady=8)
+        left=self.card(wrap); right=self.card(wrap); left.pack(side="left",fill="both",expand=True,padx=4); right.pack(side="left",fill="both",expand=True,padx=4)
+        draft=p["plan_draft"]
+        for i,key in enumerate(PLAN_FIELDS):
+            parent=left if i < len(PLAN_FIELDS)//2+1 else right
+            tk.Label(parent,text=key,bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(anchor="e",padx=14,pady=(9,2))
+            value=tk.StringVar(value=draft.get(key,"")); ent=tk.Entry(parent,textvariable=value,justify="right",bg=C["soft"],fg=C["text"],relief="flat")
+            ent.pack(fill="x",padx=14,pady=(0,8)); ent.bind("<FocusOut>",lambda e,k=key,v=value:self.plan_save(k,v))
+        self._plan_title_var=title_var
+
+    def current_plan_title(self):
+        p=active_profile()
+        for plan in p["plans"]:
+            if plan.get("id")==p.get("active_plan_id"): return plan.get("title","Trading Plan")
+        return "Trading Plan"
+
+    def plan_save(self,key,value):
+        active_profile()["plan_draft"][key]=value.get(); active_profile()["updated_at"]=datetime.now().isoformat(timespec="seconds"); save_db()
+
+    def save_plan(self):
+        p=active_profile(); title=(getattr(self,"_plan_title_var",None).get().strip() if getattr(self,"_plan_title_var",None) else "")
+        title=title or "Trading Plan"
+        item={"id":str(uuid4()),"title":title,"created_at":datetime.now().isoformat(timespec="seconds"),"fields":dict(p["plan_draft"])}
+        p["plans"].append(item); p["active_plan_id"]=item["id"]; save_db()
+        messagebox.showinfo("ذخیره شد",f"نسخه «{title}» ذخیره شد.",parent=self); self.show("plan")
+
+    def plan_history(self):
+        p=active_profile(); dlg=tk.Toplevel(self); dlg.title("نسخه‌های Trading Plan"); dlg.geometry("680x500"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        tree=ttk.Treeview(dlg,columns=("title","date"),show="headings"); tree.heading("title",text="عنوان"); tree.heading("date",text="تاریخ"); tree.column("title",width=400); tree.pack(fill="both",expand=True,padx=15,pady=15)
+        for i,item in enumerate(p["plans"]): tree.insert("", "end",iid=str(i),values=(item.get("title",""),item.get("created_at","")))
+        def load():
+            sel=tree.selection()
+            if not sel:return
+            item=p["plans"][int(sel[0])]; p["plan_draft"]=dict(item.get("fields",{})); p["active_plan_id"]=item["id"]; save_db(); dlg.destroy(); self.show("plan")
+        self.btn(dlg,"باز کردن نسخه انتخاب‌شده",load,True).pack(side="right",padx=15,pady=10)
+
+    def export_current_plan(self):
+        p=active_profile(); title=self.current_plan_title(); path=export_plan_a4(p,title,p["plan_draft"])
+        messagebox.showinfo("Export آماده شد",f"فایل A4 ساخته شد:\n{path}",parent=self)
+
+    def check(self):
+        p=active_profile()
+        self.heading("Checklist","موارد قابل تغییر، جابه‌جایی و اتصال مستقیم به Strategy / Trading Plan")
+        top=tk.Frame(self.content,bg=C["bg"]); top.pack(fill="x",pady=4)
+        self.btn(top,"＋ افزودن شرط",self.add_check_item,True).pack(side="left",padx=3)
+        self.btn(top,"ویرایش",self.edit_check_item).pack(side="left",padx=3)
+        self.btn(top,"حذف",self.delete_check_item).pack(side="left",padx=3)
+        self.btn(top,"↑ بالاتر",lambda:self.move_check(-1)).pack(side="left",padx=3)
+        self.btn(top,"↓ پایین‌تر",lambda:self.move_check(1)).pack(side="left",padx=3)
+        self.btn(top,"ساخت از Trading Plan",self.sync_check_from_plan).pack(side="left",padx=3)
+        tree=ttk.Treeview(self.content,columns=("done","required","title","category","source"),show="headings",selectmode="browse"); self.check_tree=tree
+        for col,txt in [("done","✓"),("required","اجباری"),("title","شرط"),("category","دسته"),("source","منبع")]:
+            tree.heading(col,text=txt)
+        tree.column("done",width=55,anchor="center"); tree.column("required",width=70,anchor="center"); tree.column("title",anchor="e",width=560); tree.column("category",width=150); tree.column("source",width=180)
+        tree.pack(fill="both",expand=True,pady=10); tree.bind("<Double-1>",lambda e:self.toggle_check())
+        self.fill_check_tree()
+
+    def fill_check_tree(self):
+        p=active_profile()
+        for x in self.check_tree.get_children(): self.check_tree.delete(x)
+        for i,item in enumerate(p["checklist"]):
+            self.check_tree.insert("", "end",iid=str(i),values=("☑" if item.get("done") else "☐","بله" if item.get("required",True) else "خیر",item.get("title",""),item.get("category",""),item.get("source","")))
+
+    def toggle_check(self):
+        sel=self.check_tree.selection()
+        if not sel:return
+        i=int(sel[0]); p=active_profile(); p["checklist"][i]["done"]=not p["checklist"][i].get("done",False); save_db(); self.fill_check_tree()
+
+    def add_check_item(self): self.check_item_dialog()
+    def edit_check_item(self):
+        sel=self.check_tree.selection()
+        if not sel:return messagebox.showinfo("انتخاب شرط","یک شرط را انتخاب کن",parent=self)
+        self.check_item_dialog(active_profile()["checklist"][int(sel[0])],int(sel[0]))
+    def delete_check_item(self):
+        sel=self.check_tree.selection()
+        if not sel:return
+        i=int(sel[0]); item=active_profile()["checklist"][i]
+        if messagebox.askyesno("حذف شرط",f"«{item.get('title','')}» حذف شود؟",parent=self):
+            active_profile()["checklist"].pop(i); save_db(); self.fill_check_tree()
+    def move_check(self,delta):
+        sel=self.check_tree.selection()
+        if not sel:return
+        p=active_profile(); i=int(sel[0]); j=i+delta
+        if not 0<=j<len(p["checklist"]): return
+        p["checklist"][i],p["checklist"][j]=p["checklist"][j],p["checklist"][i]; save_db(); self.fill_check_tree(); self.check_tree.selection_set(str(j))
+    def sync_check_from_plan(self):
+        p=active_profile(); items=[]
+        for key,value in p["plan_draft"].items():
+            value=str(value).strip()
+            if value:
+                items.append({"id":str(uuid4()),"title":f"{key}: {value}","category":"Trading Plan","required":True,"done":False,"source":"Trading Plan"})
+        if not items:
+            return messagebox.showinfo("Trading Plan خالی است","ابتدا حداقل چند بخش از Trading Plan را پر کن.",parent=self)
+        p["checklist"] = items + [x for x in p["checklist"] if x.get("source") not in ("Trading Plan","Strategy")]
+        save_db(); self.fill_check_tree()
+
+    def check_item_dialog(self,item=None,index=None):
+        dlg=tk.Toplevel(self); dlg.title("شرط Checklist"); dlg.geometry("620x360"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        vals={k:tk.StringVar(value=str((item or {}).get(k,""))) for k in ("title","category","source")}
+        req=tk.BooleanVar(value=bool((item or {}).get("required",True)))
+        for i,(label,key) in enumerate([("عنوان شرط","title"),("دسته","category"),("منبع","source")]):
+            tk.Label(dlg,text=label,bg=C["bg"],fg=C["muted"]).grid(row=i,column=1,padx=16,pady=12,sticky="e")
+            tk.Entry(dlg,textvariable=vals[key],bg=C["soft"],fg=C["text"],relief="flat",justify="right").grid(row=i,column=0,padx=16,pady=12,sticky="ew")
+        tk.Checkbutton(dlg,text="این شرط اجباری است",variable=req,bg=C["bg"],fg=C["text"],selectcolor=C["soft"],anchor="e").grid(row=3,column=0,columnspan=2,padx=16,pady=12,sticky="e")
+        dlg.columnconfigure(0,weight=1)
+        def submit():
+            if not vals["title"].get().strip(): return messagebox.showwarning("ورودی ناقص","عنوان شرط را وارد کن",parent=dlg)
+            data={"id":(item or {}).get("id",str(uuid4())),"title":vals["title"].get().strip(),"category":vals["category"].get().strip() or "General","source":vals["source"].get().strip() or "Manual","required":req.get(),"done":bool((item or {}).get("done",False))}
+            if item is None: active_profile()["checklist"].append(data)
+            else: active_profile()["checklist"][index]=data
+            save_db(); dlg.destroy(); self.fill_check_tree()
+        self.btn(dlg,"ذخیره",submit,True).grid(row=4,column=0,padx=16,pady=15,sticky="e")
+        self.btn(dlg,"انصراف",dlg.destroy).grid(row=4,column=1,padx=16,pady=15)
+
+    def settings(self):
+        p=active_profile()
+        self.heading("تنظیمات","اطلاعات پروفایل فعال و مسیر سازگار با نسخه قبلی")
+        box=self.card(self.content); box.pack(fill="x",pady=12)
+        info=f"پروفایل: {p['name']}\nبازار: {p['market']}\nسرمایه اولیه: {p['initial_balance']:,.2f} {p['currency']}\nData: {DATA}\nReports A4: {REPORTS}"
+        tk.Label(box,text=info,bg=C["panel"],fg=C["muted"],justify="right").pack(anchor="e",padx=18,pady=18)
+        self.btn(box,"مدیریت پروفایل‌ها",self.edit_profile,True).pack(anchor="e",padx=18,pady=8)
+
+    def open_path(self,path):
+        path=Path(path); path.mkdir(parents=True,exist_ok=True)
+        try:
+            if sys.platform.startswith("win"): os.startfile(str(path))
+            elif sys.platform=="darwin": os.system(f'open "{path}"')
+            else: os.system(f'xdg-open "{path}"')
+        except OSError as exc:
+            messagebox.showerror("خطا",str(exc),parent=self)
+
+def tempfile_path():
+    path = ROOT / "cache"
+    path.mkdir(parents=True, exist_ok=True)
+    return path / "trader_planner_pro_3d_logo.png"
+
+if __name__ == "__main__":
+    save_db()
+    App().mainloop()
