@@ -803,7 +803,7 @@ class App(tk.Tk):
         self.task_dialog(DB["tasks"][self.day][int(sel[0])])
     def delete_task(self):
         sel=self.task_tree.selection()
-        if not sel:return messagebox.showinfo("انتخاب فعالیت","ابتدا یک فعالیت را انتخاب کن")
+        if not sel:return messagebox.showinfo(self.ui_text("انتخاب فعالیت"),self.ui_text("ابتدا یک فعالیت را انتخاب کن"))
         idx=int(sel[0]); item=DB["tasks"][self.day][idx]
         if messagebox.askyesno(self.ui_text("حذف فعالیت"),self.ui_text(f"«{item.get('title','')}» حذف شود؟"),parent=self):
             DB["tasks"][self.day].pop(idx); save_db(); self.show("daily")
@@ -844,7 +844,7 @@ class App(tk.Tk):
         self.trade_dialog(active_profile()["journals"][self.market][int(sel[0])],int(sel[0]))
     def delete_trade(self):
         sel=self.jtree.selection()
-        if not sel:return messagebox.showinfo("انتخاب معامله","ابتدا یک معامله را انتخاب کن")
+        if not sel:return messagebox.showinfo(self.ui_text("انتخاب معامله"),self.ui_text("ابتدا یک معامله را انتخاب کن"))
         idx=int(sel[0]); row=active_profile()["journals"][self.market][idx]
         if messagebox.askyesno(self.ui_text("حذف معامله"),self.ui_text(f"معامله {row.get('Symbol','')} حذف شود؟"),parent=self):
             active_profile()["journals"][self.market].pop(idx); save_db(); self.show("journal")
@@ -880,7 +880,7 @@ class App(tk.Tk):
         shot=widgets["Screenshot"]
         controls=tk.Frame(shot.master,bg=C["panel2"]); controls.grid(row=2,column=0,columnspan=2,sticky="ew",padx=7,pady=(0,8))
         def browse():
-            src=filedialog.askopenfilename(title="انتخاب اسکرین‌شات",filetypes=[("Images","*.png *.jpg *.jpeg *.webp *.bmp"),("All","*.*")],parent=dlg)
+            src=filedialog.askopenfilename(title=self.ui_text("انتخاب اسکرین‌شات"),filetypes=[("Images","*.png *.jpg *.jpeg *.webp *.bmp"),("All","*.*")],parent=dlg)
             if src: vals["Screenshot"].set(src)
         self.btn(controls,"انتخاب تصویر",browse).pack(side="left")
         self.btn(controls,"باز کردن پوشه",lambda:self.open_path(screenshot_folder({"Date":vals["Date"].get(),"Symbol":vals["Symbol"].get()}))).pack(side="left",padx=6)
@@ -893,11 +893,12 @@ class App(tk.Tk):
             elif row is not None: data["Screenshot"]=row.get("Screenshot","")
             upsert_trade(active_profile(),self.market,data,index); save_db(); dlg.destroy(); self.show("journal")
         self.btn(footer,"ذخیره معامله",submit,True).pack(side="right",padx=5); self.btn(footer,"انصراف",dlg.destroy).pack(side="right",padx=5)
+        self.translate_widget_tree(dlg)
 
     def export_journal(self):
         rows=active_profile()["journals"][self.market]
         if not rows:return messagebox.showinfo(self.ui_text("ژورنال خالی"),self.ui_text("معامله‌ای برای خروجی وجود ندارد"),parent=self)
-        target=filedialog.asksaveasfilename(title="ذخیره CSV",defaultextension=".csv",initialfile=f"{self.market}_Journal_{date.today().isoformat()}.csv",filetypes=[("CSV","*.csv")])
+        target=filedialog.asksaveasfilename(title=self.ui_text("ذخیره CSV"),defaultextension=".csv",initialfile=f"{self.market}_Journal_{date.today().isoformat()}.csv",filetypes=[("CSV","*.csv")])
         if not target:return
         with open(target,"w",newline="",encoding="utf-8-sig") as h:
             writer=csv.DictWriter(h,fieldnames=FIELDS); writer.writeheader(); writer.writerows(rows)
@@ -950,6 +951,7 @@ class App(tk.Tk):
             if not sel:return
             item=p["plans"][int(sel[0])]; p["plan_draft"]=dict(item.get("fields",{})); p["active_plan_id"]=item["id"]; save_db(); dlg.destroy(); self.show("plan")
         self.btn(dlg,"باز کردن نسخه انتخاب‌شده",load,True).pack(side="right",padx=15,pady=10)
+        self.translate_widget_tree(dlg)
 
     def export_current_plan(self):
         p=active_profile(); title=self.current_plan_title(); path=export_plan_a4(p,title,p["plan_draft"])
@@ -1254,7 +1256,7 @@ class App(tk.Tk):
             elif sys.platform=="darwin": os.system(f'open "{path}"')
             else: os.system(f'xdg-open "{path}"')
         except OSError as exc:
-            messagebox.showerror("خطا",str(exc),parent=self)
+            messagebox.showerror(self.ui_text("خطا"),str(exc),parent=self)
 
 def tempfile_path():
     path = ROOT / "cache"
