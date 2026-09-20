@@ -71,6 +71,15 @@ C = {
     "shadow": "#050911", "panel3": "#0E1824", "violet": "#9B8CFF", "cyan": "#55D6FF",
 }
 
+
+LIGHT_C = {
+    "bg":"#F3F6FA","panel":"#FFFFFF","panel2":"#EAF0F5","soft":"#DCE5ED",
+    "text":"#10202E","muted":"#5F7181","accent":"#00A88E","gold":"#B47700",
+    "danger":"#D64054","line":"#C9D5DF","blue":"#2D78D4","shadow":"#AEBCC8",
+    "panel3":"#F7F9FB","violet":"#6B5BD2","cyan":"#1189B8",
+}
+DARK_C = dict(C)
+
 LANGUAGE_OPTIONS = [("fa", "فارسی"), ("en", "English")]
 
 I18N = {
@@ -441,13 +450,25 @@ class App(tk.Tk):
         self.cur = "home"; self.day = date.today().isoformat(); self.market = active_profile().get("market", "Crypto")
         self.language = DB.get("settings", {}).get("language", "fa")
         if self.language not in dict(LANGUAGE_OPTIONS): self.language = "fa"
+        settings = DB.setdefault("settings", {})
+        settings.setdefault("theme", "dark")
+        settings.setdefault("dark_start", "20:00")
+        settings.setdefault("dark_end", "07:00")
+        self.theme_mode = settings.get("theme", "dark")
+        self.dark_start = settings.get("dark_start", "20:00")
+        self.dark_end = settings.get("dark_end", "07:00")
+        self._apply_theme_palette()
         self.menu_open = False
         self.menu_hide_job = None
         self.session_clock_job = None
         self.session_clock_widgets = []
-        self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": []}
+        self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": [], "indicators": {}}
+        self.market_timeout_job = None
         self.ticker_offset = 0
         self.ticker_job = None
+        self.news_payload = {}
+        self.ai_agent = "planner"
+        self.ai_memory_text = ""
         self.market_data = MarketDataService(self._market_data_callback, refresh_seconds=60)
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
@@ -467,12 +488,55 @@ class App(tk.Tk):
         self.market_data.start(self.market)
         self.after(500, self.clock)
 
-    def _home_shortcut(self, event=None):
-        widget = getattr(event, "widget", None)
-        if isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox)):
-            return None
+    def _force_home(self, event=None):
+        try:
+            self._cancel_menu_hide()
+            if getattr(self, "menu_open", False):
+                self.menu.place_configure(x=-304)
+                self.menu_open = False
+        except Exception:
+            pass
         self.show("home")
         return "break"
+
+    def _home_shortcut(self, event=None):
+        return self._force_home(event)
+
+    def _apply_theme_palette(self):
+        settings = DB.setdefault("settings", {})
+        mode = settings.get("theme", "dark")
+        if mode == "auto":
+            now = datetime.now().strftime("%H:%M")
+            start = settings.get("dark_start", "20:00")
+            end = settings.get("dark_end", "07:00")
+            dark_now = (start <= now < end) if start <= end else (now >= start or now < end)
+            active = DARK_C if dark_now else LIGHT_C
+        elif mode == "light":
+            active = LIGHT_C
+        else:
+            active = DARK_C
+        C.clear(); C.update(active)
+
+    def _save_theme(self):
+        settings = DB.setdefault("settings", {})
+        settings["theme"] = self.theme_mode
+        settings["dark_start"] = self.dark_start
+        settings["dark_end"] = self.dark_end
+        save_db()
+        self._apply_theme_palette()
+        self.build_shell()
+        self.apply_language()
+        self.show(self.cur)
+
+    def apply_theme_settings(self, mode, start, end):
+        try:
+            datetime.strptime(start, "%H:%M"); datetime.strptime(end, "%H:%M")
+        except ValueError:
+            raise ValueError("Theme times must use HH:MM format.")
+        self.theme_mode = mode if mode in ("dark","light","auto") else "dark"
+        self.dark_start = start
+        self.dark_end = end
+        self._save_theme()
 
     def close_app(self):
         try:
@@ -688,8 +752,14 @@ class App(tk.Tk):
             pass
 
     def clock(self):
-        self.clock_label.config(text=datetime.now().strftime("%Y-%m-%d  |  %H:%M:%S"))
-        self.after(500, self.clock)
+        now = datetime.now()
+        self.clock_label.config(text=now.strftime("%H:%M:%S"))
+        if hasattr(self, "date_label_widget") and self.date_label_widget.winfo_exists():
+            self.date_label_widget.config(text=date_label(now, english=self.language=="en"))
+        if self.theme_mode == "auto":
+            self._apply_theme_palette()
+        self._check_reminders()
+        self.after(1000, self.clock)
 
     def heading(self, title, sub=""):
         title = self.ui_text(title); sub = self.ui_text(sub)
