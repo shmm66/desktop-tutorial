@@ -39,6 +39,7 @@ EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
 
 VISUAL_ALIASES = {
     "fvg": "fvg",
+    "fair value gap": "fvg",
     "ifvg": "fvg",
     "bpr": "fvg",
     "order block": "order_block",
