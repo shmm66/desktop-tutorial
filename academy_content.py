@@ -109,22 +109,24 @@ ICT_STRATEGIES = [
 ]
 
 CANDLE_PLAYBOOK = [
-    ("Pin Bar / Rejection Candle", "کندل رد قیمت", "بدنه کوچک یا متوسط با سایه غالب؛ نشانه رد یک محدوده است و باید با ساختار و سطح بررسی شود."),
-    ("Bullish / Bearish Engulfing", "اینگالف صعودی/نزولی", "کندل جدید بخش اصلی بدنه کندل قبل را می‌پوشاند؛ برای تأیید تغییر مومنتوم استفاده می‌شود."),
-    ("Inside Bar", "اینسايد بار", "دامنه کندل در محدوده کندل قبل قرار می‌گیرد؛ برای فشردگی و شکست احتمالی بررسی می‌شود."),
-    ("Morning Star", "ستاره صبحگاهی", "الگوی سه‌مرحله‌ای برای بررسی بازگشت از فشار فروش به سمت خرید."),
-    ("Evening Star", "ستاره شامگاهی", "الگوی سه‌مرحله‌ای برای بررسی بازگشت از فشار خرید به سمت فروش."),
-    ("Hammer", "چکش", "سایه پایینی بلند و بدنه کوچک؛ در حمایت یا پس از Sweep می‌تواند واکنش را نشان دهد."),
-    ("Shooting Star", "شهاب‌سنگ", "سایه بالایی بلند و بدنه کوچک؛ در مقاومت یا پس از Sweep برای رد قیمت بررسی می‌شود."),
-    ("Doji", "دوجی", "باز و بسته شدن نزدیک به هم؛ بیانگر تردید کوتاه‌مدت است و به‌تنهایی سیگنال نیست."),
-    ("Tweezer Top", "توئیزر سقف", "دو اوج نزدیک؛ برای بررسی رد قیمت در مقاومت."),
-    ("Tweezer Bottom", "توئیزر کف", "دو کف نزدیک؛ برای بررسی رد قیمت در حمایت."),
-    ("Three White Soldiers", "سه سرباز سفید", "سه کندل صعودی متوالی با بدنه‌های نسبتاً قوی؛ مومنتوم صعودی را توصیف می‌کند."),
-    ("Three Black Crows", "سه کلاغ سیاه", "سه کندل نزولی متوالی با بدنه‌های نسبتاً قوی؛ مومنتوم نزولی را توصیف می‌کند."),
-    ("Marubozu", "ماروبوزو", "کندلی با سایه‌های بسیار کم و بدنه پررنگ؛ نشان‌دهنده حرکت یک‌طرفه قوی در همان بازه."),
-    ("Spinning Top", "اسپینینگ تاپ", "بدنه کوچک و سایه‌های دوطرفه؛ تعادل نسبی نیروها."),
-    ("Long-Legged Doji", "دوجی پا‌بلند", "دوجی با سایه‌های بلند؛ نوسان زیاد و تردید را توصیف می‌کند."),
+    ("Pin Bar / Rejection Candle", "کندل رد قیمت", "A candle with a relatively small body and a prominent wick. Its meaning depends on location, trend and confirmation."),
+    ("Bullish Engulfing", "اینگالف صعودی", "A two-candle reversal pattern usually discussed after a decline: the second candle's body fully overtakes the prior body and closes in the opposite direction."),
+    ("Bearish Engulfing", "اینگالف نزولی", "A two-candle reversal pattern usually discussed after an advance: the second candle's body fully overtakes the prior body and closes in the opposite direction."),
+    ("Inside Bar", "اینساید بار", "A candle whose range is essentially contained within the previous candle, often describing reduced volatility or compression."),
+    ("Morning Star", "ستاره صبحگاهی", "A three-candle bullish reversal pattern: long bearish candle, small middle candle, then a strong bullish candle closing above the midpoint of the first."),
+    ("Evening Star", "ستاره شامگاهی", "A three-candle bearish reversal pattern: long bullish candle, small middle candle, then a bearish candle closing below the midpoint of the first."),
+    ("Hammer", "چکش", "A one-candle bullish pattern usually discussed during a decline; price moves lower after the open and then rallies to close above the intraday low."),
+    ("Shooting Star", "شوتینگ استار", "A one-candle bearish pattern usually discussed during an uptrend; price trades much higher but closes near the open."),
+    ("Doji", "دوجی", "A candle whose open and close are essentially equal; upper and lower shadows can vary, describing short-term indecision."),
+    ("Tweezer Top", "توئیزر سقف", "A two-candle pattern during an uptrend with nearly identical highs; the second candle reverses direction."),
+    ("Tweezer Bottom", "توئیزر کف", "A two-candle pattern during a downtrend with nearly identical lows; the second candle reverses direction."),
+    ("Three White Soldiers", "سه سرباز سفید", "Three long-bodied green candles in succession; each opens within the prior body and closes near its high."),
+    ("Three Black Crows", "سه کلاغ سیاه", "Three long red-bodied candles in succession; each opens within the prior body and closes near its low."),
+    ("Marubozu", "ماروبوزو", "A candle with little or no shadow at the open and close, producing a nearly full body."),
+    ("Spinning Top", "اسپینینگ تاپ", "A small-bodied candle with upper and lower shadows that extend beyond the body, commonly describing indecision."),
+    ("Long-Legged Doji", "دوجی پا‌بلند", "A doji with long upper and lower shadows; use the exact Doji source reference and interpret it with context."),
 ]
+
 
 def _g(term, fa, en, category, usage_fa="", usage_en=""):
     return {
