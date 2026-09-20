@@ -524,6 +524,10 @@ class App(tk.Tk):
         settings["dark_end"] = self.dark_end
         save_db()
         self._apply_theme_palette()
+        for widget in list(self.winfo_children()):
+            widget.destroy()
+        self._logo_photo = None
+        self.menu_open = False
         self.build_shell()
         self.apply_language()
         self.show(self.cur)
@@ -569,6 +573,8 @@ class App(tk.Tk):
         root = root or self.content
         for widget in root.winfo_children():
             try:
+                widget.bind("<KeyPress-Home>", self._force_home, add="+")
+                widget.bind("<KP_Home>", self._force_home, add="+")
                 if isinstance(widget, ttk.Notebook):
                     for tab_id in widget.tabs():
                         widget.tab(tab_id, text=self.ui_text(widget.tab(tab_id, "text")))
@@ -636,6 +642,9 @@ class App(tk.Tk):
         status = tk.Frame(top, bg=C["panel"]); status.pack(side="right", padx=7)
         self.clock_label = tk.Label(status, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 9, "bold"),
                                      padx=10, pady=6); self.clock_label.pack(side="left", padx=4)
+        self.date_label_widget = tk.Label(status, text=date_label(english=self.language=="en"), bg=C["panel2"], fg=C["muted"],
+                                           font=("Segoe UI", 8, "bold"), padx=8, pady=6, justify="right")
+        self.date_label_widget.pack(side="left", padx=3)
         self.profile_combo = ttk.Combobox(status, state="readonly", width=20, justify="right")
         self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
         self.profile_combo.pack(side="left", padx=5)
