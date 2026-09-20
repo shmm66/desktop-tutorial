@@ -16,10 +16,11 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
+from PIL import Image, ImageDraw, ImageFilter, ImageTk, ImageFont
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 
 APP = "Trader Planner Pro"
-VERSION = "7.2.0"
+VERSION = "7.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -172,6 +173,74 @@ TASKS = [
     ("21:00","ژورنال + اسکرین‌شات + درس روز","ژورنال"),("21:40","مطالعه / بک‌تست سبک","یادگیری"),
     ("22:30","خاموشی صفحه‌نمایش","خواب"),("23:30","خواب","خواب"),
 ]
+
+
+def build_3d_clock_face(size=244, accent=(39,211,176), accent2=(242,196,109)):
+    scale=3
+    n=size*scale
+    cx=cy=n//2
+    img=Image.new("RGBA",(n,n),(0,0,0,0))
+    shadow=Image.new("RGBA",(n,n),(0,0,0,0))
+    sd=ImageDraw.Draw(shadow)
+    sd.ellipse((34*scale,40*scale,(size-28)*scale,(size-22)*scale),fill=(0,0,0,165))
+    shadow=shadow.filter(ImageFilter.GaussianBlur(12*scale))
+    img.alpha_composite(shadow)
+    d=ImageDraw.Draw(img)
+
+    # Deep outer bevel / metallic housing.
+    for off in range(18*scale,0,-2*scale):
+        t=off/(18*scale)
+        col=tuple(int(accent[i]*(0.35+0.65*(1-t))) for i in range(3))+(255,)
+        d.ellipse((24*scale-off,24*scale+off,(size-24)*scale+off,(size-24)*scale+off),fill=col)
+    d.ellipse((22*scale,22*scale,(size-22)*scale,(size-22)*scale),
+              fill=(11,24,36,255),outline=(*accent,235),width=3*scale)
+    d.ellipse((29*scale,29*scale,(size-29)*scale,(size-29)*scale),
+              fill=(17,34,49,255),outline=(*accent2,190),width=2*scale)
+
+    # Radial glass/dial gradient.
+    inner=(38*scale,38*scale,(size-38)*scale,(size-38)*scale)
+    ir=(size//2-38)*scale
+    for rr in range(ir,8*scale,-2*scale):
+        ratio=rr/max(ir,1)
+        v=int(8+17*(1-ratio))
+        edge=int(17+20*(1-ratio))
+        col=(max(7,v//2),max(14,v),max(22,edge),255)
+        d.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),fill=col)
+
+    d.ellipse(inner,outline=(255,255,255,28),width=2*scale)
+    d.arc(inner,start=205,end=328,fill=(255,255,255,45),width=3*scale)
+    d.arc(inner,start=28,end=145,fill=(*accent,90),width=4*scale)
+
+    r=(size//2-49)*scale
+    for tick in range(60):
+        ang=math.radians(tick*6-90)
+        outer=r
+        inner_r=r-(17 if tick%5==0 else 9)*scale
+        x1=cx+math.cos(ang)*inner_r; y1=cy+math.sin(ang)*inner_r
+        x2=cx+math.cos(ang)*outer; y2=cy+math.sin(ang)*outer
+        col=(*accent2,210) if tick%5==0 else (210,223,232,115)
+        d.line((x1,y1,x2,y2),fill=col,width=(3 if tick%5==0 else 1)*scale)
+
+    f_big=max(10,int(size*.058))
+    f_small=max(8,int(size*.042))
+    for num in (12,3,6,9):
+        font=ImageFont.truetype(
+            r"C:\\Windows\\Fonts\\segoeuib.ttf" if Path(r"C:\\Windows\\Fonts\\segoeuib.ttf").exists()
+            else "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", f_big*scale)
+        ang=math.radians(num*30-90)
+        tx=cx+math.cos(ang)*(r-30*scale); ty=cy+math.sin(ang)*(r-30*scale)
+        bb=d.textbbox((0,0),str(num),font=font)
+        d.text((tx-(bb[2]-bb[0])/2,ty-(bb[3]-bb[1])/2-2*scale),str(num),font=font,fill=(236,243,248,235))
+
+    # Glass highlight and center hub.
+    gloss=Image.new("RGBA",(n,n),(0,0,0,0)); gd=ImageDraw.Draw(gloss)
+    gd.ellipse((56*scale,45*scale,(size-70)*scale,(size-90)*scale),fill=(255,255,255,24))
+    gloss=gloss.filter(ImageFilter.GaussianBlur(9*scale))
+    img.alpha_composite(gloss)
+    d=ImageDraw.Draw(img)
+    d.ellipse((cx-8*scale,cy-8*scale,cx+8*scale,cy+8*scale),fill=(12,21,31,255),outline=(*accent,240),width=3*scale)
+    return img.resize((size,size),Image.Resampling.LANCZOS)
+
 
 def default_checklist():
     return [
@@ -612,54 +681,75 @@ class App(tk.Tk):
         self.btn(self.content,self.tr("new_trade"),self.add_trade,True).pack(anchor="e",padx=6,pady=8)
 
     def draw_session_clock(self,parent,session):
-        title_color=C["gold"] if session["key"]=="london" else C["text"]
-        tk.Label(parent,text=session["fa"] if self.language=="fa" else session["en"],
-                 bg=C["panel"],fg=title_color,font=("Segoe UI",12,"bold")).pack(pady=(10,2))
-        canvas=tk.Canvas(parent,width=190,height=190,bg=C["panel"],highlightthickness=0)
-        canvas.pack(pady=2)
+        accent_map={
+            "sydney":((63,167,255),(98,205,255)),
+            "tokyo":((255,122,122),(242,196,109)),
+            "london":((39,211,176),(242,196,109)),
+            "new_york":((160,125,255),(99,178,255)),
+        }
+        accent,accent2=accent_map.get(session["key"],((39,211,176),(242,196,109)))
+        title_color=accent2
+        title=tk.Label(parent,text=session["fa"] if self.language=="fa" else session["en"],
+                       bg=C["panel"],fg=title_color,font=("Segoe UI",12,"bold"))
+        title.pack(pady=(10,1))
+        subtitle=tk.Label(parent,text=session["abbr"],bg=C["panel"],fg=C["muted"],font=("Segoe UI",8,"bold"))
+        subtitle.pack(pady=(0,3))
+        canvas=tk.Canvas(parent,width=244,height=254,bg=C["panel"],highlightthickness=0)
+        canvas.pack(pady=0)
+        face=build_3d_clock_face(244,accent,accent2)
+        photo=ImageTk.PhotoImage(face)
+        canvas._face_photo=photo
+        canvas.create_image(122,122,image=photo,tags=("face",))
+        canvas.create_text(122,163,text=session["abbr"],fill=(180,193,204),font=("Segoe UI",8,"bold"),tags=("face",))
         status=tk.Label(parent,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold"))
-        status.pack(pady=(2,0))
+        status.pack(pady=(0,2))
         hours=tk.Label(parent,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",8))
         hours.pack(pady=(0,10))
-        self.session_clock_widgets.append((canvas,status,hours,session))
+        self.session_clock_widgets.append((canvas,status,hours,session,accent,accent2))
 
     def update_session_clocks(self):
         if self.cur!="home": return
-        for canvas,status,hours,session in list(self.session_clock_widgets):
+        for canvas,status,hours,session,accent,accent2 in list(self.session_clock_widgets):
             try:
                 now=datetime.now(ZoneInfo(session["tz"]))
-                w,h=190,190; cx,cy=95,88; r=72
-                canvas.delete("all")
-                canvas.create_oval(cx-r,cy-r,cx+r,cy+r,fill=C["panel2"],outline=C["line"],width=3)
-                canvas.create_oval(cx-r+7,cy-r+7,cx+r-7,cy+r-7,fill=C["panel"],outline=C["soft"],width=2)
-                for n in range(60):
-                    ang=math.radians(n*6-90)
-                    outer=r-11; inner=r-18 if n%5 else r-25
-                    width=1 if n%5 else 2
-                    canvas.create_line(cx+math.cos(ang)*inner,cy+math.sin(ang)*inner,
-                                       cx+math.cos(ang)*outer,cy+math.sin(ang)*outer,
-                                       fill=C["muted"],width=width)
-                for num in (12,3,6,9):
-                    ang=math.radians(num*30-90)
-                    tx=cx+math.cos(ang)*(r-33); ty=cy+math.sin(ang)*(r-33)
-                    canvas.create_text(tx,ty,text=str(num),fill=C["text"],font=("Segoe UI",9,"bold"))
+                cx,cy,r=122,122,93
+                canvas.delete("hands")
+
+                local_minutes=now.hour*60+now.minute+now.second/60
+                start=session["start"]*60
+                end=session["end"]*60
+                is_open=start <= local_minutes < end
+                if is_open:
+                    progress=max(0,min(1,(local_minutes-start)/max(1,end-start)))
+                    canvas.create_arc(cx-r-3,cy-r-3,cx+r+3,cy+r+3,start=90,extent=-progress*360,
+                                      style="arc",outline=(*accent,),width=5,tags=("hands",))
+                else:
+                    canvas.create_arc(cx-r-3,cy-r-3,cx+r+3,cy+r+3,start=90,extent=-360,
+                                      style="arc",outline=(58,71,84),width=4,tags=("hands",))
+
                 hour12=(now.hour%12)+now.minute/60.0
                 minute=now.minute+now.second/60.0
                 second=now.second+now.microsecond/1_000_000
-                for value,turns,length,width,color in [
-                    (hour12,12,38,5,C["text"]),
-                    (minute,60,55,3,C["gold"]),
-                    (second,60,62,1,C["accent"]),
-                ]:
+                hands=[
+                    (hour12,12,39,6,(231,239,244)),
+                    (minute,60,60,4,accent2),
+                    (second,60,69,2,accent),
+                ]
+                for value,turns,length,width,color in hands:
                     ang=math.radians(value*(360/turns)-90)
-                    canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
-                canvas.create_oval(cx-5,cy-5,cx+5,cy+5,fill=C["accent"],outline="")
-                local_minutes=now.hour*60+now.minute
-                start=session["start"]*60; end=session["end"]*60
-                is_open=start <= local_minutes < end
-                status_text=(self.tr("open") if is_open else self.tr("closed"))
-                status_color=C["accent"] if is_open else C["muted"]
-                status.config(text=f"{status_text}  •  {now.strftime('%H:%M:%S')}",fg=status_color)
+                    ex=cx+math.cos(ang)*length; ey=cy+math.sin(ang)*length
+                    canvas.create_line(cx,cy,ex,ey,fill=color,width=width,capstyle="round",tags=("hands",))
+                # Short back-weight on minute hand for a 3D look.
+                mang=math.radians(minute*6-90)
+                bx=cx-math.cos(mang)*13; by=cy-math.sin(mang)*13
+                canvas.create_line(cx,cy,bx,by,fill=accent2,width=3,capstyle="round",tags=("hands",))
+                canvas.create_oval(cx-8,cy-8,cx+8,cy+8,fill=(10,20,29),outline=accent,width=3,tags=("hands",))
+                canvas.create_oval(cx-3,cy-3,cx+3,cy+3,fill=accent2,outline="",tags=("hands",))
+
+                status_text=self.tr("open") if is_open else self.tr("closed")
+                status_color=accent if is_open else C["muted"]
+                dot="●"
+                status.config(text=f"{dot}  {status_text}  •  {now.strftime('%H:%M:%S')}",fg=status_color)
                 hours.config(text=f"{session['start']:02d}:00 – {session['end']:02d}:00  {now.tzname() or ''}".strip())
             except Exception:
                 continue
