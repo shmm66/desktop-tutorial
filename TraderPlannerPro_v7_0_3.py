@@ -16,9 +16,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
+from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 
 APP = "Trader Planner Pro"
-VERSION = "7.1.0"
+VERSION = "7.2.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -94,7 +95,12 @@ I18N = {
         "session_clocks":"ساعت سشن‌ها","local_time":"زمان محلی","session_hours":"ساعت سشن","open":"باز","closed":"بسته",
         "required_item":"این شرط اجباری است","condition_title":"عنوان شرط","condition_category":"دسته",
         "condition_source":"منبع","general":"عمومی","select_condition":"ابتدا یک شرط را انتخاب کن",
-        "empty_plan":"ابتدا حداقل چند بخش از Trading Plan را پر کن."
+        "empty_plan":"ابتدا حداقل چند بخش از Trading Plan را پر کن.",
+
+        "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
+        "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
+        "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
+        "education_note":"یادداشت آموزشی","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال",
     },
     "en": {
         "home":"⌂  Home","daily":"◫  Daily Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
@@ -125,7 +131,11 @@ I18N = {
         "session_clocks":"Trading Session Clocks","local_time":"Local Time","session_hours":"Session Hours","open":"OPEN","closed":"CLOSED",
         "required_item":"This condition is required","condition_title":"Condition Title","condition_category":"Category",
         "condition_source":"Source","general":"General","select_condition":"Select a condition first",
-        "empty_plan":"Fill at least a few Trading Plan sections first."
+        "empty_plan":"Fill at least a few Trading Plan sections first.",
+        "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
+        "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
+        "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
+        "education_note":"Training note","language_now":"Current language","choose_language":"Choose language","apply":"Apply",
     }
 }
 
@@ -452,7 +462,7 @@ class App(tk.Tk):
         self.menu.place(x=-310, y=0, relheight=1)
         self.menu_title = tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"], font=("Segoe UI", 17, "bold")); self.menu_title.pack(anchor="w", padx=22, pady=24)
         self.menu_buttons = {}
-        for key in ("home","daily","plan","check","journal","settings"):
+        for key in ("home","daily","plan","check","journal","academy","settings"):
             b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], relief="flat",
                           font=("Segoe UI",11), padx=22, pady=11)
@@ -1047,11 +1057,135 @@ class App(tk.Tk):
 
     def settings(self):
         p=active_profile()
-        self.heading("تنظیمات","اطلاعات پروفایل فعال و مسیر سازگار با نسخه قبلی")
-        box=self.card(self.content); box.pack(fill="x",pady=12)
-        info=f"پروفایل: {p['name']}\nبازار: {p['market']}\nسرمایه اولیه: {p['initial_balance']:,.2f} {p['currency']}\nData: {DATA}\nReports A4: {REPORTS}"
-        tk.Label(box,text=info,bg=C["panel"],fg=C["muted"],justify="right").pack(anchor="e",padx=18,pady=18)
-        self.btn(box,"مدیریت پروفایل‌ها",self.edit_profile,True).pack(anchor="e",padx=18,pady=8)
+        self.heading(self.tr("settings_title"), self.tr("settings_sub"))
+        lang_box=self.card(self.content); lang_box.pack(fill="x",pady=10)
+        tk.Label(lang_box,text=self.tr("choose_language"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(18,6))
+        tk.Label(lang_box,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,14))
+        current=tk.StringVar(value=self.language)
+        row=tk.Frame(lang_box,bg=C["panel"]); row.pack(fill="x",padx=18,pady=(0,18))
+        fa_btn=tk.Button(row,text="فارسی",command=lambda:self.set_language("fa"),bg=C["accent"] if self.language=="fa" else C["soft"],
+                         fg="#061019" if self.language=="fa" else C["text"],relief="flat",font=("Segoe UI",11,"bold"),padx=30,pady=12)
+        en_btn=tk.Button(row,text="English",command=lambda:self.set_language("en"),bg=C["accent"] if self.language=="en" else C["soft"],
+                         fg="#061019" if self.language=="en" else C["text"],relief="flat",font=("Segoe UI",11,"bold"),padx=30,pady=12)
+        fa_btn.pack(side="right",padx=6); en_btn.pack(side="right",padx=6)
+        tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",
+                 bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(side="left",padx=10)
+        profile_box=self.card(self.content); profile_box.pack(fill="x",pady=10)
+        info=(f"{self.tr('profile')}: {p['name']}\n"
+              f"{self.tr('market')}: {p['market']}\n"
+              f"{self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}\n"
+              f"{self.tr('data_path')}: {DATA}\n{self.tr('reports_path')}: {REPORTS}")
+        tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",10)).pack(anchor="e",padx=18,pady=18)
+        self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=10)
+
+    def academy(self):
+        self.heading(self.tr("academy_title"), self.tr("academy_sub"))
+        note=tk.Label(self.content,text=ACADEMY_NOTE_FA if self.language=="fa" else ACADEMY_NOTE_EN,
+                      bg=C["panel2"],fg=C["muted"],wraplength=1180,justify="right",padx=14,pady=10)
+        note.pack(fill="x",pady=(0,10))
+        nb=ttk.Notebook(self.content)
+        nb.pack(fill="both",expand=True)
+        tab_smc=tk.Frame(nb,bg=C["bg"]); tab_ict=tk.Frame(nb,bg=C["bg"]); tab_candle=tk.Frame(nb,bg=C["bg"]); tab_gloss=tk.Frame(nb,bg=C["bg"])
+        nb.add(tab_smc,text=self.tr("smc")); nb.add(tab_ict,text=self.tr("ict")); nb.add(tab_candle,text=self.tr("candles")); nb.add(tab_gloss,text=self.tr("glossary"))
+        self._academy_notebook=nb
+        self._build_strategy_tab(tab_smc,SMART_MONEY_STRATEGIES)
+        self._build_strategy_tab(tab_ict,ICT_STRATEGIES)
+        self._build_candle_tab(tab_candle)
+        self._build_glossary_tab(tab_gloss)
+
+    def _build_strategy_tab(self,parent,items):
+        outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=6,showhandle=False)
+        outer.pack(fill="both",expand=True,padx=8,pady=8)
+        left=tk.Frame(outer,bg=C["panel"]); right=tk.Frame(outer,bg=C["panel"])
+        outer.add(left,minsize=330); outer.add(right,minsize=620)
+        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",
+                      font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0)
+        lb.pack(fill="both",expand=True,padx=8,pady=8)
+        for item in items: lb.insert("end",item["name_fa"] if self.language=="fa" else item["name_en"])
+        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",16,"bold"),anchor="e",justify="right")
+        title.pack(fill="x",padx=18,pady=(16,8))
+        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),anchor="e",justify="right",wraplength=700)
+        summary.pack(fill="x",padx=18,pady=6)
+        steps_frame=tk.Frame(right,bg=C["panel"]); steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
+        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",10),height=18)
+        text.pack(side="left",fill="both",expand=True)
+        scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview); scr.pack(side="right",fill="y"); text.configure(yscrollcommand=scr.set)
+        def render(_=None):
+            sel=lb.curselection()
+            if not sel: return
+            item=items[sel[0]]
+            title.config(text=item["name_fa"] if self.language=="fa" else item["name_en"])
+            summary.config(text=item["summary_fa"] if self.language=="fa" else item["summary_en"])
+            lines=(item["steps_fa"] if self.language=="fa" else item["steps_en"])
+            inv=item["risk_fa"] if self.language=="fa" else item["risk_en"]
+            text.configure(state="normal"); text.delete("1.0","end")
+            text.insert("end",self.tr("steps")+"\n\n")
+            for i,line in enumerate(lines,1): text.insert("end",f"{i}. {line}\n")
+            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv)
+            text.configure(state="disabled")
+        lb.bind("<<ListboxSelect>>",render)
+        if items: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
+
+    def _build_candle_tab(self,parent):
+        wrap=tk.Frame(parent,bg=C["panel"]); wrap.pack(fill="both",expand=True,padx=8,pady=8)
+        left=tk.Frame(wrap,bg=C["panel"]); left.pack(side="left",fill="both",expand=True,padx=8,pady=8)
+        right=tk.Frame(wrap,bg=C["panel"]); right.pack(side="left",fill="both",expand=True,padx=8,pady=8)
+        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",
+                      font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0)
+        lb.pack(fill="both",expand=True)
+        for name,en,fa in CANDLE_PLAYBOOK:
+            lb.insert("end", fa if self.language=="fa" else name)
+        tk.Label(right,text=("الگوهای کندلی" if self.language=="fa" else "Candlestick Patterns"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=12,pady=12)
+        desc=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),wraplength=650,justify="right")
+        desc.pack(fill="both",expand=True,padx=16,pady=16)
+        def render(_=None):
+            if not lb.curselection(): return
+            name,en,fa=CANDLE_PLAYBOOK[lb.curselection()[0]]
+            desc.config(text=(f"{name}\n\n{fa}" if self.language=="fa" else f"{name}\n\n{fa}"))
+        lb.bind("<<ListboxSelect>>",render)
+        if CANDLE_PLAYBOOK: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
+
+    def _build_glossary_tab(self,parent):
+        bar=tk.Frame(parent,bg=C["panel"]); bar.pack(fill="x",padx=8,pady=8)
+        q=tk.StringVar()
+        entry=tk.Entry(bar,textvariable=q,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="right",font=("Segoe UI",10))
+        entry.pack(side="right",fill="x",expand=True,padx=8,pady=10)
+        tk.Label(bar,text=self.tr("search_term"),bg=C["panel"],fg=C["muted"]).pack(side="right")
+        cat=tk.StringVar(value="ALL")
+        cats=["ALL"]+sorted({x["category"] for x in GLOSSARY})
+        combo=ttk.Combobox(bar,textvariable=cat,values=cats,state="readonly",width=24,justify="right"); combo.pack(side="left",padx=8,pady=8)
+        body=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=6); body.pack(fill="both",expand=True,padx=8,pady=(0,8))
+        left=tk.Frame(body,bg=C["panel"]); right=tk.Frame(body,bg=C["panel"]); body.add(left,minsize=360); body.add(right,minsize=600)
+        tree=ttk.Treeview(left,columns=("term","category"),show="headings",selectmode="browse")
+        tree.heading("term",text="Term"); tree.heading("category",text="Category"); tree.column("term",width=260); tree.column("category",width=120)
+        tree.pack(fill="both",expand=True,padx=8,pady=8)
+        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold"),justify="right",anchor="e")
+        title.pack(fill="x",padx=18,pady=(14,8))
+        meaning=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e")
+        meaning.pack(fill="x",padx=18,pady=8)
+        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e")
+        usage.pack(fill="x",padx=18,pady=8)
+        def refresh(*_):
+            term=q.get().strip().lower(); selected_cat=cat.get()
+            for x in tree.get_children(): tree.delete(x)
+            matched=[]
+            for i,item in enumerate(GLOSSARY):
+                text=" ".join([item["term"],item["fa"],item["en"],item["category"],item["meaning_fa"],item["meaning_en"],item["usage_fa"],item["usage_en"]]).lower()
+                if term and term not in text: continue
+                if selected_cat!="ALL" and item["category"]!=selected_cat: continue
+                matched.append(i); tree.insert("", "end",iid=str(i),values=(item["term"],item["category"]))
+            if matched:
+                tree.selection_set(str(matched[0])); render()
+        def render(_=None):
+            sel=tree.selection()
+            if not sel: return
+            item=GLOSSARY[int(sel[0])]
+            title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
+            meaning.config(text=(self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"])))
+            usage.config(text=(self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"])))
+        tree.bind("<<TreeviewSelect>>",render); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh)
+        refresh()
+        tk.Label(parent,text=f"{len(GLOSSARY)} terms",bg=C["bg"],fg=C["muted"],font=("Segoe UI",8)).pack(anchor="e",padx=10,pady=(0,6))
 
     def open_path(self,path):
         path=Path(path); path.mkdir(parents=True,exist_ok=True)
