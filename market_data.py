@@ -251,6 +251,17 @@ class MarketDataService:
     def set_market(self, market: str):
         self._market = "Forex" if market == "Forex" else "Crypto"
 
+    def refresh_now(self):
+        market = self._market
+        def run():
+            try:
+                payload = fetch_market(market)
+                if self.callback:
+                    self.callback(payload)
+            except Exception:
+                pass
+        concurrent.futures.ThreadPoolExecutor(max_workers=1).submit(run)
+
     def stop(self):
         self._running = False
         if self._executor:
