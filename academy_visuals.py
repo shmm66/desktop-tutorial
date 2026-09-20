@@ -230,7 +230,7 @@ def render_visual(path: Path, key: str, title: str, subtitle: str, size=(1400, 8
         _rounded(d, (80,190,W-80,690),28,(18,30,44,255),(39,56,74,255),2)
         d.line((130,410,1260,410),fill=(242,196,109),width=18)
         d.text((135,350),"FORMER SUPPORT / RESISTANCE",font=_font(18,True),fill=(242,196,109))
-        d.line((240,300,520,470,700,380,910,520,1120,440),fill=(99,167,255),width=8,joint="curve")
+        d.line([(240,300),(520,470),(700,380),(910,520),(1120,440)],fill=(99,167,255),width=8,joint="curve")
         d.text((740,525),"ROLE FLIP",font=_font(28,True),fill=(255,111,125))
         d.text((90,710),"A breaker tracks a failed zone after its role changes.",font=_font(18),fill=(144,163,179))
 
