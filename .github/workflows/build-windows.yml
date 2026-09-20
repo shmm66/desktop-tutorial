@@ -105,22 +105,22 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V7.2.0 Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/academy-language-icon-7-2-0') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/academy-language-icon-7-2-0' && github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Publish V7.3.0 Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/3d-session-clocks-7-3-0') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/3d-session-clocks-7-3-0' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v7.2.0
-          name: Trader Planner Pro V7.2.0
+          tag_name: v7.3.0
+          name: Trader Planner Pro V7.3.0
           target_commitish: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V7.2.0
+            ## Trader Planner Pro V7.3.0
 
             Windows patch release.
-            Includes fixed Persian/English language switching, crisp Windows shortcut branding, four live analog session clocks, and a new Smart Money / ICT / Candlestick Academy with searchable glossary.
+            Includes upgraded smooth 3D glass session clocks with live analog hands, session progress rings, and the existing Academy, language and branding updates.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v7.2.0.exe
+            installer/TraderPlannerPro_Setup_v7.3.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
