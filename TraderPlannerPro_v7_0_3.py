@@ -424,6 +424,8 @@ class App(tk.Tk):
         self.session_clock_job = None
         self.session_clock_widgets = []
         self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": []}
+        self.ticker_offset = 0
+        self.ticker_job = None
         self.market_data = MarketDataService(self._market_data_callback, refresh_seconds=60)
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
@@ -627,6 +629,10 @@ class App(tk.Tk):
             try: self.after_cancel(self.session_clock_job)
             except Exception: pass
             self.session_clock_job = None
+        if self.ticker_job is not None:
+            try: self.after_cancel(self.ticker_job)
+            except Exception: pass
+            self.ticker_job = None
         self.session_clock_widgets = []
         self.cur = key
         for widget in self.content.winfo_children():
@@ -746,6 +752,8 @@ class App(tk.Tk):
         self.ticker_canvas = tk.Canvas(self.content, height=76, bg=C["bg"], highlightthickness=0)
         self.ticker_canvas.pack(fill="x", pady=(0,7))
         self.render_market_ticker(self.market_data_payload)
+        self.ticker_offset = 0
+        self.ticker_job = self.after(45, self._animate_ticker)
 
         session_wrap = tk.Frame(self.content, bg=C["bg"])
         session_wrap.pack(fill="x", pady=(2,8))
@@ -799,41 +807,49 @@ class App(tk.Tk):
             c.create_text(20, 38, text=self.tr("market_unavailable"), anchor="w", fill=C["muted"],
                           font=("Segoe UI", 10, "bold"))
             return
-        width = max(self.winfo_width() - 35, 820)
+
+        width = max(self.ticker_canvas.winfo_width(), 820)
         card_w = 170 if self.market == "Crypto" else 156
         gap = 8
-        total = max(width, len(items) * (card_w + gap))
-        x = 6
-        for item in items:
-            if x > width + card_w:
-                break
-            tag = str(item.get("symbol", "")).upper()
+        step = card_w + gap
+        offset = self.ticker_offset % max(step * len(items), 1)
+        draw_items = items * 3
+        x = 6 - offset
+        for item in draw_items:
             price = item.get("price")
+            if price is None:
+                x += step
+                continue
+            tag = str(item.get("symbol", "")).upper()
             change = item.get("change")
-            if price is None: continue
-            if price >= 1000:
-                ptxt = f"{price:,.0f}"
-            elif price >= 1:
-                ptxt = f"{price:,.2f}"
-            else:
-                ptxt = f"{price:,.5f}"
-            if change is None:
-                ctxt = "—"
-            else:
-                ctxt = f"{change:+.2f}%"
+            if price >= 1000: ptxt = f"{price:,.0f}"
+            elif price >= 1: ptxt = f"{price:,.2f}"
+            else: ptxt = f"{price:,.5f}"
+            ctxt = "—" if change is None else f"{change:+.2f}%"
             accent = C["accent"] if (change or 0) >= 0 else C["danger"]
             c.rounded_rectangle((x, 7, x+card_w, 69), radius=14, fill=C["panel"], outline=C["line"], width=1)
-            c.create_text(x+14, 23, text=tag, anchor="w", fill=C["muted"], font=("Segoe UI", 8, "bold"))
-            c.create_text(x+14, 46, text=ptxt, anchor="w", fill=C["text"], font=("Consolas", 12, "bold"))
-            c.create_text(x+card_w-12, 46, text=ctxt, anchor="e", fill=accent, font=("Consolas", 9, "bold"))
-            x += card_w + gap
+            c.create_oval((x+10, 19, x+17, 26), fill=accent, outline="")
+            c.create_text(x+24, 23, text=tag, anchor="w", fill=C["muted"], font=("Segoe UI", 8, "bold"))
+            c.create_text(x+12, 47, text=ptxt, anchor="w", fill=C["text"], font=("Consolas", 12, "bold"))
+            c.create_text(x+card_w-12, 47, text=ctxt, anchor="e", fill=accent, font=("Consolas", 9, "bold"))
+            x += step
         src = payload.get("source", "unavailable")
         if hasattr(self, "market_status_label"):
-            self.market_status_label.config(text=self.tr("live") if src == "live" else (self.tr("cached") if src == "cache" else self.tr("market_unavailable")),
-                                            fg=C["accent"] if src == "live" else C["gold"] if src == "cache" else C["muted"])
+            self.market_status_label.config(
+                text=self.tr("live") if src == "live" else (self.tr("cached") if src == "cache" else self.tr("market_unavailable")),
+                fg=C["accent"] if src == "live" else C["gold"] if src == "cache" else C["muted"]
+            )
         if hasattr(self, "market_update_label"):
             stamp = payload.get("updated_at") or ""
             self.market_update_label.config(text=f"{self.tr('last_update')}: {stamp.replace('T',' ')}")
+
+    def _animate_ticker(self):
+        if self.cur != "home":
+            self.ticker_job = None
+            return
+        self.ticker_offset += 1
+        self.render_market_ticker(self.market_data_payload)
+        self.ticker_job = self.after(45, self._animate_ticker)
 
     def _market_data_callback(self, payload):
         self.market_data_payload = payload
@@ -845,6 +861,7 @@ class App(tk.Tk):
     def _apply_market_data(self, payload):
         self.market_data_payload = payload
         if self.cur == "home":
+            self.ticker_offset = 0
             self.render_market_ticker(payload)
 
     def draw_session_clock(self, parent, session):
