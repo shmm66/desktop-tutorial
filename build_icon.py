@@ -30,9 +30,8 @@ def create_icon(path="app.ico"):
     d.text((x+5,y+7),text,font=f,fill=(0,0,0,200))
     d.text((x,y),text,font=f,fill=WHITE)
     d.ellipse((398,398,450,450),fill=TEAL,outline=GOLD,width=3)
-    sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)]
-    resized=[base.resize(s,Image.Resampling.LANCZOS) for s in [x[0] for x in sizes]]
-    resized[0].save(path,format="ICO",sizes=[x[0] for x in sizes])
+    ico_sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)]
+    base.save(path,format="ICO",sizes=ico_sizes)
     return path
 
 if __name__ == "__main__":
