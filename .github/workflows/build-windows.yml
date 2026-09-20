@@ -112,12 +112,12 @@ jobs:
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
       - name: Publish V7.4.1 Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/v7-4-0-market-ui-academy') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/v7-4-0-market-ui-academy' && github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v7.4.1
           name: Trader Planner Pro V7.4.1
-          target_commitish: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: false
           body: |
             ## Trader Planner Pro V7.4.1
