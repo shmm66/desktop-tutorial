@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test/build dependencies
-        run: python -m pip install --upgrade pip pytest pyinstaller pillow
+        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata
       - name: Syntax check
         run: |
           python -m py_compile TraderPlannerPro_v7_0_3.py
@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build dependencies
-        run: python -m pip install --upgrade pip pyinstaller pillow
+        run: python -m pip install --upgrade pip pyinstaller pillow tzdata
       - name: Build EXE
         run: >-
           pyinstaller --noconfirm --clean --onefile --windowed
@@ -59,6 +59,7 @@ jobs:
           --hidden-import shutil
           --hidden-import re
           --hidden-import uuid
+          --collect-all tzdata
           launcher.py
       - name: Verify EXE
         shell: powershell
@@ -102,22 +103,22 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V7.1.0 Release
+      - name: Publish V7.1.1 Release
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/trader-planner-pro-7-0-3-profiles-dashboard' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v7.1.0
-          name: Trader Planner Pro V7.1.0
+          tag_name: v7.1.1
+          name: Trader Planner Pro V7.1.1
           target_commitish: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V7.1.0
+            ## Trader Planner Pro V7.1.1
 
             Windows patch release.
-            Includes the redesigned Checklist editor, Persian/English interface selection, versioned Trading Plan with A4 export, independent journal profiles, and dashboard charts.
+            Includes four live analog session clocks on Home, redesigned Checklist editing, Persian/English interface selection, versioned Trading Plan with A4 export, independent journal profiles, and dashboard charts.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v7.1.0.exe
+            installer/TraderPlannerPro_Setup_v7.1.1.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
