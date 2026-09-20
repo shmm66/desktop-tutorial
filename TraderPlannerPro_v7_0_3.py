@@ -966,35 +966,33 @@ class App(tk.Tk):
         self.market = p.get("market", "Crypto")
         self.heading(self.tr("dashboard"), self.tr("dashboard_sub"))
 
-        self.home_shortcut = tk.Label(self.content, text="HOME", bg=C["panel3"], fg=C["muted"],
-                                      font=("Segoe UI", 7, "bold"), padx=8, pady=4)
-        self.home_shortcut.pack(anchor="e", pady=(0,4))
-
         ticker_header = tk.Frame(self.content, bg=C["panel2"], highlightbackground=C["line"], highlightthickness=1)
         ticker_header.pack(fill="x", pady=(2,4))
         left = tk.Frame(ticker_header, bg=C["panel2"]); left.pack(side="left", padx=10, pady=7)
-        tk.Label(left, text=self.tr("market_tape"), bg=C["panel2"], fg=C["gold"],
-                 font=("Segoe UI", 9, "bold")).pack(side="left")
-        self.market_status_label = tk.Label(left, text=self.tr("market_loading"), bg=C["panel2"], fg=C["muted"],
-                                            font=("Segoe UI", 8, "bold"))
+        tk.Label(left, text=self.tr("market_tape"), bg=C["panel2"], fg=C["gold"], font=("Segoe UI", 10, "bold")).pack(side="left")
+        self.market_status_label = tk.Label(left, text="", bg=C["panel2"], fg=C["muted"], font=("Segoe UI", 8, "bold"))
         self.market_status_label.pack(side="left", padx=10)
         right = tk.Frame(ticker_header, bg=C["panel2"]); right.pack(side="right", padx=10)
-        self.market_update_label = tk.Label(right, text="", bg=C["panel2"], fg=C["muted"],
-                                            font=("Segoe UI", 8))
-        self.market_update_label.pack(side="right")
+        self.market_update_label = tk.Label(right, text="", bg=C["panel2"], fg=C["muted"], font=("Segoe UI", 8))
+        self.market_update_label.pack(side="left", padx=8)
+        self.btn(right, self.tr("retry_market"), self.refresh_market_data).pack(side="right", padx=3)
+
         self.ticker_canvas = tk.Canvas(self.content, height=76, bg=C["bg"], highlightthickness=0)
-        self.ticker_canvas.pack(fill="x", pady=(0,7))
+        self.ticker_canvas.pack(fill="x", pady=(0,6))
         self.render_market_ticker(self.market_data_payload)
         self.ticker_offset = 0
         self.ticker_job = self.after(45, self._animate_ticker)
 
-        session_wrap = tk.Frame(self.content, bg=C["bg"])
-        session_wrap.pack(fill="x", pady=(2,8))
+        indicator_head = tk.Frame(self.content, bg=C["bg"]); indicator_head.pack(fill="x", pady=(1,2))
+        tk.Label(indicator_head, text=self.tr("market_indicators"), bg=C["bg"], fg=C["text"], font=("Segoe UI", 11, "bold")).pack(side="right")
+        tk.Label(indicator_head, text=f"{self.market} • {self.market_data_payload.get('source','—')}", bg=C["bg"], fg=C["muted"], font=("Segoe UI", 8)).pack(side="left")
+        self.indicator_row = tk.Frame(self.content, bg=C["bg"]); self.indicator_row.pack(fill="x", pady=(0,7))
+        self.render_market_indicators(self.market_data_payload)
+
+        session_wrap = tk.Frame(self.content, bg=C["bg"]); session_wrap.pack(fill="x", pady=(1,7))
         session_head = tk.Frame(session_wrap, bg=C["bg"]); session_head.pack(fill="x")
-        tk.Label(session_head, text=self.tr("session_strip"), bg=C["bg"], fg=C["text"],
-                 font=("Segoe UI", 11, "bold")).pack(side="right")
-        tk.Label(session_head, text="SYD • TYO • LON • NY", bg=C["bg"], fg=C["muted"],
-                 font=("Consolas", 8, "bold")).pack(side="left")
+        tk.Label(session_head, text=self.tr("session_strip"), bg=C["bg"], fg=C["text"], font=("Segoe UI", 11, "bold")).pack(side="right")
+        tk.Label(session_head, text="SYD • TYO • LON • NY", bg=C["bg"], fg=C["muted"], font=("Consolas", 8, "bold")).pack(side="left")
         clocks = tk.Frame(session_wrap, bg=C["bg"]); clocks.pack(fill="x", pady=(4,0))
         for col, session in enumerate(SESSION_CLOCKS):
             clocks.columnconfigure(col, weight=1)
@@ -1009,11 +1007,6 @@ class App(tk.Tk):
             ("R", self.tr("net_r"), f"{sum(result_num(x) for x in p['journals'][self.market]):.2f} R", C["gold"]),
             ("$", self.tr("initial_balance"), f"{p['initial_balance']:,.2f} {p['currency']}", C["violet"]),
         ]
-        if self.market == "Crypto":
-            fg = self.market_data_payload.get("fear_greed") or {}
-            fg_value = fg.get("value")
-            fg_label = fg.get("label") or "—"
-            cards.append(("◈", "Fear & Greed", f"{fg_value}  •  {fg_label}" if fg_value is not None else "—", C["cyan"]))
         for icon, title, value, accent_color in cards:
             box = self.card(stats); box.pack(side="left", fill="both", expand=True, padx=4)
             tk.Label(box, text=icon, bg=C["panel"], fg=accent_color, font=("Segoe UI Symbol", 15, "bold")).pack(anchor="w", padx=13, pady=(8,1))
@@ -1023,84 +1016,89 @@ class App(tk.Tk):
         lower = tk.Frame(self.content, bg=C["bg"]); lower.pack(fill="both", expand=True, pady=4)
         left = self.card(lower); left.pack(side="left", fill="both", expand=True, padx=(0,4))
         right = self.card(lower); right.pack(side="left", fill="both", expand=True, padx=(4,0))
-        tk.Label(left, text=self.tr("performance"), bg=C["panel"], fg=C["text"],
-                 font=("Segoe UI", 11, "bold")).pack(anchor="e", padx=14, pady=8)
+        tk.Label(left, text=self.tr("performance"), bg=C["panel"], fg=C["text"], font=("Segoe UI", 11, "bold")).pack(anchor="e", padx=14, pady=8)
         self.draw_bar_chart(left, p["journals"][self.market])
-        tk.Label(right, text=self.tr("distribution"), bg=C["panel"], fg=C["text"],
-                 font=("Segoe UI", 11, "bold")).pack(anchor="e", padx=14, pady=8)
+        tk.Label(right, text=self.tr("distribution"), bg=C["panel"], fg=C["text"], font=("Segoe UI", 11, "bold")).pack(anchor="e", padx=14, pady=8)
         self.draw_pie_chart(right, p["journals"][self.market])
 
         actions = tk.Frame(self.content, bg=C["bg"]); actions.pack(fill="x", pady=(4,8))
         self.btn(actions, self.tr("new_trade"), self.add_trade, True).pack(side="right")
-        self.btn(actions, self.tr("home_shortcut"), lambda:self.show("home")).pack(side="left")
+        self.btn(actions, self.tr("calculators"), lambda:self.show("calculators")).pack(side="left", padx=3)
+        self.btn(actions, self.tr("ai"), lambda:self.show("ai")).pack(side="left", padx=3)
+        self.btn(actions, self.tr("news"), lambda:self.show("news")).pack(side="left", padx=3)
 
-    def render_market_ticker(self, payload=None):
-        payload = payload or self.market_data_payload
-        if not hasattr(self, "ticker_canvas") or not self.ticker_canvas.winfo_exists():
-            return
-        c = self.ticker_canvas
-        c.delete("all")
-        items = list(payload.get("items") or [])
-        if not items:
-            c.create_text(20, 38, text=self.tr("market_unavailable"), anchor="w", fill=C["muted"],
-                          font=("Segoe UI", 10, "bold"))
-            return
-
-        width = max(self.ticker_canvas.winfo_width(), 820)
-        card_w = 170 if self.market == "Crypto" else 156
-        gap = 8
-        step = card_w + gap
-        offset = self.ticker_offset % max(step * len(items), 1)
-        draw_items = items * 3
-        x = 6 - offset
-        for item in draw_items:
-            price = item.get("price")
-            if price is None:
-                x += step
-                continue
-            tag = str(item.get("symbol", "")).upper()
-            change = item.get("change")
-            if price >= 1000: ptxt = f"{price:,.0f}"
-            elif price >= 1: ptxt = f"{price:,.2f}"
-            else: ptxt = f"{price:,.5f}"
-            ctxt = "—" if change is None else f"{change:+.2f}%"
-            accent = C["accent"] if (change or 0) >= 0 else C["danger"]
-            c.rounded_rectangle((x, 7, x+card_w, 69), radius=14, fill=C["panel"], outline=C["line"], width=1)
-            c.create_oval((x+10, 19, x+17, 26), fill=accent, outline="")
-            c.create_text(x+24, 23, text=tag, anchor="w", fill=C["muted"], font=("Segoe UI", 8, "bold"))
-            c.create_text(x+12, 47, text=ptxt, anchor="w", fill=C["text"], font=("Consolas", 12, "bold"))
-            c.create_text(x+card_w-12, 47, text=ctxt, anchor="e", fill=accent, font=("Consolas", 9, "bold"))
-            x += step
-        src = payload.get("source", "unavailable")
+    def refresh_market_data(self):
+        self.market_data_payload["status"] = "unavailable"
+        self.market_data_payload["message"] = self.tr("market_loading")
         if hasattr(self, "market_status_label"):
-            self.market_status_label.config(
-                text=self.tr("live") if src == "live" else (self.tr("cached") if src == "cache" else self.tr("market_unavailable")),
-                fg=C["accent"] if src == "live" else C["gold"] if src == "cache" else C["muted"]
-            )
-        if hasattr(self, "market_update_label"):
-            stamp = payload.get("updated_at") or ""
-            self.market_update_label.config(text=f"{self.tr('last_update')}: {stamp.replace('T',' ')}")
+            self.market_status_label.config(text=self.tr("market_loading"), fg=C["gold"])
+        self.market_data.set_market(self.market)
+        self.market_data.start(self.market)
 
-    def _animate_ticker(self):
-        if self.cur != "home":
-            self.ticker_job = None
+    def render_market_indicators(self, payload=None):
+        if not hasattr(self, "indicator_row"):
             return
-        self.ticker_offset += 1
-        self.render_market_ticker(self.market_data_payload)
-        self.ticker_job = self.after(45, self._animate_ticker)
+        payload = payload or self.market_data_payload
+        for w in self.indicator_row.winfo_children():
+            w.destroy()
+        ind = payload.get("indicators") or {}
+        fg = ind.get("fear_greed") or {}
+        cards = [
+            ("fear_greed", fg.get("value"), fg.get("label") or "—", "gauge"),
+            ("btc_dom", ind.get("btc_dominance"), "%", "donut"),
+            ("usdt_dom", ind.get("usdt_dominance"), "%", "donut"),
+            ("vix", (ind.get("vix") or {}).get("value"), "", "bar"),
+            ("total_mcap", ind.get("total_market_cap"), "", "value"),
+        ]
+        for key, value, suffix, kind in cards:
+            card = self.card(self.indicator_row); card.pack(side="left", fill="both", expand=True, padx=3)
+            title = INDICATOR_LABELS.get(self.language, INDICATOR_LABELS["en"]).get(key, key)
+            tk.Label(card, text=title, bg=C["panel"], fg=C["muted"], font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=10, pady=(7,1))
+            canvas = tk.Canvas(card, width=108, height=58, bg=C["panel"], highlightthickness=0)
+            canvas.pack(side="left", padx=(6,2), pady=(2,5))
+            text_box = tk.Frame(card, bg=C["panel"]); text_box.pack(side="left", fill="both", expand=True, padx=(0,7))
+            main_value = "—"
+            if value is not None:
+                if key == "fear_greed": main_value = f"{int(value)}"
+                elif key in ("btc_dom","usdt_dom","vix"): main_value = f"{value:.2f}{suffix}"
+                else: main_value = ("USD " + f"{value/1_000_000_000:,.1f}B") if value >= 1e9 else ("USD " + f"{value:,.0f}")
+            tk.Label(text_box, text=main_value, bg=C["panel"], fg=C["text"], font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(8,0))
+            if key == "fear_greed":
+                tk.Label(text_box, text=str(suffix), bg=C["panel"], fg=C["accent"], font=("Segoe UI", 8, "bold"), wraplength=90).pack(anchor="w")
+            elif key in ("btc_dom","usdt_dom"):
+                tk.Label(text_box, text="Market Share", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 7)).pack(anchor="w")
+            elif key == "vix":
+                change = (ind.get("vix") or {}).get("change")
+                tk.Label(text_box, text=("—" if change is None else f"{change:+.2f}%"), bg=C["panel"], fg=C["accent"] if (change or 0) <= 0 else C["danger"], font=("Consolas", 8, "bold")).pack(anchor="w")
+            else:
+                tk.Label(text_box, text="Global crypto market", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 7)).pack(anchor="w")
+            self._draw_indicator_shape(canvas, kind, value)
 
-    def _market_data_callback(self, payload):
-        self.market_data_payload = payload
-        try:
-            self.after(0, lambda p=payload: self._apply_market_data(p))
-        except Exception:
-            pass
-
-    def _apply_market_data(self, payload):
-        self.market_data_payload = payload
-        if self.cur == "home":
-            self.ticker_offset = 0
-            self.render_market_ticker(payload)
+    def _draw_indicator_shape(self, canvas, kind, value):
+        canvas.delete("all")
+        if value is None:
+            canvas.create_text(54,30,text="—",fill=C["muted"],font=("Segoe UI",16,"bold")); return
+        if kind == "gauge":
+            canvas.create_arc(8,8,100,100,start=180,extent=180,style="arc",outline=C["danger"],width=7)
+            canvas.create_arc(8,8,100,100,start=252,extent=108,style="arc",outline=C["accent"],width=7)
+            v=max(0,min(100,float(value))); angle=math.radians(180+(v*180/100))
+            canvas.create_line(54,54,54+34*math.cos(angle),54+34*math.sin(angle),fill=C["text"],width=3)
+            canvas.create_oval(50,50,58,58,fill=C["accent"],outline="")
+        elif kind == "donut":
+            pct=max(0,min(100,float(value)))
+            canvas.create_arc(8,8,100,100,start=90,extent=-360,style="arc",outline=C["line"],width=10)
+            canvas.create_arc(8,8,100,100,start=90,extent=-3.6*pct,style="arc",outline=C["accent"],width=10)
+            canvas.create_text(54,54,text=f"{pct:.1f}",fill=C["text"],font=("Segoe UI",10,"bold"))
+        elif kind == "bar":
+            v=max(0,min(50,float(value)))
+            canvas.create_rectangle(8,24,100,38,fill=C["soft"],outline="")
+            canvas.create_rectangle(8,24,8+92*(v/50),38,fill=C["gold"],outline="")
+            canvas.create_text(54,48,text="0 — 50",fill=C["muted"],font=("Consolas",7))
+        else:
+            canvas.create_line(8,42,100,42,fill=C["line"],width=1)
+            pts=[(8,38),(24,32),(40,36),(56,23),(72,28),(88,18),(100,22)]
+            canvas.create_line(pts,fill=C["accent"],width=2,smooth=True)
+            canvas.create_text(8,10,text="LIVE",anchor="w",fill=C["muted"],font=("Consolas",7,"bold"))
 
     def draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
