@@ -104,7 +104,7 @@ jobs:
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
       - name: Publish V7.1.1 Release
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/trader-planner-pro-7-0-3-profiles-dashboard' && github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.pull_request.head.repo.full_name == github.repository)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v7.1.1
