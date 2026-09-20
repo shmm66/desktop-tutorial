@@ -12,48 +12,7 @@ from urllib.parse import urlparse
 USER_AGENT = "TraderPlannerPro/7.4 (+https://github.com/shmm66/desktop-tutorial)"
 
 EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
-    "candlestick": (
-        "TradingView Support — Introduction to Candlestick Charts and Patterns",
-        "https://www.tradingview.com/support/solutions/43000745269-introduction-to-candlestick-charts-and-patterns/",
-    ),
-    "structure": (
-        "TradingView — ICT-Based Market Structure, Liquidity & Order Block Framework",
-        "https://www.tradingview.com/chart/XAUUSD/JhztA6F9-ICT-Based-Market-Structure-Liquidity-Order-Block-Framework/",
-    ),
-    "liquidity": (
-        "TradingView — Liquidity Sweep Setup | MSS + FVG + Order Block",
-        "https://www.tradingview.com/chart/GOLD/GXZP7v3b-Liquidity-Sweep-Setup-MSS-FVG-Order-Block/",
-    ),
-    "fvg": (
-        "TradingView — Educational Post: FVG (Fair Value Gap)",
-        "https://www.tradingview.com/chart/BTCUSDT/ls1qkg1J-EDUCATIONAL-POST-FVG-Fair-Value-Gap/",
-    ),
-    "order_block": (
-        "TradingView — Educational Series: What Is an Order Block (OB)?",
-        "https://www.tradingview.com/chart/XAUUSD/M8FJGt2o-Educational-Series-What-Is-an-Order-Block-OB/",
-    ),
-    "breaker": (
-        "TradingView — Market Concepts: Lesson 05 — Breaker Blocks",
-        "https://www.tradingview.com/chart/BTCUSDT/GF9ddICw-Market-Concepts-Lesson-05-Breaker-Blocks/",
-    ),
-    "unicorn": (
-        "TradingView — ICT Unicorn Model - The powerful Model",
-        "https://www.tradingview.com/chart/DXY/VZbs9Ofu-ICT-Unicorn-Model-The-powerful-Model/",
-    ),
-    "smt": (
-        "TradingView — SMT (Smart Money Technique) | Advanced Institutional Concept",
-        "https://www.tradingview.com/chart/GOLD/QZNZVNUf-SMT-Smart-Money-Technique-Advanced-Institutional-Concept/",
-    ),
-    "timing": (
-        "TradingView — Judas Swing | London Killzone | Optimal Trade Entry",
-        "https://www.tradingview.com/chart/GBPUSD/ahxFLqq4-Judas-Swing-London-Killzone-Optimal-Trade-Entry-Explained/",
-    ),
-    "technical": (
-        "TradingView — 7 Expert Risk Management Techniques for Trading",
-        "https://www.tradingview.com/chart/BTCUSDT/20ywMQSe-7-Expert-Risk-Management-Techniques-for-Trading/",
-    ),
-}
-
+    "candlestick": ("TradingView Support — Introduction to Candlestick Charts and Patterns", "https://www.tradingview.com/support/solutions/43000745269-introduction-to-candlestick-charts-and-patterns/"),
     "bullish_engulfing": ("TradingView Support — Engulfing Bullish", "https://www.tradingview.com/support/solutions/43000583771-engulfing-bullish/"),
     "bearish_engulfing": ("TradingView Support — Engulfing Bearish", "https://www.tradingview.com/support/solutions/43000583769-engulfing-bearish/"),
     "doji": ("TradingView Support — Doji", "https://www.tradingview.com/support/solutions/43000583767-doji/"),
@@ -68,6 +27,15 @@ EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
     "tweezer_bottom": ("TradingView Support — Tweezer Bottom Bullish", "https://www.tradingview.com/support/solutions/43000592709-tweezer-bottom-bullish/"),
     "marubozu": ("TradingView Support — Marubozu White/Black", "https://www.tradingview.com/support/solutions/43000583786-marubozu-white-bullish/"),
     "spinning_top": ("TradingView Support — Spinning Top White/Black", "https://www.tradingview.com/support/solutions/43000583790-spinning-top-white/"),
+    "structure": ("TradingView — ICT-Based Market Structure, Liquidity & Order Block Framework", "https://www.tradingview.com/chart/XAUUSD/JhztA6F9-ICT-Based-Market-Structure-Liquidity-Order-Block-Framework/"),
+    "liquidity": ("TradingView — Liquidity Sweep Setup | MSS + FVG + Order Block", "https://www.tradingview.com/chart/GOLD/GXZP7v3b-Liquidity-Sweep-Setup-MSS-FVG-Order-Block/"),
+    "fvg": ("TradingView — Educational Post: FVG (Fair Value Gap)", "https://www.tradingview.com/chart/BTCUSDT/ls1qkg1J-EDUCATIONAL-POST-FVG-Fair-Value-Gap/"),
+    "order_block": ("TradingView — Educational Series: What Is an Order Block (OB)?", "https://www.tradingview.com/chart/XAUUSD/M8FJGt2o-Educational-Series-What-Is-an-Order-Block-OB/"),
+    "breaker": ("TradingView — Market Concepts: Lesson 05 — Breaker Blocks", "https://www.tradingview.com/chart/BTCUSDT/GF9ddICw-Market-Concepts-Lesson-05-Breaker-Blocks/"),
+    "unicorn": ("TradingView — ICT Unicorn Model - The powerful Model", "https://www.tradingview.com/chart/DXY/VZbs9Ofu-ICT-Unicorn-Model-The-powerful-Model/"),
+    "smt": ("TradingView — SMT (Smart Money Technique) | Advanced Institutional Concept", "https://www.tradingview.com/chart/GOLD/QZNZVNUf-SMT-Smart-Money-Technique-Advanced-Institutional-Concept/"),
+    "timing": ("TradingView — Judas Swing | London Killzone | Optimal Trade Entry", "https://www.tradingview.com/chart/GBPUSD/ahxFLqq4-Judas-Swing-London-Killzone-Optimal-Trade-Entry-Explained/"),
+    "technical": ("TradingView — 7 Expert Risk Management Techniques for Trading", "https://www.tradingview.com/chart/BTCUSDT/20ywMQSe-7-Expert-Risk-Management-Techniques-for-Trading/"),
 }
 
 REMOTE_IMAGES = {
