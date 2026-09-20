@@ -645,94 +645,72 @@ class App(tk.Tk):
 
     def home(self):
         p=active_profile(); self.market=p.get("market","Crypto")
-        self.heading("داشبورد حرفه‌ای", "پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه")
+        self.heading("داشبورد حرفه‌ای","پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه")
+        hero=tk.Canvas(self.content,height=112,bg=C["bg"],highlightthickness=0); hero.pack(fill="x",pady=(4,10))
+        hero.create_rectangle(0,0,1800,112,fill=C["panel2"],outline="")
+        hero.create_rectangle(0,84,1800,112,fill=C["accent"],outline="")
+        hero.create_text(42,34,text="SMART TRADING HUB",anchor="w",fill=C["text"],font=("Segoe UI",23,"bold"))
+        hero.create_text(42,70,text=f"{p['name']}  •  {self.market}  •  V{VERSION}",anchor="w",fill=C["muted"],font=("Segoe UI",10,"bold"))
         self.profile_panel(self.content)
-        hero=tk.Frame(self.content,bg=C["bg"]); hero.pack(fill="x", pady=6)
-        for title,value,accent in [
-            ("تعداد معاملات", len(p["journals"][self.market]), C["text"]),
-            ("Win Rate", f"{self.win_rate(p['journals'][self.market]):.1f}%", C["accent"]),
-            ("Net R", f"{sum(result_num(x) for x in p['journals'][self.market]):.2f} R", C["gold"]),
-            ("سرمایه اولیه", f"{p['initial_balance']:,.2f} {p['currency']}", C["text"]),
-        ]:
-            box=self.card(hero); box.pack(side="left",fill="both",expand=True,padx=4)
-            tk.Label(box,text=self.ui_text(title),bg=C["panel"],fg=C["muted"]).pack(anchor="w",padx=16,pady=(14,2))
-            tk.Label(box,text=value,bg=C["panel"],fg=accent,font=("Segoe UI",18,"bold")).pack(anchor="w",padx=16,pady=(0,14))
-
-        session_title=tk.Frame(self.content,bg=C["bg"]); session_title.pack(fill="x",pady=(8,2))
-        tk.Label(session_title,text=self.tr("session_clocks"),bg=C["bg"],fg=C["text"],font=("Segoe UI",14,"bold")).pack(anchor="e")
-        tk.Label(session_title,text=self.tr("local_time")+" • "+self.tr("session_hours"),bg=C["bg"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e")
-
-        clocks=tk.Frame(self.content,bg=C["bg"]); clocks.pack(fill="x",pady=(4,10))
+        stats=tk.Frame(self.content,bg=C["bg"]); stats.pack(fill="x",pady=6)
+        cards=[("◉","تعداد معاملات",len(p["journals"][self.market]),C["cyan"]),("↗","Win Rate",f"{self.win_rate(p['journals'][self.market]):.1f}%",C["accent"]),("R","Net R",f"{sum(result_num(x) for x in p['journals'][self.market]):.2f} R",C["gold"]),("$","سرمایه اولیه",f"{p['initial_balance']:,.2f} {p['currency']}",C["violet"])]
+        for icon,title,value,accent_color in cards:
+            box=self.card(stats); box.pack(side="left",fill="both",expand=True,padx=5)
+            tk.Label(box,text=icon,bg=C["panel"],fg=accent_color,font=("Segoe UI Symbol",20,"bold")).pack(anchor="w",padx=16,pady=(12,2))
+            tk.Label(box,text=self.ui_text(title),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(anchor="w",padx=16,pady=(0,2))
+            tk.Label(box,text=value,bg=C["panel"],fg=C["text"],font=("Segoe UI",19,"bold")).pack(anchor="w",padx=16,pady=(0,12))
+        session_title=tk.Frame(self.content,bg=C["bg"]); session_title.pack(fill="x",pady=(10,2))
+        tk.Label(session_title,text=self.tr("session_clocks"),bg=C["bg"],fg=C["text"],font=("Segoe UI",15,"bold")).pack(anchor="e")
+        tk.Label(session_title,text=self.tr("local_time")+"  •  "+self.tr("session_hours"),bg=C["bg"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e")
+        clocks=tk.Frame(self.content,bg=C["bg"]); clocks.pack(fill="x",pady=(4,12))
         for col,session in enumerate(SESSION_CLOCKS):
             clocks.columnconfigure(col,weight=1)
-            card=self.card(clocks); card.grid(row=0,column=col,sticky="nsew",padx=4)
+            card=self.card(clocks); card.grid(row=0,column=col,sticky="nsew",padx=5)
             self.draw_session_clock(card,session)
         self.update_session_clocks()
-
         lower=tk.Frame(self.content,bg=C["bg"]); lower.pack(fill="both",expand=True,pady=4)
-        left=self.card(lower); left.pack(side="left",fill="both",expand=True,padx=4)
-        right=self.card(lower); right.pack(side="left",fill="both",expand=True,padx=4)
+        left=self.card(lower); left.pack(side="left",fill="both",expand=True,padx=5)
+        right=self.card(lower); right.pack(side="left",fill="both",expand=True,padx=5)
         tk.Label(left,text=self.ui_text("نمودار عملکرد معاملات"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=15,pady=10)
         self.draw_bar_chart(left,p["journals"][self.market])
         tk.Label(right,text=self.ui_text("توزیع نتایج ژورنال"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=15,pady=10)
         self.draw_pie_chart(right,p["journals"][self.market])
         self.btn(self.content,self.tr("new_trade"),self.add_trade,True).pack(anchor="e",padx=6,pady=8)
-
     def draw_session_clock(self,parent,session):
-        title_color=C["gold"] if session["key"]=="london" else C["text"]
-        tk.Label(parent,text=session["fa"] if self.language=="fa" else session["en"],
-                 bg=C["panel"],fg=title_color,font=("Segoe UI",12,"bold")).pack(pady=(10,2))
-        canvas=tk.Canvas(parent,width=190,height=190,bg=C["panel"],highlightthickness=0)
-        canvas.pack(pady=2)
-        status=tk.Label(parent,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold"))
-        status.pack(pady=(2,0))
-        hours=tk.Label(parent,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",8))
-        hours.pack(pady=(0,10))
+        tk.Label(parent,text=session["fa"] if self.language=="fa" else session["en"],bg=C["panel"],fg=C["gold"],font=("Segoe UI",12,"bold")).pack(pady=(12,2))
+        canvas=tk.Canvas(parent,width=248,height=272,bg=C["panel"],highlightthickness=0); canvas.pack(pady=0)
+        status=tk.Label(parent,text="",bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),padx=10,pady=5); status.pack(pady=(0,3))
+        hours=tk.Label(parent,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",8)); hours.pack(pady=(0,12))
         self.session_clock_widgets.append((canvas,status,hours,session))
 
     def update_session_clocks(self):
         if self.cur!="home": return
         for canvas,status,hours,session in list(self.session_clock_widgets):
             try:
-                now=datetime.now(ZoneInfo(session["tz"]))
-                w,h=190,190; cx,cy=95,88; r=72
-                canvas.delete("all")
-                canvas.create_oval(cx-r,cy-r,cx+r,cy+r,fill=C["panel2"],outline=C["line"],width=3)
-                canvas.create_oval(cx-r+7,cy-r+7,cx+r-7,cy+r-7,fill=C["panel"],outline=C["soft"],width=2)
+                now=datetime.now(ZoneInfo(session["tz"])); w,h=248,272; cx,cy=124,124; r=92; canvas.delete("all")
+                for rr,fill,outline in [(r+8,C["shadow"],C["shadow"]),(r+4,C["panel3"],C["line"]),(r,C["panel2"],C["soft"]),(r-7,C["panel"],C["line"])]:
+                    canvas.create_oval(cx-rr,cy-rr,cx+rr,cy+rr,fill=fill,outline=outline,width=2)
+                local_minutes=now.hour*60+now.minute; start=session["start"]*60; end=session["end"]*60; span=max(1,end-start)
+                progress=(local_minutes-start)/span if start <= local_minutes < end else 0.0
+                canvas.create_arc(cx-r+2,cy-r+2,cx+r-2,cy+r-2,start=90,extent=-360*max(0,min(1,progress)),style="arc",outline=C["accent"] if progress>0 else C["soft"],width=7)
                 for n in range(60):
-                    ang=math.radians(n*6-90)
-                    outer=r-11; inner=r-18 if n%5 else r-25
-                    width=1 if n%5 else 2
-                    canvas.create_line(cx+math.cos(ang)*inner,cy+math.sin(ang)*inner,
-                                       cx+math.cos(ang)*outer,cy+math.sin(ang)*outer,
-                                       fill=C["muted"],width=width)
+                    ang=math.radians(n*6-90); outer=r-13; inner=r-22 if n%5 else r-31; width=1 if n%5 else 3
+                    canvas.create_line(cx+math.cos(ang)*inner,cy+math.sin(ang)*inner,cx+math.cos(ang)*outer,cy+math.sin(ang)*outer,fill=C["muted"],width=width)
                 for num in (12,3,6,9):
-                    ang=math.radians(num*30-90)
-                    tx=cx+math.cos(ang)*(r-33); ty=cy+math.sin(ang)*(r-33)
-                    canvas.create_text(tx,ty,text=str(num),fill=C["text"],font=("Segoe UI",9,"bold"))
-                hour12=(now.hour%12)+now.minute/60.0
-                minute=now.minute+now.second/60.0
-                second=now.second+now.microsecond/1_000_000
-                for value,turns,length,width,color in [
-                    (hour12,12,38,5,C["text"]),
-                    (minute,60,55,3,C["gold"]),
-                    (second,60,62,1,C["accent"]),
-                ]:
-                    ang=math.radians(value*(360/turns)-90)
-                    canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
-                canvas.create_oval(cx-5,cy-5,cx+5,cy+5,fill=C["accent"],outline="")
-                local_minutes=now.hour*60+now.minute
-                start=session["start"]*60; end=session["end"]*60
-                is_open=start <= local_minutes < end
-                status_text=(self.tr("open") if is_open else self.tr("closed"))
-                status_color=C["accent"] if is_open else C["muted"]
-                status.config(text=f"{status_text}  •  {now.strftime('%H:%M:%S')}",fg=status_color)
-                hours.config(text=f"{session['start']:02d}:00 – {session['end']:02d}:00  {now.tzname() or ''}".strip())
+                    ang=math.radians(num*30-90); tx=cx+math.cos(ang)*(r-43); ty=cy+math.sin(ang)*(r-43)
+                    canvas.create_text(tx,ty,text=str(num),fill=C["text"],font=("Segoe UI",10,"bold"))
+                hour12=(now.hour%12)+now.minute/60.0; minute=now.minute+now.second/60.0; second=now.second+now.microsecond/1_000_000
+                for value,turns,length,width,color in [(hour12,12,47,7,C["text"]),(minute,60,67,4,C["gold"]),(second,60,78,2,C["accent"])]:
+                    ang=math.radians(value*(360/turns)-90); canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
+                canvas.create_oval(cx-8,cy-8,cx+8,cy+8,fill=C["accent"],outline=C["panel3"],width=2)
+                canvas.create_text(cx,cy+48,text=now.strftime("%H:%M:%S"),fill=C["text"],font=("Consolas",15,"bold"))
+                canvas.create_text(cx,cy+70,text=now.strftime("%a %d %b"),fill=C["muted"],font=("Segoe UI",8,"bold"))
+                is_open=start <= local_minutes < end; status_text=self.tr("open") if is_open else self.tr("closed"); status_color=C["accent"] if is_open else C["muted"]
+                status.config(text=f"{status_text}  •  {now.strftime('%H:%M:%S')}  •  {now.tzname() or ''}".strip(),fg=status_color)
+                hours.config(text=f"{session['start']:02d}:00 – {session['end']:02d}:00  •  {now.tzname() or ''}".strip())
             except Exception:
                 continue
-        if self.cur=="home":
-            self.session_clock_job=self.after(1000,self.update_session_clocks)
-
+        if self.cur=="home": self.session_clock_job=self.after(1000,self.update_session_clocks)
     def win_rate(self, rows):
         if not rows: return 0.0
         wins=sum(1 for r in rows if result_num(r)>0)
