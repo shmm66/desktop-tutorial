@@ -19,9 +19,10 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 from academy_visuals import render_visual, visual_key_for, source_for_visual
+from market_data import MarketDataService
 
 APP = "Trader Planner Pro"
-VERSION = "7.3.1"
+VERSION = "7.4.1"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -103,7 +104,7 @@ I18N = {
         "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
         "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
-        "education_note":"یادداشت آموزشی","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال",
+        "education_note":"یادداشت آموزشی","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
     },
     "en": {
         "home":"⌂  Home","daily":"◫  Daily Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
@@ -138,7 +139,7 @@ I18N = {
         "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
         "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
-        "education_note":"Training note","language_now":"Current language","choose_language":"Choose language","apply":"Apply",
+        "education_note":"Training note","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
     }
 }
 
@@ -419,8 +420,13 @@ class App(tk.Tk):
         self.language = DB.get("settings", {}).get("language", "fa")
         if self.language not in dict(LANGUAGE_OPTIONS): self.language = "fa"
         self.menu_open = False
+        self.menu_hide_job = None
         self.session_clock_job = None
         self.session_clock_widgets = []
+        self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": []}
+        self.ticker_offset = 0
+        self.ticker_job = None
+        self.market_data = MarketDataService(self._market_data_callback, refresh_seconds=60)
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -428,10 +434,36 @@ class App(tk.Tk):
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
         self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
         self._logo_photo = None
+        self.bind_all("<Home>", self._home_shortcut)
+        self.bind_all("<Alt-Home>", lambda e: self.show("home"))
+        self.protocol("WM_DELETE_WINDOW", self.close_app)
+        self.bind_all("<Escape>", lambda e: self._escape_ui())
+        self.bind("<Motion>", self._shell_motion, add="+")
         self.build_shell()
         self.apply_language()
         self.show("home")
+        self.market_data.start(self.market)
         self.after(500, self.clock)
+
+    def _home_shortcut(self, event=None):
+        widget = getattr(event, "widget", None)
+        if isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox)):
+            return None
+        self.show("home")
+        return "break"
+
+    def close_app(self):
+        try:
+            if self.market_data:
+                self.market_data.stop()
+        except Exception:
+            pass
+        for job_name in ("session_clock_job", "ticker_job", "menu_hide_job"):
+            job = getattr(self, job_name, None)
+            if job:
+                try: self.after_cancel(job)
+                except Exception: pass
+        self.destroy()
 
     def tr(self, key, **kwargs):
         table = I18N.get(self.language, I18N["fa"])
@@ -496,33 +528,91 @@ class App(tk.Tk):
 
     def build_shell(self):
         top = tk.Frame(self, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1, bd=0)
-        top.pack(fill="x", padx=18, pady=(14, 8), ipady=7)
-        tk.Button(top, text="☰", command=self.toggle_menu, bg=C["panel2"], fg=C["text"], activebackground=C["soft"],
-                  relief="flat", highlightthickness=1, highlightbackground=C["line"], font=("Segoe UI", 16, "bold"), width=3, cursor="hand2").pack(side="left", padx=10)
+        top.pack(fill="x", padx=14, pady=(12, 7), ipady=5)
+        self.menu_button = tk.Button(top, text="☰", command=self.toggle_menu, bg=C["panel2"], fg=C["text"],
+                                     activebackground=C["accent"], activeforeground="#061019", relief="flat",
+                                     font=("Segoe UI Symbol", 15, "bold"), width=3, cursor="hand2",
+                                     highlightthickness=0)
+        self.menu_button.pack(side="left", padx=8)
         try:
             logo_path = create_logo_image(Path(tempfile_path()), 300)
             from PIL import Image, ImageTk
-            self._logo_photo = ImageTk.PhotoImage(Image.open(logo_path).convert("RGBA").resize((70,70)))
-            tk.Label(top, image=self._logo_photo, bg=C["panel"]).pack(side="left", padx=(4,8))
+            self._logo_photo = ImageTk.PhotoImage(Image.open(logo_path).convert("RGBA").resize((48,48)))
+            tk.Label(top, image=self._logo_photo, bg=C["panel"]).pack(side="left", padx=(2,8))
         except Exception:
             pass
-        brand = tk.Frame(top, bg=C["panel"]); brand.pack(side="left", padx=4)
-        self.brand_title = tk.Label(brand, text=APP, bg=C["panel"], fg=C["text"], font=("Segoe UI", 20, "bold")); self.brand_title.pack(anchor="w")
-        self.brand_subtitle = tk.Label(brand, text="PRO TRADING WORKSPACE  •  3D EDITION", bg=C["panel"], fg=C["accent"], font=("Segoe UI", 8, "bold")); self.brand_subtitle.pack(anchor="w")
-        right = tk.Frame(top, bg=C["panel"]); right.pack(side="right", padx=12)
-        self.clock_label = tk.Label(right, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 10, "bold"), padx=12, pady=8); self.clock_label.pack(side="left", padx=4)
-        self.profile_combo = ttk.Combobox(right, state="readonly", width=22, justify="right"); self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change); self.profile_combo.pack(side="left", padx=8)
-        self.market_btn = tk.Button(right, text=self.market, command=self.change_market, bg=C["soft"], fg=C["text"], activebackground=C["gold"], relief="flat", highlightthickness=1, highlightbackground=C["line"], font=("Segoe UI",10,"bold"), padx=16, pady=8, cursor="hand2"); self.market_btn.pack(side="left", padx=4)
+        brand = tk.Frame(top, bg=C["panel"]); brand.pack(side="left", padx=2)
+        self.brand_title = tk.Label(brand, text=APP, bg=C["panel"], fg=C["text"],
+                                    font=("Segoe UI", 15, "bold")); self.brand_title.pack(anchor="w")
+        self.brand_subtitle = tk.Label(brand, text="PRO TRADING WORKSPACE • MARKET DESK",
+                                       bg=C["panel"], fg=C["accent"], font=("Segoe UI", 7, "bold"))
+        self.brand_subtitle.pack(anchor="w")
+        status = tk.Frame(top, bg=C["panel"]); status.pack(side="right", padx=7)
+        self.clock_label = tk.Label(status, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 9, "bold"),
+                                     padx=10, pady=6); self.clock_label.pack(side="left", padx=4)
+        self.profile_combo = ttk.Combobox(status, state="readonly", width=20, justify="right")
+        self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
+        self.profile_combo.pack(side="left", padx=5)
+        self.market_btn = tk.Button(status, text=self.market, command=self.change_market, bg=C["soft"], fg=C["text"],
+                                    activebackground=C["gold"], relief="flat", highlightthickness=0,
+                                    font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
+        self.market_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
-        self.content = tk.Frame(self, bg=C["bg"]); self.content.pack(fill="both", expand=True, padx=16)
-        self.menu = tk.Frame(self, bg=C["panel"], width=330, highlightbackground=C["line"], highlightthickness=1, bd=0)
-        self.menu.place(x=-340, y=0, relheight=1)
-        self.menu_title = tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"], font=("Segoe UI",17,"bold")); self.menu_title.pack(anchor="w", padx=22, pady=(24,8))
-        tk.Label(self.menu, text="SMART • VISUAL • TRADING WORKSPACE", bg=C["panel"], fg=C["muted"], font=("Segoe UI",8,"bold")).pack(anchor="w", padx=24, pady=(0,18))
+
+        self.content = tk.Frame(self, bg=C["bg"])
+        self.content.pack(fill="both", expand=True, padx=14)
+
+        self.menu = tk.Frame(self, bg=C["panel"], width=292, highlightbackground=C["line"], highlightthickness=1, bd=0)
+        self.menu.place(x=-304, y=8, relheight=1)
+        self.menu_title = tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"],
+                                   font=("Segoe UI", 15, "bold"))
+        self.menu_title.pack(anchor="w", padx=18, pady=(20,6))
+        tk.Label(self.menu, text="FAST NAVIGATION • AUTO HIDE", bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","settings"):
-            b=tk.Button(self.menu,text=self.tr(key),command=lambda k=key:self.go(k),anchor="w",bg=C["panel"],fg=C["text"],activebackground=C["soft"],activeforeground=C["accent"],relief="flat",highlightthickness=0,font=("Segoe UI",11,"bold"),padx=22,pady=13,cursor="hand2")
-            b.pack(fill="x",padx=8,pady=2); self.menu_buttons[key]=b
+            b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
+                          bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
+                          relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
+                          padx=18, pady=11, cursor="hand2")
+            b.pack(fill="x", padx=7, pady=2); self.menu_buttons[key] = b
+        self.menu_home_hint = tk.Label(self.menu, text=self.tr("home_shortcut"), bg=C["panel3"], fg=C["muted"],
+                                       font=("Segoe UI", 8), wraplength=240, justify="left")
+        self.menu_home_hint.pack(fill="x", padx=14, pady=(18,14), ipady=8)
+
+    def _shell_motion(self, event):
+        if self.menu_open:
+            x, y = event.x_root, event.y_root
+            mx, my = self.menu.winfo_rootx(), self.menu.winfo_rooty()
+            inside = mx <= x <= mx + self.menu.winfo_width() + 12 and my <= y <= my + self.menu.winfo_height()
+            if inside:
+                self._cancel_menu_hide()
+            else:
+                self._schedule_menu_hide(900)
+
+    def _escape_ui(self):
+        if self.menu_open:
+            self.toggle_menu()
+        else:
+            self.show("home")
+
+    def _cancel_menu_hide(self):
+        if self.menu_hide_job:
+            try: self.after_cancel(self.menu_hide_job)
+            except Exception: pass
+            self.menu_hide_job = None
+
+    def _schedule_menu_hide(self, delay=1200):
+        self._cancel_menu_hide()
+        if self.menu_open:
+            self.menu_hide_job = self.after(delay, self._hide_menu)
+
+    def _hide_menu(self):
+        self.menu_hide_job = None
+        if self.menu_open:
+            self.menu.place_configure(x=-304)
+            self.menu_open = False
+
     def refresh_profile_selector(self):
         names = [p.get("name", "Profile") for p in DB["profiles"]]
         self.profile_combo["values"] = names
@@ -536,13 +626,24 @@ class App(tk.Tk):
         DB["active_profile_id"] = DB["profiles"][idx]["id"]
         self.market = active_profile().get("market", "Crypto")
         self.market_btn.config(text=self.market)
+        self.market_data.set_market(self.market)
         save_db(); self.show(self.cur)
 
     def toggle_menu(self):
-        self.menu.place_configure(x=0 if not self.menu_open else -310); self.menu_open = not self.menu_open
+        if self.menu_open:
+            self._cancel_menu_hide()
+            self.menu.place_configure(x=-304)
+            self.menu_open = False
+        else:
+            self.menu.place_configure(x=8)
+            self.menu_open = True
+            self._schedule_menu_hide(1800)
 
     def go(self, key):
-        if self.menu_open: self.toggle_menu()
+        self._cancel_menu_hide()
+        if self.menu_open:
+            self.menu.place_configure(x=-304)
+            self.menu_open = False
         self.show(key)
 
     def show(self, key):
@@ -550,9 +651,14 @@ class App(tk.Tk):
             try: self.after_cancel(self.session_clock_job)
             except Exception: pass
             self.session_clock_job = None
+        if self.ticker_job is not None:
+            try: self.after_cancel(self.ticker_job)
+            except Exception: pass
+            self.ticker_job = None
         self.session_clock_widgets = []
         self.cur = key
-        for widget in self.content.winfo_children(): widget.destroy()
+        for widget in self.content.winfo_children():
+            widget.destroy()
         getattr(self, key)()
         try:
             self.translate_widget_tree(self.content)
@@ -564,12 +670,20 @@ class App(tk.Tk):
         self.after(500, self.clock)
 
     def heading(self, title, sub=""):
-        title=self.ui_text(title); sub=self.ui_text(sub)
-        band=tk.Frame(self.content,bg=C["bg"]); band.pack(fill="x",pady=(8,4))
-        accent=tk.Frame(band,bg=C["accent"],width=5,height=48); accent.pack(side="right",padx=(10,0),pady=2)
-        texts=tk.Frame(band,bg=C["bg"]); texts.pack(side="right",fill="x",expand=True)
-        tk.Label(texts,text=title,bg=C["bg"],fg=C["text"],font=("Segoe UI",23,"bold")).pack(anchor="e")
-        if sub: tk.Label(texts,text=sub,bg=C["bg"],fg=C["muted"],font=("Segoe UI",10)).pack(anchor="e",pady=(2,0))
+        title = self.ui_text(title); sub = self.ui_text(sub)
+        band = tk.Frame(self.content, bg=C["bg"]); band.pack(fill="x", pady=(7,4))
+        accent = tk.Frame(band, bg=C["accent"], width=4, height=44); accent.pack(side="right", padx=(9,0), pady=2)
+        texts = tk.Frame(band, bg=C["bg"]); texts.pack(side="right", fill="x", expand=True)
+        tk.Label(texts, text=title, bg=C["bg"], fg=C["text"], font=("Segoe UI", 20, "bold")).pack(anchor="e")
+        if sub:
+            tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9)).pack(anchor="e", pady=(2,0))
+        left_tools = tk.Frame(band, bg=C["bg"]); left_tools.pack(side="left", padx=2)
+        home_btn = tk.Button(left_tools, text="⌂  Home", command=lambda:self.show("home"),
+                             bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
+                             relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
+        home_btn.pack(side="left", padx=(0,5))
+        tk.Label(left_tools, text="HOME", bg=C["panel3"], fg=C["muted"],
+                 font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
 
     def card(self, parent, padx=1):
         frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
@@ -641,77 +755,200 @@ class App(tk.Tk):
 
     def change_market(self):
         p=active_profile(); p["market"]="Forex" if p.get("market")=="Crypto" else "Crypto"
-        self.market=p["market"]; self.market_btn.config(text=self.market); p["updated_at"]=datetime.now().isoformat(timespec="seconds")
+        self.market=p["market"]; self.market_btn.config(text=self.market); self.market_data.set_market(self.market); p["updated_at"]=datetime.now().isoformat(timespec="seconds")
         save_db(); self.show(self.cur)
 
     def home(self):
-        p=active_profile(); self.market=p.get("market","Crypto")
-        self.heading("داشبورد حرفه‌ای","پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه")
-        hero=tk.Canvas(self.content,height=112,bg=C["bg"],highlightthickness=0); hero.pack(fill="x",pady=(4,10))
-        hero.create_rectangle(0,0,1800,112,fill=C["panel2"],outline="")
-        hero.create_rectangle(0,84,1800,112,fill=C["accent"],outline="")
-        hero.create_text(42,34,text="SMART TRADING HUB",anchor="w",fill=C["text"],font=("Segoe UI",23,"bold"))
-        hero.create_text(42,70,text=f"{p['name']}  •  {self.market}  •  V{VERSION}",anchor="w",fill=C["muted"],font=("Segoe UI",10,"bold"))
-        self.profile_panel(self.content)
-        stats=tk.Frame(self.content,bg=C["bg"]); stats.pack(fill="x",pady=6)
-        cards=[("◉","تعداد معاملات",len(p["journals"][self.market]),C["cyan"]),("↗","Win Rate",f"{self.win_rate(p['journals'][self.market]):.1f}%",C["accent"]),("R","Net R",f"{sum(result_num(x) for x in p['journals'][self.market]):.2f} R",C["gold"]),("$","سرمایه اولیه",f"{p['initial_balance']:,.2f} {p['currency']}",C["violet"])]
-        for icon,title,value,accent_color in cards:
-            box=self.card(stats); box.pack(side="left",fill="both",expand=True,padx=5)
-            tk.Label(box,text=icon,bg=C["panel"],fg=accent_color,font=("Segoe UI Symbol",20,"bold")).pack(anchor="w",padx=16,pady=(12,2))
-            tk.Label(box,text=self.ui_text(title),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(anchor="w",padx=16,pady=(0,2))
-            tk.Label(box,text=value,bg=C["panel"],fg=C["text"],font=("Segoe UI",19,"bold")).pack(anchor="w",padx=16,pady=(0,12))
-        session_title=tk.Frame(self.content,bg=C["bg"]); session_title.pack(fill="x",pady=(10,2))
-        tk.Label(session_title,text=self.tr("session_clocks"),bg=C["bg"],fg=C["text"],font=("Segoe UI",15,"bold")).pack(anchor="e")
-        tk.Label(session_title,text=self.tr("local_time")+"  •  "+self.tr("session_hours"),bg=C["bg"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e")
-        clocks=tk.Frame(self.content,bg=C["bg"]); clocks.pack(fill="x",pady=(4,12))
-        for col,session in enumerate(SESSION_CLOCKS):
-            clocks.columnconfigure(col,weight=1)
-            card=self.card(clocks); card.grid(row=0,column=col,sticky="nsew",padx=5)
-            self.draw_session_clock(card,session)
+        p = active_profile()
+        self.market = p.get("market", "Crypto")
+        self.heading(self.tr("dashboard"), self.tr("dashboard_sub"))
+
+        self.home_shortcut = tk.Label(self.content, text="HOME", bg=C["panel3"], fg=C["muted"],
+                                      font=("Segoe UI", 7, "bold"), padx=8, pady=4)
+        self.home_shortcut.pack(anchor="e", pady=(0,4))
+
+        ticker_header = tk.Frame(self.content, bg=C["panel2"], highlightbackground=C["line"], highlightthickness=1)
+        ticker_header.pack(fill="x", pady=(2,4))
+        left = tk.Frame(ticker_header, bg=C["panel2"]); left.pack(side="left", padx=10, pady=7)
+        tk.Label(left, text=self.tr("market_tape"), bg=C["panel2"], fg=C["gold"],
+                 font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.market_status_label = tk.Label(left, text=self.tr("market_loading"), bg=C["panel2"], fg=C["muted"],
+                                            font=("Segoe UI", 8, "bold"))
+        self.market_status_label.pack(side="left", padx=10)
+        right = tk.Frame(ticker_header, bg=C["panel2"]); right.pack(side="right", padx=10)
+        self.market_update_label = tk.Label(right, text="", bg=C["panel2"], fg=C["muted"],
+                                            font=("Segoe UI", 8))
+        self.market_update_label.pack(side="right")
+        self.ticker_canvas = tk.Canvas(self.content, height=76, bg=C["bg"], highlightthickness=0)
+        self.ticker_canvas.pack(fill="x", pady=(0,7))
+        self.render_market_ticker(self.market_data_payload)
+        self.ticker_offset = 0
+        self.ticker_job = self.after(45, self._animate_ticker)
+
+        session_wrap = tk.Frame(self.content, bg=C["bg"])
+        session_wrap.pack(fill="x", pady=(2,8))
+        session_head = tk.Frame(session_wrap, bg=C["bg"]); session_head.pack(fill="x")
+        tk.Label(session_head, text=self.tr("session_strip"), bg=C["bg"], fg=C["text"],
+                 font=("Segoe UI", 11, "bold")).pack(side="right")
+        tk.Label(session_head, text="SYD • TYO • LON • NY", bg=C["bg"], fg=C["muted"],
+                 font=("Consolas", 8, "bold")).pack(side="left")
+        clocks = tk.Frame(session_wrap, bg=C["bg"]); clocks.pack(fill="x", pady=(4,0))
+        for col, session in enumerate(SESSION_CLOCKS):
+            clocks.columnconfigure(col, weight=1)
+            card = self.card(clocks); card.grid(row=0, column=col, sticky="nsew", padx=4)
+            self.draw_session_clock(card, session)
         self.update_session_clocks()
-        lower=tk.Frame(self.content,bg=C["bg"]); lower.pack(fill="both",expand=True,pady=4)
-        left=self.card(lower); left.pack(side="left",fill="both",expand=True,padx=5)
-        right=self.card(lower); right.pack(side="left",fill="both",expand=True,padx=5)
-        tk.Label(left,text=self.ui_text("نمودار عملکرد معاملات"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=15,pady=10)
-        self.draw_bar_chart(left,p["journals"][self.market])
-        tk.Label(right,text=self.ui_text("توزیع نتایج ژورنال"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=15,pady=10)
-        self.draw_pie_chart(right,p["journals"][self.market])
-        self.btn(self.content,self.tr("new_trade"),self.add_trade,True).pack(anchor="e",padx=6,pady=8)
-    def draw_session_clock(self,parent,session):
-        tk.Label(parent,text=session["fa"] if self.language=="fa" else session["en"],bg=C["panel"],fg=C["gold"],font=("Segoe UI",12,"bold")).pack(pady=(12,2))
-        canvas=tk.Canvas(parent,width=248,height=272,bg=C["panel"],highlightthickness=0); canvas.pack(pady=0)
-        status=tk.Label(parent,text="",bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),padx=10,pady=5); status.pack(pady=(0,3))
-        hours=tk.Label(parent,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",8)); hours.pack(pady=(0,12))
-        self.session_clock_widgets.append((canvas,status,hours,session))
+
+        stats = tk.Frame(self.content, bg=C["bg"]); stats.pack(fill="x", pady=5)
+        cards = [
+            ("◉", self.tr("trading_count"), len(p["journals"][self.market]), C["cyan"]),
+            ("↗", self.tr("win_rate"), f"{self.win_rate(p['journals'][self.market]):.1f}%", C["accent"]),
+            ("R", self.tr("net_r"), f"{sum(result_num(x) for x in p['journals'][self.market]):.2f} R", C["gold"]),
+            ("$", self.tr("initial_balance"), f"{p['initial_balance']:,.2f} {p['currency']}", C["violet"]),
+        ]
+        if self.market == "Crypto":
+            fg = self.market_data_payload.get("fear_greed") or {}
+            fg_value = fg.get("value")
+            fg_label = fg.get("label") or "—"
+            cards.append(("◈", "Fear & Greed", f"{fg_value}  •  {fg_label}" if fg_value is not None else "—", C["cyan"]))
+        for icon, title, value, accent_color in cards:
+            box = self.card(stats); box.pack(side="left", fill="both", expand=True, padx=4)
+            tk.Label(box, text=icon, bg=C["panel"], fg=accent_color, font=("Segoe UI Symbol", 15, "bold")).pack(anchor="w", padx=13, pady=(8,1))
+            tk.Label(box, text=title, bg=C["panel"], fg=C["muted"], font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=13)
+            tk.Label(box, text=value, bg=C["panel"], fg=C["text"], font=("Segoe UI", 16, "bold")).pack(anchor="w", padx=13, pady=(0,8))
+
+        lower = tk.Frame(self.content, bg=C["bg"]); lower.pack(fill="both", expand=True, pady=4)
+        left = self.card(lower); left.pack(side="left", fill="both", expand=True, padx=(0,4))
+        right = self.card(lower); right.pack(side="left", fill="both", expand=True, padx=(4,0))
+        tk.Label(left, text=self.tr("performance"), bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 11, "bold")).pack(anchor="e", padx=14, pady=8)
+        self.draw_bar_chart(left, p["journals"][self.market])
+        tk.Label(right, text=self.tr("distribution"), bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 11, "bold")).pack(anchor="e", padx=14, pady=8)
+        self.draw_pie_chart(right, p["journals"][self.market])
+
+        actions = tk.Frame(self.content, bg=C["bg"]); actions.pack(fill="x", pady=(4,8))
+        self.btn(actions, self.tr("new_trade"), self.add_trade, True).pack(side="right")
+        self.btn(actions, self.tr("home_shortcut"), lambda:self.show("home")).pack(side="left")
+
+    def render_market_ticker(self, payload=None):
+        payload = payload or self.market_data_payload
+        if not hasattr(self, "ticker_canvas") or not self.ticker_canvas.winfo_exists():
+            return
+        c = self.ticker_canvas
+        c.delete("all")
+        items = list(payload.get("items") or [])
+        if not items:
+            c.create_text(20, 38, text=self.tr("market_unavailable"), anchor="w", fill=C["muted"],
+                          font=("Segoe UI", 10, "bold"))
+            return
+
+        width = max(self.ticker_canvas.winfo_width(), 820)
+        card_w = 170 if self.market == "Crypto" else 156
+        gap = 8
+        step = card_w + gap
+        offset = self.ticker_offset % max(step * len(items), 1)
+        draw_items = items * 3
+        x = 6 - offset
+        for item in draw_items:
+            price = item.get("price")
+            if price is None:
+                x += step
+                continue
+            tag = str(item.get("symbol", "")).upper()
+            change = item.get("change")
+            if price >= 1000: ptxt = f"{price:,.0f}"
+            elif price >= 1: ptxt = f"{price:,.2f}"
+            else: ptxt = f"{price:,.5f}"
+            ctxt = "—" if change is None else f"{change:+.2f}%"
+            accent = C["accent"] if (change or 0) >= 0 else C["danger"]
+            c.rounded_rectangle((x, 7, x+card_w, 69), radius=14, fill=C["panel"], outline=C["line"], width=1)
+            c.create_oval((x+10, 19, x+17, 26), fill=accent, outline="")
+            c.create_text(x+24, 23, text=tag, anchor="w", fill=C["muted"], font=("Segoe UI", 8, "bold"))
+            c.create_text(x+12, 47, text=ptxt, anchor="w", fill=C["text"], font=("Consolas", 12, "bold"))
+            c.create_text(x+card_w-12, 47, text=ctxt, anchor="e", fill=accent, font=("Consolas", 9, "bold"))
+            x += step
+        src = payload.get("source", "unavailable")
+        if hasattr(self, "market_status_label"):
+            self.market_status_label.config(
+                text=self.tr("live") if src == "live" else (self.tr("cached") if src == "cache" else self.tr("market_unavailable")),
+                fg=C["accent"] if src == "live" else C["gold"] if src == "cache" else C["muted"]
+            )
+        if hasattr(self, "market_update_label"):
+            stamp = payload.get("updated_at") or ""
+            self.market_update_label.config(text=f"{self.tr('last_update')}: {stamp.replace('T',' ')}")
+
+    def _animate_ticker(self):
+        if self.cur != "home":
+            self.ticker_job = None
+            return
+        self.ticker_offset += 1
+        self.render_market_ticker(self.market_data_payload)
+        self.ticker_job = self.after(45, self._animate_ticker)
+
+    def _market_data_callback(self, payload):
+        self.market_data_payload = payload
+        try:
+            self.after(0, lambda p=payload: self._apply_market_data(p))
+        except Exception:
+            pass
+
+    def _apply_market_data(self, payload):
+        self.market_data_payload = payload
+        if self.cur == "home":
+            self.ticker_offset = 0
+            self.render_market_ticker(payload)
+
+    def draw_session_clock(self, parent, session):
+        holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
+        canvas = tk.Canvas(holder, width=68, height=68, bg=C["panel"], highlightthickness=0)
+        canvas.pack(side="left", padx=(3,8), pady=3)
+        info = tk.Frame(holder, bg=C["panel"]); info.pack(side="left", fill="x", expand=True, pady=5)
+        title = tk.Label(info, text=session["fa"] if self.language == "fa" else session["en"], bg=C["panel"],
+                         fg=C["gold"], font=("Segoe UI", 9, "bold"))
+        title.pack(anchor="w")
+        status = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 8, "bold"))
+        status.pack(anchor="w", pady=(2,0))
+        hours = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Consolas", 7))
+        hours.pack(anchor="w")
+        self.session_clock_widgets.append((canvas, status, hours, session))
 
     def update_session_clocks(self):
-        if self.cur!="home": return
-        for canvas,status,hours,session in list(self.session_clock_widgets):
+        if self.cur != "home":
+            return
+        for canvas, status, hours, session in list(self.session_clock_widgets):
             try:
-                now=datetime.now(ZoneInfo(session["tz"])); w,h=248,272; cx,cy=124,124; r=92; canvas.delete("all")
-                for rr,fill,outline in [(r+8,C["shadow"],C["shadow"]),(r+4,C["panel3"],C["line"]),(r,C["panel2"],C["soft"]),(r-7,C["panel"],C["line"])]:
-                    canvas.create_oval(cx-rr,cy-rr,cx+rr,cy+rr,fill=fill,outline=outline,width=2)
-                local_minutes=now.hour*60+now.minute; start=session["start"]*60; end=session["end"]*60; span=max(1,end-start)
-                progress=(local_minutes-start)/span if start <= local_minutes < end else 0.0
-                canvas.create_arc(cx-r+2,cy-r+2,cx+r-2,cy+r-2,start=90,extent=-360*max(0,min(1,progress)),style="arc",outline=C["accent"] if progress>0 else C["soft"],width=7)
-                for n in range(60):
-                    ang=math.radians(n*6-90); outer=r-13; inner=r-22 if n%5 else r-31; width=1 if n%5 else 3
-                    canvas.create_line(cx+math.cos(ang)*inner,cy+math.sin(ang)*inner,cx+math.cos(ang)*outer,cy+math.sin(ang)*outer,fill=C["muted"],width=width)
-                for num in (12,3,6,9):
-                    ang=math.radians(num*30-90); tx=cx+math.cos(ang)*(r-43); ty=cy+math.sin(ang)*(r-43)
-                    canvas.create_text(tx,ty,text=str(num),fill=C["text"],font=("Segoe UI",10,"bold"))
-                hour12=(now.hour%12)+now.minute/60.0; minute=now.minute+now.second/60.0; second=now.second+now.microsecond/1_000_000
-                for value,turns,length,width,color in [(hour12,12,47,7,C["text"]),(minute,60,67,4,C["gold"]),(second,60,78,2,C["accent"])]:
-                    ang=math.radians(value*(360/turns)-90); canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
-                canvas.create_oval(cx-8,cy-8,cx+8,cy+8,fill=C["accent"],outline=C["panel3"],width=2)
-                canvas.create_text(cx,cy+48,text=now.strftime("%H:%M:%S"),fill=C["text"],font=("Consolas",15,"bold"))
-                canvas.create_text(cx,cy+70,text=now.strftime("%a %d %b"),fill=C["muted"],font=("Segoe UI",8,"bold"))
-                is_open=start <= local_minutes < end; status_text=self.tr("open") if is_open else self.tr("closed"); status_color=C["accent"] if is_open else C["muted"]
-                status.config(text=f"{status_text}  •  {now.strftime('%H:%M:%S')}  •  {now.tzname() or ''}".strip(),fg=status_color)
-                hours.config(text=f"{session['start']:02d}:00 – {session['end']:02d}:00  •  {now.tzname() or ''}".strip())
+                now = datetime.now(ZoneInfo(session["tz"]))
+                w = h = 68
+                cx = cy = 34
+                r = 27
+                canvas.delete("all")
+                canvas.create_oval(2,2,66,66,fill=C["shadow"],outline=C["line"])
+                canvas.create_oval(6,6,62,62,fill=C["panel3"],outline=C["soft"])
+                local_minutes = now.hour*60 + now.minute
+                start = session["start"]*60; end = session["end"]*60
+                progress = max(0.0, min(1.0, (local_minutes-start)/max(1,end-start))) if start <= local_minutes < end else 0.0
+                canvas.create_arc(5,5,63,63,start=90,extent=-360*progress,style="arc",
+                                 outline=C["accent"] if progress else C["soft"], width=3)
+                for n in (0,15,30,45):
+                    ang = math.radians(n*6-90)
+                    canvas.create_line(cx+math.cos(ang)*22, cy+math.sin(ang)*22,
+                                       cx+math.cos(ang)*25, cy+math.sin(ang)*25, fill=C["muted"], width=1)
+                hour = (now.hour % 12) + now.minute/60.0
+                minute = now.minute + now.second/60.0
+                for value,turns,length,width,color in ((hour,12,14,3,C["text"]),(minute,60,20,2,C["gold"])):
+                    ang = math.radians(value*(360/turns)-90)
+                    canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
+                canvas.create_oval(30,30,38,38,fill=C["accent"],outline=C["panel3"],width=1)
+                is_open = start <= local_minutes < end
+                status.config(text=f"{self.tr('open') if is_open else self.tr('closed')}  •  {now.strftime('%H:%M')}",
+                              fg=C["accent"] if is_open else C["muted"])
+                hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00  {now.tzname() or ''}")
             except Exception:
                 continue
-        if self.cur=="home": self.session_clock_job=self.after(1000,self.update_session_clocks)
+        if self.cur == "home":
+            self.session_clock_job = self.after(1000, self.update_session_clocks)
+
     def win_rate(self, rows):
         if not rows: return 0.0
         wins=sum(1 for r in rows if result_num(r)>0)
@@ -1128,28 +1365,37 @@ class App(tk.Tk):
         self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=10)
 
     def _academy_visual(self, parent, key, title, subtitle):
-        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        box.pack(fill="x",padx=10,pady=(4,8))
-        image_label=tk.Label(box,bg=C["panel3"]); image_label.pack(fill="x",padx=8,pady=(8,4))
-        meta=tk.Frame(box,bg=C["panel3"]); meta.pack(fill="x",padx=12,pady=(2,8))
-        source_label=tk.Label(meta,text="",bg=C["panel3"],fg=C["muted"],font=("Segoe UI",8),wraplength=700,justify="right")
-        source_label.pack(side="right",fill="x",expand=True)
-        source_btn=tk.Button(meta,text="↗  Open educational source",bg=C["soft"],fg=C["text"],activebackground=C["gold"],relief="flat",font=("Segoe UI",8,"bold"),cursor="hand2")
-        source_btn.pack(side="left",padx=(8,0))
+        box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        box.pack(fill="x", padx=10, pady=(4,8))
+        image_label = tk.Label(box, bg=C["panel3"])
+        image_label.pack(fill="x", padx=8, pady=(8,4))
+        meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,8))
+        source_label = tk.Label(meta, text="", bg=C["panel3"], fg=C["muted"], font=("Segoe UI",8),
+                                wraplength=760, justify="right")
+        source_label.pack(side="right", fill="x", expand=True)
+        source_btn = tk.Button(meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
+                               activebackground=C["gold"], relief="flat", font=("Segoe UI",8,"bold"),
+                               cursor="hand2")
+        source_btn.pack(side="left", padx=(8,0))
         try:
-            kind=visual_key_for(title,key,subtitle)
-            cache=ROOT/"EducationVisuals"/f"{safe(kind)}_{safe(title)}.jpg"
-            render_visual(cache,kind,self.ui_text(title),self.ui_text(subtitle))
+            kind = visual_key_for(title, key, subtitle)
+            cache = ROOT / "EducationVisuals" / f"{safe(kind)}_source"
+            source_path = render_visual(cache, kind, self.ui_text(title), self.ui_text(subtitle))
             from PIL import Image, ImageTk
-            im=Image.open(cache).convert("RGB"); ratio=min(1.0,760/im.width)
-            im=im.resize((int(im.width*ratio),int(im.height*ratio)),Image.Resampling.LANCZOS)
-            ph=ImageTk.PhotoImage(im); image_label.configure(image=ph); image_label.image=ph
-            stitle,surl=source_for_visual(kind)
-            source_label.configure(text=f"Source: {stitle}")
+            im = Image.open(source_path)
+            ratio = min(1.0, 900 / max(1, im.width))
+            shown = im.resize((max(1,int(im.width*ratio)), max(1,int(im.height*ratio))),
+                              Image.Resampling.LANCZOS) if ratio < 1.0 else im.copy()
+            ph = ImageTk.PhotoImage(shown)
+            image_label.configure(image=ph)
+            image_label.image = ph
+            stitle, surl = source_for_visual(kind)
+            source_label.configure(text=f"{self.tr('original_source')}  •  {stitle}")
             source_btn.configure(command=lambda u=surl:webbrowser.open(u))
         except Exception:
-            source_label.configure(text="Educational visual unavailable")
+            source_label.configure(text=self.tr("market_unavailable") if self.language == "en" else "تصویر اصلی منبع در دسترس نیست")
         return box
+
     def academy(self):
         self.heading(self.tr("academy_title"), self.tr("academy_sub"))
         note=tk.Label(self.content,text=ACADEMY_NOTE_FA if self.language=="fa" else ACADEMY_NOTE_EN,

@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import math
+import sys
 from pathlib import Path
 from typing import Dict, Tuple
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from urllib.request import Request, urlopen
+from urllib.parse import urlparse
+
+USER_AGENT = "TraderPlannerPro/7.4 (+https://github.com/shmm66/desktop-tutorial)"
 
 EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
     "candlestick": (
-        "CME Group — Chart Types: Candlestick, Line, Bar",
-        "https://www.cmegroup.com/education/courses/technical-analysis/chart-types-candlestick-line-bar.html",
-    ),
-    "technical": (
-        "CME Group — Technical Analysis",
-        "https://www.cmegroup.com/education/courses/trading-and-analysis/technical-analysis",
+        "TradingView Support — Introduction to Candlestick Charts and Patterns",
+        "https://www.tradingview.com/support/solutions/43000745269-introduction-to-candlestick-charts-and-patterns/",
     ),
     "structure": (
         "TradingView — ICT-Based Market Structure, Liquidity & Order Block Framework",
@@ -23,60 +24,86 @@ EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
         "TradingView — Liquidity Sweep Setup | MSS + FVG + Order Block",
         "https://www.tradingview.com/chart/GOLD/GXZP7v3b-Liquidity-Sweep-Setup-MSS-FVG-Order-Block/",
     ),
-    "smc": (
-        "TradingView — How to Read the Market: Liquidity, Structure & Order Blocks",
-        "https://www.tradingview.com/chart/XAUUSD/T9i64uSM-HOW-TO-READ-THE-MARKET-LIQUIDITY-STRUCTURE-ORDER-BLOCKS/",
+    "fvg": (
+        "TradingView — Educational Post: FVG (Fair Value Gap)",
+        "https://www.tradingview.com/chart/BTCUSDT/ls1qkg1J-EDUCATIONAL-POST-FVG-Fair-Value-Gap/",
     ),
-    "ict": (
-        "TradingView — ICT / Market Structure educational chart",
-        "https://www.tradingview.com/ideas/candlestick/",
+    "order_block": (
+        "TradingView — Educational Series: What Is an Order Block (OB)?",
+        "https://www.tradingview.com/chart/XAUUSD/M8FJGt2o-Educational-Series-What-Is-an-Order-Block-OB/",
+    ),
+    "breaker": (
+        "TradingView — Market Concepts: Lesson 05 — Breaker Blocks",
+        "https://www.tradingview.com/chart/BTCUSDT/GF9ddICw-Market-Concepts-Lesson-05-Breaker-Blocks/",
+    ),
+    "unicorn": (
+        "TradingView — ICT Unicorn Model - The powerful Model",
+        "https://www.tradingview.com/chart/DXY/VZbs9Ofu-ICT-Unicorn-Model-The-powerful-Model/",
+    ),
+    "smt": (
+        "TradingView — SMT (Smart Money Technique) | Advanced Institutional Concept",
+        "https://www.tradingview.com/chart/GOLD/QZNZVNUf-SMT-Smart-Money-Technique-Advanced-Institutional-Concept/",
     ),
     "timing": (
-        "CME Group — Technical Analysis",
-        "https://www.cmegroup.com/education/courses/technical-analysis",
+        "TradingView — Judas Swing | London Killzone | Optimal Trade Entry",
+        "https://www.tradingview.com/chart/GBPUSD/ahxFLqq4-Judas-Swing-London-Killzone-Optimal-Trade-Entry-Explained/",
+    ),
+    "technical": (
+        "TradingView — 7 Expert Risk Management Techniques for Trading",
+        "https://www.tradingview.com/chart/BTCUSDT/20ywMQSe-7-Expert-Risk-Management-Techniques-for-Trading/",
     ),
 }
 
-VISUAL_ALIASES = {
-    "fvg": "fvg",
-    "fair value gap": "fvg",
-    "ifvg": "fvg",
-    "bpr": "fvg",
-    "order block": "order_block",
-    "breaker block": "breaker",
-    "bos": "structure",
-    "choch": "structure",
-    "mss": "structure",
-    "market structure": "structure",
-    "swing high": "structure",
-    "swing low": "structure",
-    "liquidity": "liquidity",
-    "bsl": "liquidity",
-    "ssl": "liquidity",
-    "sweep": "liquidity",
-    "stop": "liquidity",
-    "premium": "pd",
-    "discount": "pd",
-    "ote": "pd",
-    "equilibrium": "pd",
-    "dealing range": "pd",
-    "killzone": "timing",
-    "judas": "timing",
-    "silver bullet": "timing",
-    "amd": "timing",
-    "power of three": "timing",
-    "unicorn": "unicorn",
-    "candlestick": "candlestick",
-    "engulfing": "candlestick",
-    "pin bar": "candlestick",
-    "doji": "candlestick",
-    "hammer": "candlestick",
-    "shooting star": "candlestick",
-    "risk": "risk",
-    "rr": "risk",
-    "psychology": "risk",
-    "smt": "smt",
+REMOTE_IMAGES = {
+    "candlestick": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43635857165/original/-Ia8yAZJrCU4h3GbdUIpsOThy0H_d6CBTg.png?1785426335=",
+    "structure": "https://s3.tradingview.com/j/JhztA6F9_mid.webp",
+    "liquidity": "https://s3.tradingview.com/g/GXZP7v3b_mid.webp",
+    "fvg": "https://s3.tradingview.com/l/ls1qkg1J_mid.webp",
+    "order_block": "https://s3.tradingview.com/m/M8FJGt2o_mid.webp",
+    "breaker": "https://s3.tradingview.com/g/GF9ddICw_mid.webp",
+    "unicorn": "https://s3.tradingview.com/v/VZbs9Ofu_mid.webp",
+    "smt": "https://s3.tradingview.com/q/QZNZVNUf_mid.webp",
+    "timing": "https://s3.tradingview.com/a/ahxFLqq4_mid.webp",
+    "technical": "https://s3.tradingview.com/2/20ywMQSe_mid.webp",
 }
+
+VISUAL_ALIASES = {
+    "fair value gap": "fvg", "fvg": "fvg", "imbalance": "fvg", "ifvg": "fvg", "bpr": "fvg",
+    "order block": "order_block", "orderblock": "order_block", "mitigation block": "order_block", "ob": "order_block",
+    "breaker block": "breaker", "breaker": "breaker",
+    "unicorn": "unicorn",
+    "bos": "structure", "choch": "structure", "mss": "structure", "market structure": "structure",
+    "swing high": "structure", "swing low": "structure", "hh": "structure", "hl": "structure", "lh": "structure", "ll": "structure",
+    "liquidity": "liquidity", "bsl": "liquidity", "ssl": "liquidity", "sweep": "liquidity",
+    "equal high": "liquidity", "equal low": "liquidity", "resting liquidity": "liquidity", "stop": "liquidity",
+    "premium": "timing", "discount": "timing", "ote": "timing", "equilibrium": "timing", "dealing range": "timing",
+    "killzone": "timing", "judas": "timing", "silver bullet": "timing", "amd": "timing", "power of three": "timing",
+    "smt": "smt", "smart money divergence": "smt",
+    "candlestick": "candlestick", "candlestick pattern": "candlestick", "engulfing": "candlestick", "pin bar": "candlestick",
+    "doji": "candlestick", "hammer": "candlestick", "shooting star": "candlestick", "inside bar": "candlestick",
+    "marubozu": "candlestick", "spinning top": "candlestick", "tweezer": "candlestick", "morning star": "candlestick",
+    "evening star": "candlestick", "three white soldiers": "candlestick", "three black crows": "candlestick",
+    "risk": "technical", "rr": "technical", "psychology": "technical",
+}
+
+def visual_key_for(term: str, category: str = "", context: str = "") -> str:
+    text = f"{term} {category} {context}".lower()
+    for token in sorted(VISUAL_ALIASES, key=len, reverse=True):
+        if token in text:
+            return VISUAL_ALIASES[token]
+    if "cand" in text or "candle" in text:
+        return "candlestick"
+    if "structure" in text:
+        return "structure"
+    if "liquidity" in text:
+        return "liquidity"
+    return "technical"
+
+def source_for_visual(key: str) -> Tuple[str, str]:
+    return EDUCATION_SOURCES.get(key, EDUCATION_SOURCES["technical"])
+
+def image_url_for_visual(key: str) -> str:
+    return REMOTE_IMAGES.get(key, "")
 
 def _font(size: int, bold: bool = False):
     candidates = [
@@ -164,12 +191,45 @@ def _candles_board(img, d, xs, base_y=630, scale=1.0, highlight=None):
         x1, y1, x2, y2 = highlight
         _rounded(d, (x1, y1, x2, y2), 18, (39,211,176,30), (39,211,176,190), 3)
 
+def bundled_asset_for_visual(key: str):
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    folder = root / "education_sources"
+    url = image_url_for_visual(key)
+    if not url:
+        return None
+    target = folder / f"{key}{remote_extension(url)}"
+    return target if target.exists() and target.stat().st_size > 5000 else None
+
+def remote_extension(url: str) -> str:
+    suffix = Path(urlparse(url).path).suffix.lower()
+    return suffix if suffix in {".png", ".jpg", ".jpeg", ".webp"} else ".bin"
+
 def render_visual(path: Path, key: str, title: str, subtitle: str, size=(1400, 800)) -> Path:
+    """Cache original external educational image bytes without re-encoding."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
+    if path.exists() and path.stat().st_size > 5000:
         return path
+    url = image_url_for_visual(key)
+    if url:
+        target = path.with_suffix(remote_extension(url))
+        if target.exists() and target.stat().st_size > 5000:
+            return target
+        bundled = bundled_asset_for_visual(key)
+        if bundled:
+            target.write_bytes(bundled.read_bytes())
+            return target
+        request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "image/avif,image/webp,image/png,image/jpeg,*/*"})
+        with urlopen(request, timeout=15) as response:
+            payload = response.read()
+        if len(payload) < 5000:
+            raise ValueError("Remote source image is unexpectedly small")
+        target.write_bytes(payload)
+        if path != target and path.exists():
+            path.unlink()
+        return target
 
+    # Unknown key: retain the legacy generated reference only as an unreachable safety fallback.
     img, d = _base(title, subtitle, key, size)
     W, H = size
 

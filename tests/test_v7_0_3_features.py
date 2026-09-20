@@ -76,7 +76,7 @@ def test_visual_generator_and_source_mapping_exist():
     assert "liquidity" in EDUCATION_SOURCES
     assert visual_key_for("Fair Value Gap", "Imbalance", "") == "fvg"
     assert visual_key_for("Order Block", "PD Array", "") == "order_block"
-    assert source_for_visual("candlestick")[0].startswith("CME Group")
+    assert source_for_visual("candlestick")[0].startswith("TradingView Support")
 
 
 def test_english_static_ui_labels_do_not_contain_persian():
@@ -85,8 +85,44 @@ def test_english_static_ui_labels_do_not_contain_persian():
         assert not any("\u0600" <= ch <= "\u06FF" for ch in str(value)), value
 
 
-def test_visual_render_smoke(tmp_path):
-    from academy_visuals import render_visual
-    out = render_visual(tmp_path / "structure.jpg", "structure", "Market Structure", "Highs, lows and structure break")
+def test_visual_render_smoke(tmp_path, monkeypatch):
+    import academy_visuals
+    class FakeResponse:
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self): return b"0" * 7000
+    monkeypatch.setattr(academy_visuals, "urlopen", lambda *args, **kwargs: FakeResponse())
+    out = academy_visuals.render_visual(tmp_path / "structure.jpg", "structure", "Market Structure", "Highs, lows and structure break")
     assert out.exists()
+    assert out.suffix == ".webp"
     assert out.stat().st_size > 5000
+
+
+def test_v740_visual_sources_are_original_remote_assets():
+    from TraderPlannerPro_v7_0_3 import VERSION
+    from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
+    assert VERSION == "7.4.1"
+    for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
+        assert key in REMOTE_IMAGES
+        assert REMOTE_IMAGES[key].startswith("https://")
+        assert image_url_for_visual(key) == REMOTE_IMAGES[key]
+        assert key in EDUCATION_SOURCES
+        assert "TradingView" in EDUCATION_SOURCES[key][0] or "CME" in EDUCATION_SOURCES[key][0]
+
+
+def test_v740_market_data_configuration():
+    from market_data import CRYPTO_FALLBACK, FOREX_SYMBOLS, CRYPTO_ENDPOINT, YAHOO_ENDPOINT, FEAR_GREED_ENDPOINT
+    assert len(CRYPTO_FALLBACK) == 10
+    assert len(FOREX_SYMBOLS) >= 10
+    assert "coingecko.com/api/v3/coins/markets" in CRYPTO_ENDPOINT
+    assert "/v8/finance/chart/{symbol}" in YAHOO_ENDPOINT
+    assert "alternative.me/fng" in FEAR_GREED_ENDPOINT
+
+
+def test_v740_home_shortcut_and_auto_hide_are_present():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert 'self.bind_all("<Home>"' in source
+    assert "self.menu_hide_job" in source
+    assert "_schedule_menu_hide" in source
+    assert "MARKET TAPE" in source
