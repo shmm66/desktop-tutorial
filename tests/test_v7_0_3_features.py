@@ -101,7 +101,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "7.4.1"
+    assert VERSION == "7.5.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -126,3 +126,45 @@ def test_v740_home_shortcut_and_auto_hide_are_present():
     assert "self.menu_hide_job" in source
     assert "_schedule_menu_hide" in source
     assert "MARKET TAPE" in source
+
+
+def test_v750_calendar_conversion_has_all_three_calendars():
+    from calendar_utils import calendar_snapshot, display_date
+    from datetime import date
+    snap = calendar_snapshot(date(2026, 9, 21))
+    assert snap["gregorian"] == "2026-09-21"
+    assert snap["weekday_en"] == "Monday"
+    assert snap["jalali_iso"]
+    assert snap["hijri_iso"]
+    assert "Monday" in display_date(date(2026, 9, 21), "en")
+
+
+def test_v750_candlestick_sources_are_pattern_specific():
+    from academy_visuals import visual_key_for, image_url_for_visual, EDUCATION_SOURCES
+    assert visual_key_for("Bullish / Bearish Engulfing", "Candlestick", "") == "bullish_engulfing"
+    assert visual_key_for("Bullish Engulfing", "Candlestick", "") == "bullish_engulfing"
+    assert visual_key_for("Bearish Engulfing", "Candlestick", "") == "bearish_engulfing"
+    assert image_url_for_visual("bullish_engulfing").endswith(".png?1594035480=")
+    assert image_url_for_visual("bearish_engulfing").endswith(".png?1594035191=")
+    assert image_url_for_visual("long_legged_doji").endswith("48g0fJv6_mid.webp")
+    assert "Engulfing" in EDUCATION_SOURCES["bullish_engulfing"][0]
+
+
+def test_v750_market_indicators_exist_for_both_modes():
+    from market_data import fetch_market
+    # Deterministic test: only configuration is asserted; network calls are not required here.
+    import market_data
+    assert hasattr(market_data, "fetch_market")
+    assert "btc_dominance" in market_data._global_indicators.__code__.co_consts or "btc_dominance" in market_data._global_indicators.__code__.co_names
+    assert "usdt_dominance" in market_data._global_indicators.__code__.co_consts or "usdt_dominance" in market_data._global_indicators.__code__.co_names
+
+
+def test_v750_navigation_ai_news_calculators_and_theme_are_present():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    for key in ("ai", "news", "calculators"):
+        assert f'"{key}"' in source
+    assert "def go_home(self):" in source
+    assert "def apply_theme(self, initial=False):" in source
+    assert "def render_market_indicators(self, payload=None):" in source
+    assert "def open_webview(self, url, title=" in source
