@@ -806,6 +806,11 @@ class App(tk.Tk):
             ("R", self.tr("net_r"), f"{sum(result_num(x) for x in p['journals'][self.market]):.2f} R", C["gold"]),
             ("$", self.tr("initial_balance"), f"{p['initial_balance']:,.2f} {p['currency']}", C["violet"]),
         ]
+        if self.market == "Crypto":
+            fg = self.market_data_payload.get("fear_greed") or {}
+            fg_value = fg.get("value")
+            fg_label = fg.get("label") or "—"
+            cards.append(("◈", "Fear & Greed", f"{fg_value}  •  {fg_label}" if fg_value is not None else "—", C["cyan"]))
         for icon, title, value, accent_color in cards:
             box = self.card(stats); box.pack(side="left", fill="both", expand=True, padx=4)
             tk.Label(box, text=icon, bg=C["panel"], fg=accent_color, font=("Segoe UI Symbol", 15, "bold")).pack(anchor="w", padx=13, pady=(8,1))
