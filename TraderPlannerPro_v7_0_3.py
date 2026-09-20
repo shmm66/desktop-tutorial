@@ -665,7 +665,7 @@ class App(tk.Tk):
         tk.Label(self.menu, text="FAST NAVIGATION • AUTO HIDE", bg=C["panel"], fg=C["muted"],
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
-        for key in ("home","daily","plan","check","journal","academy","settings"):
+        for key in ("home","daily","plan","check","journal","academy","assistant","news","settings"):
             b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
@@ -750,6 +750,10 @@ class App(tk.Tk):
             try: self.after_cancel(self.ticker_job)
             except Exception: pass
             self.ticker_job = None
+        if self.market_timeout_job is not None:
+            try: self.after_cancel(self.market_timeout_job)
+            except Exception: pass
+            self.market_timeout_job = None
         self.session_clock_widgets = []
         self.cur = key
         for widget in self.content.winfo_children():
@@ -880,11 +884,14 @@ class App(tk.Tk):
         self.market_update_label = tk.Label(right, text="", bg=C["panel2"], fg=C["muted"],
                                             font=("Segoe UI", 8))
         self.market_update_label.pack(side="right")
+        self.btn(ticker_header, self.tr("retry_market"), self.retry_market_data).pack(side="right", padx=6, pady=5)
         self.ticker_canvas = tk.Canvas(self.content, height=76, bg=C["bg"], highlightthickness=0)
         self.ticker_canvas.pack(fill="x", pady=(0,7))
         self.render_market_ticker(self.market_data_payload)
+        self.market_timeout_job = self.after(10000, self._market_load_timeout)
         self.ticker_offset = 0
         self.ticker_job = self.after(45, self._animate_ticker)
+        self.render_market_indicators()
 
         session_wrap = tk.Frame(self.content, bg=C["bg"])
         session_wrap.pack(fill="x", pady=(2,8))
@@ -999,6 +1006,63 @@ class App(tk.Tk):
         if self.cur == "home":
             self.ticker_offset = 0
             self.render_market_ticker(payload)
+            self.render_market_indicators()
+
+    def retry_market_data(self):
+        if hasattr(self, "market_status_label"):
+            self.market_status_label.config(text=self.tr("market_connecting"), fg=C["gold"])
+        self.market_data.refresh_now()
+
+    def _market_load_timeout(self):
+        self.market_timeout_job = None
+        if self.cur == "home" and not self.market_data_payload.get("items"):
+            self.render_market_ticker(self.market_data_payload)
+
+    def _gauge_card(self, parent, title, value, suffix="", note=""):
+        box = self.card(parent)
+        box.pack(side="left", fill="both", expand=True, padx=4)
+        tk.Label(box, text=title, bg=C["panel"], fg=C["muted"], font=("Segoe UI",9,"bold")).pack(anchor="w", padx=12, pady=(8,0))
+        canvas = tk.Canvas(box, width=132, height=95, bg=C["panel"], highlightthickness=0)
+        canvas.pack(pady=2)
+        cx, cy, r = 66, 72, 48
+        canvas.create_arc(cx-r, cy-r, cx+r, cy+r, start=200, extent=140, style="arc", outline=C["soft"], width=8)
+        if isinstance(value, (int,float)):
+            ratio = max(0.0, min(1.0, float(value)/100.0))
+            color = C["danger"] if ratio < .35 else C["gold"] if ratio < .65 else C["accent"]
+            canvas.create_arc(cx-r, cy-r, cx+r, cy+r, start=200, extent=140*ratio, style="arc", outline=color, width=8)
+            canvas.create_text(cx, cy-12, text=f"{value:.1f}{suffix}", fill=C["text"], font=("Consolas",13,"bold"))
+        else:
+            canvas.create_text(cx, cy-12, text="—", fill=C["muted"], font=("Consolas",14,"bold"))
+        tk.Label(box, text=note, bg=C["panel"], fg=C["muted"], font=("Segoe UI",7), wraplength=150, justify="left").pack(padx=8,pady=(0,8))
+
+    def render_market_indicators(self):
+        if hasattr(self, "indicator_frame") and self.indicator_frame.winfo_exists():
+            self.indicator_frame.destroy()
+        holder = tk.Frame(self.content, bg=C["bg"])
+        holder.pack(fill="x", pady=(1,6))
+        self.indicator_frame = holder
+        title_row = tk.Frame(holder,bg=C["bg"]); title_row.pack(fill="x")
+        tk.Label(title_row,text=self.tr("market_indicators"),bg=C["bg"],fg=C["text"],
+                 font=("Segoe UI",11,"bold")).pack(side="right")
+        tk.Label(title_row,text=self.market,bg=C["bg"],fg=C["muted"],font=("Consolas",8,"bold")).pack(side="left")
+        cards = tk.Frame(holder,bg=C["bg"]); cards.pack(fill="x",pady=(3,0))
+        ind = self.market_data_payload.get("indicators") or {}
+        fg = ind.get("fear_greed") or {}
+        fg_val = fg.get("value")
+        self._gauge_card(cards,self.tr("fear_greed"),fg_val,"",fg.get("label",""))
+        self._gauge_card(cards,self.tr("btc_dominance"),ind.get("btc_dominance"),"%","")
+        self._gauge_card(cards,self.tr("usdt_dominance"),ind.get("usdt_dominance"),"%","")
+
+    def _market_data_callback(self, payload):
+        self.market_data_payload = payload
+        if self.market_timeout_job is not None:
+            try: self.after_cancel(self.market_timeout_job)
+            except Exception: pass
+            self.market_timeout_job = None
+        try:
+            self.after(0, lambda p=payload: self._apply_market_data(p))
+        except Exception:
+            pass
 
     def draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
