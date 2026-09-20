@@ -942,7 +942,7 @@ class App(tk.Tk):
             else:
                 p=empty_profile(name,vals["market"].get(),vals["currency"].get().strip() or "USD",initial)
                 DB["profiles"].append(p); DB["active_profile_id"]=p["id"]
-            save_db(); dlg.destroy(); self.market=active_profile()["market"]; self.market_btn.config(text=self.market); self.refresh_profile_selector(); self.show(self.cur)
+            save_db(); dlg.destroy(); self.market=active_profile()["market"]; self.market_btn.config(text=self.market); self.market_data.set_market(self.market); self.refresh_profile_selector(); self.show(self.cur)
         self.btn(dlg,"ذخیره پروفایل",submit,True).grid(row=5,column=0,padx=16,pady=16,sticky="e")
         self.btn(dlg,"انصراف",dlg.destroy).grid(row=5,column=1,padx=16,pady=16,sticky="w")
         self.translate_widget_tree(dlg)
