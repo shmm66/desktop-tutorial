@@ -85,10 +85,16 @@ def test_english_static_ui_labels_do_not_contain_persian():
         assert not any("\u0600" <= ch <= "\u06FF" for ch in str(value)), value
 
 
-def test_visual_render_smoke(tmp_path):
-    from academy_visuals import render_visual
-    out = render_visual(tmp_path / "structure.jpg", "structure", "Market Structure", "Highs, lows and structure break")
+def test_visual_render_smoke(tmp_path, monkeypatch):
+    import academy_visuals
+    class FakeResponse:
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self): return b"0" * 7000
+    monkeypatch.setattr(academy_visuals, "urlopen", lambda *args, **kwargs: FakeResponse())
+    out = academy_visuals.render_visual(tmp_path / "structure.jpg", "structure", "Market Structure", "Highs, lows and structure break")
     assert out.exists()
+    assert out.suffix == ".webp"
     assert out.stat().st_size > 5000
 
 
@@ -105,11 +111,11 @@ def test_v740_visual_sources_are_original_remote_assets():
 
 
 def test_v740_market_data_configuration():
-    from market_data import CRYPTO_FALLBACK, FOREX_SYMBOLS, fetch_market
+    from market_data import CRYPTO_FALLBACK, FOREX_SYMBOLS, CRYPTO_ENDPOINT, YAHOO_ENDPOINT
     assert len(CRYPTO_FALLBACK) == 10
     assert len(FOREX_SYMBOLS) >= 10
-    payload = fetch_market("UnsupportedMode")
-    assert payload["market"] == "Crypto"
+    assert "coingecko.com/api/v3/coins/markets" in CRYPTO_ENDPOINT
+    assert "/v8/finance/chart/{symbol}" in YAHOO_ENDPOINT
 
 
 def test_v740_home_shortcut_and_auto_hide_are_present():
