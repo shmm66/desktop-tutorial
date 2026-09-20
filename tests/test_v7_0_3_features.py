@@ -65,3 +65,28 @@ def test_icon_generator_exists():
 def test_language_options_include_persian_and_english():
     from TraderPlannerPro_v7_0_3 import LANGUAGE_OPTIONS
     assert dict(LANGUAGE_OPTIONS) == {"fa": "فارسی", "en": "English"}
+
+
+def test_visual_generator_and_source_mapping_exist():
+    from pathlib import Path
+    from academy_visuals import EDUCATION_SOURCES, visual_key_for, source_for_visual
+    assert Path("academy_visuals.py").is_file()
+    assert "candlestick" in EDUCATION_SOURCES
+    assert "structure" in EDUCATION_SOURCES
+    assert "liquidity" in EDUCATION_SOURCES
+    assert visual_key_for("Fair Value Gap", "Imbalance", "") == "fvg"
+    assert visual_key_for("Order Block", "PD Array", "") == "order_block"
+    assert source_for_visual("candlestick")[0].startswith("CME Group")
+
+
+def test_english_static_ui_labels_do_not_contain_persian():
+    from TraderPlannerPro_v7_0_3 import I18N
+    for value in I18N["en"].values():
+        assert not any("\u0600" <= ch <= "\u06FF" for ch in str(value)), value
+
+
+def test_visual_render_smoke(tmp_path):
+    from academy_visuals import render_visual
+    out = render_visual(tmp_path / "structure.jpg", "structure", "Market Structure", "Highs, lows and structure break")
+    assert out.exists()
+    assert out.stat().st_size > 5000
