@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import webbrowser
+import threading
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -20,9 +21,12 @@ from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 from academy_visuals import render_visual, visual_key_for, source_for_visual
 from market_data import MarketDataService
+from calendar_utils import date_label
+from ai_assistant import AGENTS, ask as ai_ask, ollama_models
+from news_data import NEWS_SOURCES, fetch_all as fetch_news_all
 
 APP = "Trader Planner Pro"
-VERSION = "7.4.1"
+VERSION = "7.5.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -104,6 +108,15 @@ I18N = {
         "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
         "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
+        "date_label":"تاریخ","jalali":"هجری شمسی","hijri":"هجری قمری","gregorian":"میلادی","weekday":"روز",
+        "market_indicators":"شاخص‌های بازار","fear_greed":"ترس و طمع","btc_dominance":"دامیننس بیت‌کوین","usdt_dominance":"دامیننس تتر",
+        "retry_market":"تلاش مجدد","market_connecting":"در حال اتصال به بازار...","market_no_feed":"فید بازار در دسترس نیست",
+        "assistant":"◉  دستیار هوش مصنوعی","assistant_title":"دستیار هوش مصنوعی تریدر","assistant_sub":"دستیار رایگان محلی برای فرم‌ها، استراتژی، روانشناسی و نظم",
+        "planner_agent":"دستیار برنامه‌ریزی","strategy_agent":"مربی استراتژی","psychology_agent":"مربی روانشناسی و نظم","journal_agent":"مربی ژورنال",
+        "ask_ai":"ارسال به دستیار","ai_ready":"مدل محلی آماده است","ai_fallback":"حالت رایگان آفلاین فعال است","ai_context":"کانتکست فعلی",
+        "reminders":"یادآوری‌ها","add_reminder":"＋ افزودن یادآوری","reminder_time":"ساعت","reminder_text":"متن یادآوری","save_reminder":"ذخیره یادآوری","no_reminders":"یادآوری فعالی وجود ندارد",
+        "news":"◫  اخبار","news_title":"مرکز اخبار بازار","forex_news":"Forex Factory","crypto_news":"CoinDesk","open_in_app":"باز کردن داخل برنامه","refresh_news":"بروزرسانی اخبار","no_news":"خبری دریافت نشد",
+        "theme":"پوسته","dark":"تاریک","light":"روشن","auto":"خودکار","theme_help":"در حالت خودکار، برنامه بین ساعت شروع و پایان شب روی پوسته تاریک می‌رود.","dark_start":"شروع تاریک","dark_end":"پایان تاریک","save_theme":"ذخیره پوسته",
         "education_note":"یادداشت آموزشی","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
     },
     "en": {
@@ -139,6 +152,15 @@ I18N = {
         "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
         "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
+        "date_label":"Date","jalali":"Jalali","hijri":"Hijri","gregorian":"Gregorian","weekday":"Weekday",
+        "market_indicators":"Market Indicators","fear_greed":"Fear & Greed","btc_dominance":"BTC Dominance","usdt_dominance":"USDT Dominance",
+        "retry_market":"Retry","market_connecting":"Connecting to market...","market_no_feed":"No live market feed",
+        "assistant":"◉  AI Assistant","assistant_title":"Trader AI Assistant","assistant_sub":"Free local coaching for forms, strategy, psychology and discipline",
+        "planner_agent":"Planner Agent","strategy_agent":"Strategy Coach","psychology_agent":"Psychology & Discipline","journal_agent":"Journal Coach",
+        "ask_ai":"Ask Assistant","ai_ready":"Local model ready","ai_fallback":"Free offline coaching mode","ai_context":"Current context",
+        "reminders":"Reminders","add_reminder":"＋ Add Reminder","reminder_time":"Time","reminder_text":"Reminder","save_reminder":"Save Reminder","no_reminders":"No active reminders",
+        "news":"◫  News","news_title":"Market News Center","forex_news":"Forex Factory","crypto_news":"CoinDesk","open_in_app":"Open In-App","refresh_news":"Refresh News","no_news":"No news received",
+        "theme":"Theme","dark":"Dark","light":"Light","auto":"Auto","theme_help":"Auto mode uses a configurable dark-hours interval.","dark_start":"Dark start","dark_end":"Dark end","save_theme":"Save Theme",
         "education_note":"Training note","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
     }
 }
