@@ -892,6 +892,11 @@ class App(tk.Tk):
                              bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
+        if self.cur != "home":
+            ai_btn = tk.Button(left_tools, text="🤖 AI", command=lambda:self.show("ai"),
+                               bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
+                               relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
+            ai_btn.pack(side="left", padx=(0,5))
         tk.Label(left_tools, text="HOME", bg=C["panel3"], fg=C["muted"],
                  font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
 
