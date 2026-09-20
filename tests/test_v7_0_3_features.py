@@ -83,3 +83,10 @@ def test_english_static_ui_labels_do_not_contain_persian():
     from TraderPlannerPro_v7_0_3 import I18N
     for value in I18N["en"].values():
         assert not any("\u0600" <= ch <= "\u06FF" for ch in str(value)), value
+
+
+def test_visual_render_smoke(tmp_path):
+    from academy_visuals import render_visual
+    out = render_visual(tmp_path / "structure.jpg", "structure", "Market Structure", "Highs, lows and structure break")
+    assert out.exists()
+    assert out.stat().st_size > 5000
