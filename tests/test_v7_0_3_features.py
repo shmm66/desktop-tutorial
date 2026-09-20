@@ -111,11 +111,12 @@ def test_v740_visual_sources_are_original_remote_assets():
 
 
 def test_v740_market_data_configuration():
-    from market_data import CRYPTO_FALLBACK, FOREX_SYMBOLS, CRYPTO_ENDPOINT, YAHOO_ENDPOINT
+    from market_data import CRYPTO_FALLBACK, FOREX_SYMBOLS, CRYPTO_ENDPOINT, YAHOO_ENDPOINT, FEAR_GREED_ENDPOINT
     assert len(CRYPTO_FALLBACK) == 10
     assert len(FOREX_SYMBOLS) >= 10
     assert "coingecko.com/api/v3/coins/markets" in CRYPTO_ENDPOINT
     assert "/v8/finance/chart/{symbol}" in YAHOO_ENDPOINT
+    assert "alternative.me/fng" in FEAR_GREED_ENDPOINT
 
 
 def test_v740_home_shortcut_and_auto_hide_are_present():
