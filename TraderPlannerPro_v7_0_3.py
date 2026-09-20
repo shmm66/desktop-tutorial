@@ -1123,6 +1123,29 @@ class App(tk.Tk):
         tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",10)).pack(anchor="e",padx=18,pady=18)
         self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=10)
 
+    def _academy_visual(self, parent, key, title, subtitle):
+        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
+        box.pack(fill="x",padx=10,pady=(4,8))
+        image_label=tk.Label(box,bg=C["panel3"]); image_label.pack(fill="x",padx=8,pady=(8,4))
+        meta=tk.Frame(box,bg=C["panel3"]); meta.pack(fill="x",padx=12,pady=(2,8))
+        source_label=tk.Label(meta,text="",bg=C["panel3"],fg=C["muted"],font=("Segoe UI",8),wraplength=700,justify="right")
+        source_label.pack(side="right",fill="x",expand=True)
+        source_btn=tk.Button(meta,text="↗  Open educational source",bg=C["soft"],fg=C["text"],activebackground=C["gold"],relief="flat",font=("Segoe UI",8,"bold"),cursor="hand2")
+        source_btn.pack(side="left",padx=(8,0))
+        try:
+            kind=visual_key_for(title,key,subtitle)
+            cache=ROOT/"EducationVisuals"/f"{safe(kind)}_{safe(title)}.jpg"
+            render_visual(cache,kind,self.ui_text(title),self.ui_text(subtitle))
+            from PIL import Image, ImageTk
+            im=Image.open(cache).convert("RGB"); ratio=min(1.0,760/im.width)
+            im=im.resize((int(im.width*ratio),int(im.height*ratio)),Image.Resampling.LANCZOS)
+            ph=ImageTk.PhotoImage(im); image_label.configure(image=ph); image_label.image=ph
+            stitle,surl=source_for_visual(kind)
+            source_label.configure(text=f"Source: {stitle}")
+            source_btn.configure(command=lambda u=surl:webbrowser.open(u))
+        except Exception:
+            source_label.configure(text="Educational visual unavailable")
+        return box
     def academy(self):
         self.heading(self.tr("academy_title"), self.tr("academy_sub"))
         note=tk.Label(self.content,text=ACADEMY_NOTE_FA if self.language=="fa" else ACADEMY_NOTE_EN,
@@ -1139,99 +1162,89 @@ class App(tk.Tk):
         self._build_glossary_tab(tab_gloss)
 
     def _build_strategy_tab(self,parent,items):
-        outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=6,showhandle=False)
-        outer.pack(fill="both",expand=True,padx=8,pady=8)
-        left=tk.Frame(outer,bg=C["panel"]); right=tk.Frame(outer,bg=C["panel"])
-        outer.add(left,minsize=330); outer.add(right,minsize=620)
-        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",
-                      font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0)
-        lb.pack(fill="both",expand=True,padx=8,pady=8)
+        outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8,showhandle=False); outer.pack(fill="both",expand=True,padx=8,pady=8)
+        left=tk.Frame(outer,bg=C["panel"]); right=tk.Frame(outer,bg=C["panel"]); outer.add(left,minsize=330); outer.add(right,minsize=760)
+        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0); lb.pack(fill="both",expand=True,padx=8,pady=8)
         for item in items: lb.insert("end",item["name_fa"] if self.language=="fa" else item["name_en"])
-        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",16,"bold"),anchor="e",justify="right")
-        title.pack(fill="x",padx=18,pady=(16,8))
-        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),anchor="e",justify="right",wraplength=700)
-        summary.pack(fill="x",padx=18,pady=6)
+        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",16,"bold"),anchor="e",justify="right"); title.pack(fill="x",padx=18,pady=(14,5))
+        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),anchor="e",justify="right",wraplength=760); summary.pack(fill="x",padx=18,pady=5)
+        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=3)
         steps_frame=tk.Frame(right,bg=C["panel"]); steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
-        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",10),height=18)
-        text.pack(side="left",fill="both",expand=True)
+        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",10),height=12); text.pack(side="left",fill="both",expand=True)
         scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview); scr.pack(side="right",fill="y"); text.configure(yscrollcommand=scr.set)
         def render(_=None):
             sel=lb.curselection()
             if not sel: return
-            item=items[sel[0]]
-            title.config(text=item["name_fa"] if self.language=="fa" else item["name_en"])
-            summary.config(text=item["summary_fa"] if self.language=="fa" else item["summary_en"])
-            lines=(item["steps_fa"] if self.language=="fa" else item["steps_en"])
-            inv=item["risk_fa"] if self.language=="fa" else item["risk_en"]
-            text.configure(state="normal"); text.delete("1.0","end")
-            text.insert("end",self.tr("steps")+"\n\n")
+            item=items[sel[0]]; title.config(text=item["name_fa"] if self.language=="fa" else item["name_en"]); summary.config(text=item["summary_fa"] if self.language=="fa" else item["summary_en"])
+            for w in visual_holder.winfo_children(): w.destroy()
+            self._academy_visual(visual_holder,"strategy",item["name_en"],item["summary_en"])
+            lines=item["steps_fa"] if self.language=="fa" else item["steps_en"]; inv=item["risk_fa"] if self.language=="fa" else item["risk_en"]
+            text.configure(state="normal"); text.delete("1.0","end"); text.insert("end",self.tr("steps")+"\n\n")
             for i,line in enumerate(lines,1): text.insert("end",f"{i}. {line}\n")
-            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv)
-            text.configure(state="disabled")
+            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv); text.configure(state="disabled")
         lb.bind("<<ListboxSelect>>",render)
         if items: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
-
     def _build_candle_tab(self,parent):
         wrap=tk.Frame(parent,bg=C["panel"]); wrap.pack(fill="both",expand=True,padx=8,pady=8)
         left=tk.Frame(wrap,bg=C["panel"]); left.pack(side="left",fill="both",expand=True,padx=8,pady=8)
         right=tk.Frame(wrap,bg=C["panel"]); right.pack(side="left",fill="both",expand=True,padx=8,pady=8)
-        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",
-                      font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0)
-        lb.pack(fill="both",expand=True)
-        for name,en,fa in CANDLE_PLAYBOOK:
-            lb.insert("end", fa if self.language=="fa" else name)
-        tk.Label(right,text=("الگوهای کندلی" if self.language=="fa" else "Candlestick Patterns"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=12,pady=12)
-        desc=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),wraplength=650,justify="right")
-        desc.pack(fill="both",expand=True,padx=16,pady=16)
+        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0); lb.pack(fill="both",expand=True)
+        for name,en,fa in CANDLE_PLAYBOOK: lb.insert("end",fa if self.language=="fa" else name)
+        tk.Label(right,text=self.ui_text("الگوهای کندلی"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=12,pady=10)
+        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=4)
+        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e"); desc.pack(fill="both",expand=True,padx=16,pady=10)
+        en_desc={
+            "Pin Bar / Rejection Candle":"A compact body with a dominant wick. Read it as rejection only with context, location and confirmation.",
+            "Bullish / Bearish Engulfing":"A new candle substantially covers the prior body. It can describe momentum change, not a standalone signal.",
+            "Inside Bar":"A candle remains within the prior range, showing compression and a possible breakout condition.",
+            "Morning Star":"A three-candle reversal pattern often used to study a shift from selling pressure to buying pressure.",
+            "Evening Star":"A three-candle reversal pattern often used to study a shift from buying pressure to selling pressure.",
+            "Hammer":"A small body with a long lower wick. Context and level matter.","Shooting Star":"A small body with a long upper wick. Context and level matter.",
+            "Doji":"Open and close are close together, describing short-term indecision.","Tweezer Top":"Two nearby highs that can highlight rejection near resistance.","Tweezer Bottom":"Two nearby lows that can highlight rejection near support.",
+            "Three White Soldiers":"Three consecutive strong bullish candles describing sustained buying pressure.","Three Black Crows":"Three consecutive strong bearish candles describing sustained selling pressure.",
+            "Marubozu":"A candle with very small wicks and a large body, showing directional momentum.","Spinning Top":"A small body with visible wicks on both sides, describing balance or indecision.","Long-Legged Doji":"A doji with long wicks, showing a wide battle range and indecision."
+        }
         def render(_=None):
             if not lb.curselection(): return
             name,en,fa=CANDLE_PLAYBOOK[lb.curselection()[0]]
-            desc.config(text=(f"{name}\n\n{fa}" if self.language=="fa" else f"{name}\n\n{fa}"))
+            for w in visual_holder.winfo_children(): w.destroy()
+            self._academy_visual(visual_holder,"candlestick",name,en_desc.get(name,"Candlestick pattern reference."))
+            desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick pattern reference.')}")
         lb.bind("<<ListboxSelect>>",render)
         if CANDLE_PLAYBOOK: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
-
     def _build_glossary_tab(self,parent):
         bar=tk.Frame(parent,bg=C["panel"]); bar.pack(fill="x",padx=8,pady=8)
-        q=tk.StringVar()
-        entry=tk.Entry(bar,textvariable=q,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="right",font=("Segoe UI",10))
-        entry.pack(side="right",fill="x",expand=True,padx=8,pady=10)
+        q=tk.StringVar(); entry=tk.Entry(bar,textvariable=q,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="right",font=("Segoe UI",10)); entry.pack(side="right",fill="x",expand=True,padx=8,pady=10)
         tk.Label(bar,text=self.tr("search_term"),bg=C["panel"],fg=C["muted"]).pack(side="right")
-        cat=tk.StringVar(value="ALL")
-        cats=["ALL"]+sorted({x["category"] for x in GLOSSARY})
-        combo=ttk.Combobox(bar,textvariable=cat,values=cats,state="readonly",width=24,justify="right"); combo.pack(side="left",padx=8,pady=8)
-        body=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=6); body.pack(fill="both",expand=True,padx=8,pady=(0,8))
-        left=tk.Frame(body,bg=C["panel"]); right=tk.Frame(body,bg=C["panel"]); body.add(left,minsize=360); body.add(right,minsize=600)
-        tree=ttk.Treeview(left,columns=("term","category"),show="headings",selectmode="browse")
-        tree.heading("term",text="Term"); tree.heading("category",text="Category"); tree.column("term",width=260); tree.column("category",width=120)
-        tree.pack(fill="both",expand=True,padx=8,pady=8)
-        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold"),justify="right",anchor="e")
-        title.pack(fill="x",padx=18,pady=(14,8))
-        meaning=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e")
-        meaning.pack(fill="x",padx=18,pady=8)
-        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e")
-        usage.pack(fill="x",padx=18,pady=8)
+        cat=tk.StringVar(value="ALL"); cats=["ALL"]+sorted({x["category"] for x in GLOSSARY}); combo=ttk.Combobox(bar,textvariable=cat,values=cats,state="readonly",width=24,justify="right"); combo.pack(side="left",padx=8,pady=8)
+        body=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8); body.pack(fill="both",expand=True,padx=8,pady=(0,8))
+        left=tk.Frame(body,bg=C["panel"]); right=tk.Frame(body,bg=C["panel"]); body.add(left,minsize=380); body.add(right,minsize=760)
+        tree=ttk.Treeview(left,columns=("term","category"),show="headings",selectmode="browse"); tree.heading("term",text="Term"); tree.heading("category",text="Category"); tree.column("term",width=260); tree.column("category",width=120); tree.pack(fill="both",expand=True,padx=8,pady=8)
+        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=(8,4))
+        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold"),justify="right",anchor="e"); title.pack(fill="x",padx=18,pady=(8,5))
+        meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
+        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e"); usage.pack(fill="both",expand=True,padx=18,pady=7)
         def refresh(*_):
             term=q.get().strip().lower(); selected_cat=cat.get()
             for x in tree.get_children(): tree.delete(x)
             matched=[]
             for i,item in enumerate(GLOSSARY):
-                text=" ".join([item["term"],item["fa"],item["en"],item["category"],item["meaning_fa"],item["meaning_en"],item["usage_fa"],item["usage_en"]]).lower()
-                if term and term not in text: continue
+                blob=" ".join([item["term"],item["fa"],item["en"],item["category"],item["meaning_fa"],item["meaning_en"],item["usage_fa"],item["usage_en"]]).lower()
+                if term and term not in blob: continue
                 if selected_cat!="ALL" and item["category"]!=selected_cat: continue
                 matched.append(i); tree.insert("", "end",iid=str(i),values=(item["term"],item["category"]))
-            if matched:
-                tree.selection_set(str(matched[0])); render()
+            if matched: tree.selection_set(str(matched[0])); render()
         def render(_=None):
             sel=tree.selection()
             if not sel: return
-            item=GLOSSARY[int(sel[0])]
+            item=GLOSSARY[int(sel[0])]; kind=visual_key_for(item["en"],item["category"],item["meaning_en"] )
+            for w in visual_holder.winfo_children(): w.destroy()
+            self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"])
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
-            meaning.config(text=(self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"])))
-            usage.config(text=(self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"])))
-        tree.bind("<<TreeviewSelect>>",render); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh)
-        refresh()
+            meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
+            usage.config(text=self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"]))
+        tree.bind("<<TreeviewSelect>>",render); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh); refresh()
         tk.Label(parent,text=f"{len(GLOSSARY)} terms",bg=C["bg"],fg=C["muted"],font=("Segoe UI",8)).pack(anchor="e",padx=10,pady=(0,6))
-
     def open_path(self,path):
         path=Path(path); path.mkdir(parents=True,exist_ok=True)
         try:
