@@ -76,7 +76,7 @@ def test_visual_generator_and_source_mapping_exist():
     assert "liquidity" in EDUCATION_SOURCES
     assert visual_key_for("Fair Value Gap", "Imbalance", "") == "fvg"
     assert visual_key_for("Order Block", "PD Array", "") == "order_block"
-    assert source_for_visual("candlestick")[0].startswith("CME Group")
+    assert source_for_visual("candlestick")[0].startswith("TradingView Support")
 
 
 def test_english_static_ui_labels_do_not_contain_persian():
