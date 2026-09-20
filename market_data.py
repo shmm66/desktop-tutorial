@@ -79,6 +79,15 @@ class MarketDataService:
         self._running=True; threading.Thread(target=self._worker,daemon=True,name="TraderPlannerMarketData").start()
     def set_market(self,market):self._market="Forex" if market=="Forex" else "Crypto"
     def stop(self):self._running=False
+    def refresh_now(self):
+        market = self._market or "Crypto"
+        def worker():
+            payload = fetch_market(market)
+            if self.callback:
+                try: self.callback(payload)
+                except Exception: pass
+        threading.Thread(target=worker, daemon=True, name="TraderPlannerMarketDataOneShot").start()
+
     def _worker(self):
         while self._running:
             p=fetch_market(self._market)
