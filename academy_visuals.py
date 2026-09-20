@@ -49,8 +49,8 @@ EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
         "https://www.tradingview.com/chart/GBPUSD/ahxFLqq4-Judas-Swing-London-Killzone-Optimal-Trade-Entry-Explained/",
     ),
     "technical": (
-        "CME Group — Chart Types: Candlestick, Line, Bar",
-        "https://www.cmegroup.com/education/courses/technical-analysis/chart-types-candlestick-line-bar.html",
+        "TradingView — 7 Expert Risk Management Techniques for Trading",
+        "https://www.tradingview.com/chart/BTCUSDT/20ywMQSe-7-Expert-Risk-Management-Techniques-for-Trading/",
     ),
 }
 
@@ -64,7 +64,7 @@ REMOTE_IMAGES = {
     "unicorn": "https://s3.tradingview.com/v/VZbs9Ofu_mid.webp",
     "smt": "https://s3.tradingview.com/q/QZNZVNUf_mid.webp",
     "timing": "https://s3.tradingview.com/a/ahxFLqq4_mid.webp",
-    "technical": "https://www.cmegroup.com/content/dam/cmegroup/education/courses/images/technical-analysis-02.png",
+    "technical": "https://s3.tradingview.com/2/20ywMQSe_mid.webp",
 }
 
 VISUAL_ALIASES = {
