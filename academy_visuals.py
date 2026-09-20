@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import sys
 from pathlib import Path
 from typing import Dict, Tuple
 
@@ -190,6 +191,15 @@ def _candles_board(img, d, xs, base_y=630, scale=1.0, highlight=None):
         x1, y1, x2, y2 = highlight
         _rounded(d, (x1, y1, x2, y2), 18, (39,211,176,30), (39,211,176,190), 3)
 
+def bundled_asset_for_visual(key: str):
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    folder = root / "education_sources"
+    url = image_url_for_visual(key)
+    if not url:
+        return None
+    target = folder / f"{key}{remote_extension(url)}"
+    return target if target.exists() and target.stat().st_size > 5000 else None
+
 def remote_extension(url: str) -> str:
     suffix = Path(urlparse(url).path).suffix.lower()
     return suffix if suffix in {".png", ".jpg", ".jpeg", ".webp"} else ".bin"
@@ -204,6 +214,10 @@ def render_visual(path: Path, key: str, title: str, subtitle: str, size=(1400, 8
     if url:
         target = path.with_suffix(remote_extension(url))
         if target.exists() and target.stat().st_size > 5000:
+            return target
+        bundled = bundled_asset_for_visual(key)
+        if bundled:
+            target.write_bytes(bundled.read_bytes())
             return target
         request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "image/avif,image/webp,image/png,image/jpeg,*/*"})
         with urlopen(request, timeout=15) as response:
