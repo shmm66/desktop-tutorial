@@ -30,5 +30,5 @@ def date_label(value=None, english=False):
     b = calendar_bundle(value)
     g = b["gregorian"]
     if english:
-        return f"{g.strftime('%A')} • {g:%Y-%m-%d}"
+        return f"{g.strftime('%A')} • Gregorian {g:%Y-%m-%d} | Jalali {b['jalali'].year:04d}-{b['jalali'].month:02d}-{b['jalali'].day:02d} | Hijri {b['hijri'].year:04d}-{b['hijri'].month:02d}-{b['hijri'].day:02d}"
     return f"{b['jalali_long']}  |  {b['hijri_long']}  |  {b['gregorian_text']}"
