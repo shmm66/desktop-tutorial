@@ -1336,7 +1336,7 @@ class App(tk.Tk):
 
     def journal(self):
         p=active_profile(); self.market=p["market"]; rows=p["journals"][self.market]
-        self.heading(f"Journal — {self.market}",f"پروفایل: {p['name']} | ژورنال {self.market} مستقل از پروفایل‌های دیگر")
+        self.heading(f"Journal — {self.market}",f"پروفایل: {p['name']} | {display_date(date.today(), self.language)}")
         bar=tk.Frame(self.content,bg=C["bg"]); bar.pack(fill="x",pady=3)
         self.btn(bar,"＋ ثبت معامله",self.add_trade,True).pack(side="left",padx=3)
         self.btn(bar,"ویرایش",self.edit_trade).pack(side="left",padx=3); self.btn(bar,"حذف",self.delete_trade).pack(side="left",padx=3)
