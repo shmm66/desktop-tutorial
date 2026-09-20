@@ -45,3 +45,23 @@ def test_session_clock_configuration_has_four_major_sessions():
     assert [x["abbr"] for x in SESSION_CLOCKS] == ["SYD", "TYO", "LON", "NY"]
     assert len(SESSION_CLOCKS) == 4
     assert all(x["start"] < x["end"] and x["tz"] for x in SESSION_CLOCKS)
+
+
+def test_academy_content_is_populated():
+    from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY
+    assert len(SMART_MONEY_STRATEGIES) == 5
+    assert len(ICT_STRATEGIES) == 5
+    assert len(CANDLE_PLAYBOOK) >= 10
+    assert len(GLOSSARY) >= 100
+    assert any(x["term"] == "FVG" or x["term"].startswith("Fair Value Gap") for x in GLOSSARY)
+    assert any(x["term"] == "BOS" for x in GLOSSARY)
+
+
+def test_icon_generator_exists():
+    from pathlib import Path
+    assert Path("build_icon.py").is_file()
+
+
+def test_language_options_include_persian_and_english():
+    from TraderPlannerPro_v7_0_3 import LANGUAGE_OPTIONS
+    assert dict(LANGUAGE_OPTIONS) == {"fa": "فارسی", "en": "English"}
