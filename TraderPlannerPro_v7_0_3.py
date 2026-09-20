@@ -1310,28 +1310,37 @@ class App(tk.Tk):
         self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=10)
 
     def _academy_visual(self, parent, key, title, subtitle):
-        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        box.pack(fill="x",padx=10,pady=(4,8))
-        image_label=tk.Label(box,bg=C["panel3"]); image_label.pack(fill="x",padx=8,pady=(8,4))
-        meta=tk.Frame(box,bg=C["panel3"]); meta.pack(fill="x",padx=12,pady=(2,8))
-        source_label=tk.Label(meta,text="",bg=C["panel3"],fg=C["muted"],font=("Segoe UI",8),wraplength=700,justify="right")
-        source_label.pack(side="right",fill="x",expand=True)
-        source_btn=tk.Button(meta,text="↗  Open educational source",bg=C["soft"],fg=C["text"],activebackground=C["gold"],relief="flat",font=("Segoe UI",8,"bold"),cursor="hand2")
-        source_btn.pack(side="left",padx=(8,0))
+        box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        box.pack(fill="x", padx=10, pady=(4,8))
+        image_label = tk.Label(box, bg=C["panel3"])
+        image_label.pack(fill="x", padx=8, pady=(8,4))
+        meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,8))
+        source_label = tk.Label(meta, text="", bg=C["panel3"], fg=C["muted"], font=("Segoe UI",8),
+                                wraplength=760, justify="right")
+        source_label.pack(side="right", fill="x", expand=True)
+        source_btn = tk.Button(meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
+                               activebackground=C["gold"], relief="flat", font=("Segoe UI",8,"bold"),
+                               cursor="hand2")
+        source_btn.pack(side="left", padx=(8,0))
         try:
-            kind=visual_key_for(title,key,subtitle)
-            cache=ROOT/"EducationVisuals"/f"{safe(kind)}_{safe(title)}.jpg"
-            render_visual(cache,kind,self.ui_text(title),self.ui_text(subtitle))
+            kind = visual_key_for(title, key, subtitle)
+            cache = ROOT / "EducationVisuals" / f"{safe(kind)}_source"
+            source_path = render_visual(cache, kind, self.ui_text(title), self.ui_text(subtitle))
             from PIL import Image, ImageTk
-            im=Image.open(cache).convert("RGB"); ratio=min(1.0,760/im.width)
-            im=im.resize((int(im.width*ratio),int(im.height*ratio)),Image.Resampling.LANCZOS)
-            ph=ImageTk.PhotoImage(im); image_label.configure(image=ph); image_label.image=ph
-            stitle,surl=source_for_visual(kind)
-            source_label.configure(text=f"Source: {stitle}")
+            im = Image.open(source_path)
+            ratio = min(1.0, 900 / max(1, im.width))
+            shown = im.resize((max(1,int(im.width*ratio)), max(1,int(im.height*ratio))),
+                              Image.Resampling.LANCZOS) if ratio < 1.0 else im.copy()
+            ph = ImageTk.PhotoImage(shown)
+            image_label.configure(image=ph)
+            image_label.image = ph
+            stitle, surl = source_for_visual(kind)
+            source_label.configure(text=f"{self.tr('original_source')}  •  {stitle}")
             source_btn.configure(command=lambda u=surl:webbrowser.open(u))
         except Exception:
-            source_label.configure(text="Educational visual unavailable")
+            source_label.configure(text=self.tr("market_unavailable") if self.language == "en" else "تصویر اصلی منبع در دسترس نیست")
         return box
+
     def academy(self):
         self.heading(self.tr("academy_title"), self.tr("academy_sub"))
         note=tk.Label(self.content,text=ACADEMY_NOTE_FA if self.language=="fa" else ACADEMY_NOTE_EN,
