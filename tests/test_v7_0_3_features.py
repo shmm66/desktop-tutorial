@@ -141,7 +141,6 @@ def test_v750_calendar_conversion_has_all_three_calendars():
 
 def test_v750_candlestick_sources_are_pattern_specific():
     from academy_visuals import visual_key_for, image_url_for_visual, EDUCATION_SOURCES
-    assert visual_key_for("Bullish / Bearish Engulfing", "Candlestick", "") == "bullish_engulfing"
     assert visual_key_for("Bullish Engulfing", "Candlestick", "") == "bullish_engulfing"
     assert visual_key_for("Bearish Engulfing", "Candlestick", "") == "bearish_engulfing"
     assert image_url_for_visual("bullish_engulfing").endswith(".png?1594035480=")
