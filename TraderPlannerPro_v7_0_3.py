@@ -254,7 +254,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 710, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language": "fa"}}
+    return {"version": 750, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","ai_reminders":[]}}
 
 def numeric(value):
     try:
@@ -272,6 +272,10 @@ def migrate_payload(old):
     if isinstance(old.get("settings"), dict):
         base["settings"].update(old["settings"])
     base["settings"].setdefault("language", "fa")
+    base["settings"].setdefault("theme", "dark")
+    base["settings"].setdefault("theme_auto_start", "08:00")
+    base["settings"].setdefault("theme_auto_end", "20:00")
+    base["settings"].setdefault("ai_reminders", [])
     if isinstance(old.get("profiles"), list) and old["profiles"]:
         base["profiles"] = old["profiles"]
         active = old.get("active_profile_id") or base["profiles"][0].get("id")
@@ -290,7 +294,7 @@ def migrate_payload(old):
             p.setdefault("checklist", default_checklist())
             for item in p["checklist"]:
                 item.setdefault("id", str(uuid4())); item.setdefault("done", False)
-        base["version"] = 710
+        base["version"] = 750
         return base
     # V7.0.2 -> profile migration without data loss.
     legacy_profile = old.get("profile") if isinstance(old.get("profile"), dict) else {}
@@ -323,7 +327,7 @@ def migrate_payload(old):
         ]
     base["profiles"] = [p]
     base["active_profile_id"] = p["id"]
-    base["version"] = 710
+    base["version"] = 750
     return base
 
 def load_db(path=DATA):
