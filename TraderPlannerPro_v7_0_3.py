@@ -420,8 +420,11 @@ class App(tk.Tk):
         self.language = DB.get("settings", {}).get("language", "fa")
         if self.language not in dict(LANGUAGE_OPTIONS): self.language = "fa"
         self.menu_open = False
+        self.menu_hide_job = None
         self.session_clock_job = None
         self.session_clock_widgets = []
+        self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": []}
+        self.market_data = MarketDataService(self._market_data_callback, refresh_seconds=60)
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
