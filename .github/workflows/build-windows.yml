@@ -33,7 +33,6 @@ jobs:
 
   package:
     needs: quality
-    if: github.event_name != 'pull_request'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -104,12 +103,12 @@ jobs:
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
       - name: Publish V7.0.4 Release
-        if: github.ref == 'refs/heads/feature/trader-planner-pro-7-0-3-profiles-dashboard'
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/trader-planner-pro-7-0-3-profiles-dashboard' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v7.0.4
           name: Trader Planner Pro V7.0.4
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           generate_release_notes: false
           body: |
             ## Trader Planner Pro V7.0.4
