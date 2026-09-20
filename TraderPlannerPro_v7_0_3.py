@@ -1040,7 +1040,7 @@ class App(tk.Tk):
         if hasattr(self, "market_status_label"):
             self.market_status_label.config(text=self.tr("market_loading"), fg=C["gold"])
         self.market_data.set_market(self.market)
-        self.market_data.start(self.market)
+        self.market_data.refresh_now()
 
     def render_market_indicators(self, payload=None):
         if not hasattr(self, "indicator_row"):
