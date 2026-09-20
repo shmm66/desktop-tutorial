@@ -21,7 +21,7 @@ from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYB
 from academy_visuals import render_visual, visual_key_for, source_for_visual
 
 APP = "Trader Planner Pro"
-VERSION = "7.3.0"
+VERSION = "7.3.1"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
