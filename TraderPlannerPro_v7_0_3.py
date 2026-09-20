@@ -22,7 +22,7 @@ from academy_visuals import render_visual, visual_key_for, source_for_visual
 from market_data import MarketDataService
 
 APP = "Trader Planner Pro"
-VERSION = "7.4.0"
+VERSION = "7.4.1"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
