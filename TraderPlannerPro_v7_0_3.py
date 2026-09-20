@@ -656,7 +656,7 @@ class App(tk.Tk):
         if self.cur=="home":
             self.session_clock_job=self.after(1000,self.update_session_clocks)
 
-(self, rows):
+    def win_rate(self, rows):
         if not rows: return 0.0
         wins=sum(1 for r in rows if result_num(r)>0)
         return wins/len(rows)*100.0
