@@ -16,7 +16,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from logo_3d import create_logo_image
 
 APP = "Trader Planner Pro"
-VERSION = "7.0.4"
+VERSION = "7.1.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -60,6 +60,85 @@ C = {
     "danger": "#FF6F7D", "line": "#27384A", "blue": "#63A7FF",
 }
 
+LANGUAGE_OPTIONS = [("fa", "فارسی"), ("en", "English")]
+
+I18N = {
+    "fa": {
+        "home":"⌂  خانه","daily":"◫  برنامه روزانه","plan":"◈  Trading Plan","check":"✓  چک‌لیست",
+        "journal":"▣  ژورنال","settings":"⚙  تنظیمات","new_profile":"＋ پروفایل جدید","edit_profile":"ویرایش پروفایل",
+        "delete_profile":"حذف پروفایل","active_profile":"پروفایل فعال","initial_capital":"سرمایه اولیه",
+        "dashboard":"داشبورد حرفه‌ای","dashboard_sub":"پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه",
+        "trading_count":"تعداد معاملات","win_rate":"Win Rate","net_r":"Net R","initial_balance":"سرمایه اولیه",
+        "performance":"نمودار عملکرد معاملات","distribution":"توزیع نتایج ژورنال","new_trade":"＋ ثبت معامله جدید",
+        "daily_title":"برنامه روزانه","daily_sub":"قابل ویرایش، قابل تیک‌زدن و ذخیره روی همان مسیر داده قبلی",
+        "prev_day":"روز قبل","next_day":"روز بعد","new_task":"＋ فعالیت جدید","edit":"ویرایش","delete":"حذف",
+        "time":"زمان","activity":"فعالیت","category":"دسته","search":"جستجو:","export_csv":"خروجی CSV",
+        "open_images":"باز کردن پوشه تصاویر","journal_empty":"ژورنال خالی","no_data":"هنوز داده‌ای برای نمودار نیست",
+        "journal_profile":"پروفایل: {name} | ژورنال {market} مستقل از پروفایل‌های دیگر",
+        "plan_title":"Trading Plan","plan_sub":"پلن را ویرایش کن، به‌عنوان نسخه مستقل ذخیره کن و خروجی A4 بگیر",
+        "save_plan":"💾 ذخیره به‌عنوان Trading Plan","export_a4":"🖼 خروجی A4","saved_versions":"نسخه‌های ذخیره‌شده",
+        "current_version":"عنوان نسخه فعلی:","check_title":"Checklist",
+        "check_sub":"موارد را سریع ببین، تیک بزن، ویرایش کن و با دکمه‌های هر ردیف جابه‌جا کن",
+        "add_condition":"＋ افزودن شرط","from_plan":"ساخت از Trading Plan","completed":"تکمیل شده",
+        "required":"اجباری","source":"منبع","move_up":"↑","move_down":"↓","remove":"×","edit_row":"ویرایش",
+        "settings_title":"تنظیمات","settings_sub":"زبان، پروفایل فعال و مسیر ذخیره‌سازی برنامه",
+        "language":"زبان برنامه","language_help":"زبان رابط کاربری را انتخاب کن. تغییر زبان بلافاصله اعمال می‌شود.",
+        "language_saved":"زبان تغییر کرد","language_saved_msg":"زبان برنامه روی {language} تنظیم شد.",
+        "profile":"پروفایل","market":"بازار","data_path":"مسیر داده","reports_path":"مسیر خروجی A4",
+        "manage_profiles":"مدیریت پروفایل‌ها","yes":"بله","no":"خیر","manual":"دستی","trading_plan":"Trading Plan",
+        "strategy":"استراتژی","no_checklist":"چک‌لیست خالی است","save":"ذخیره","cancel":"انصراف",
+        "delete_item":"حذف","generate":"تولید از Trading Plan","items":"مورد",
+        "check_progress":"{done} از {total} مورد تکمیل شده","check_item":"شرط",
+        "required_item":"این شرط اجباری است","condition_title":"عنوان شرط","condition_category":"دسته",
+        "condition_source":"منبع","general":"عمومی","select_condition":"ابتدا یک شرط را انتخاب کن",
+        "empty_plan":"ابتدا حداقل چند بخش از Trading Plan را پر کن."
+    },
+    "en": {
+        "home":"⌂  Home","daily":"◫  Daily Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
+        "journal":"▣  Journal","settings":"⚙  Settings","new_profile":"＋ New Profile","edit_profile":"Edit Profile",
+        "delete_profile":"Delete Profile","active_profile":"Active Profile","initial_capital":"Initial Capital",
+        "dashboard":"Professional Dashboard","dashboard_sub":"Profile, capital, journal performance and trading status at a glance",
+        "trading_count":"Trades","win_rate":"Win Rate","net_r":"Net R","initial_balance":"Initial Capital",
+        "performance":"Trade Performance","distribution":"Journal Results","new_trade":"＋ New Trade",
+        "daily_title":"Daily Planner","daily_sub":"Editable, checkable and saved to the existing data path",
+        "prev_day":"Previous Day","next_day":"Next Day","new_task":"＋ New Activity","edit":"Edit","delete":"Delete",
+        "time":"Time","activity":"Activity","category":"Category","search":"Search:","export_csv":"Export CSV",
+        "open_images":"Open Screenshots","journal_empty":"Empty Journal","no_data":"No data for this chart yet",
+        "journal_profile":"Profile: {name} | Independent {market} journal",
+        "plan_title":"Trading Plan","plan_sub":"Edit the plan, save named versions and export A4",
+        "save_plan":"💾 Save as Trading Plan","export_a4":"🖼 Export A4","saved_versions":"Saved Versions",
+        "current_version":"Current version title:","check_title":"Checklist",
+        "check_sub":"Review items quickly, tick them, edit them, and reorder them with row controls",
+        "add_condition":"＋ Add Condition","from_plan":"Build from Trading Plan","completed":"Completed",
+        "required":"Required","source":"Source","move_up":"↑","move_down":"↓","remove":"×","edit_row":"Edit",
+        "settings_title":"Settings","settings_sub":"Language, active profile and application storage paths",
+        "language":"Application Language","language_help":"Choose the interface language. The change applies immediately.",
+        "language_saved":"Language changed","language_saved_msg":"Application language set to {language}.",
+        "profile":"Profile","market":"Market","data_path":"Data Path","reports_path":"A4 Output Path",
+        "manage_profiles":"Manage Profiles","yes":"Yes","no":"No","manual":"Manual","trading_plan":"Trading Plan",
+        "strategy":"Strategy","no_checklist":"Checklist is empty","save":"Save","cancel":"Cancel",
+        "delete_item":"Delete","generate":"Build from Trading Plan","items":"items",
+        "check_progress":"{done} of {total} items completed","check_item":"Condition",
+        "required_item":"This condition is required","condition_title":"Condition Title","condition_category":"Category",
+        "condition_source":"Source","general":"General","select_condition":"Select a condition first",
+        "empty_plan":"Fill at least a few Trading Plan sections first."
+    }
+}
+
+FA_TO_EN = {
+    "خانه":"Home","برنامه روزانه":"Daily Planner","تنظیمات":"Settings","پروفایل جدید":"New Profile",
+    "ویرایش پروفایل":"Edit Profile","حذف پروفایل":"Delete Profile","ذخیره":"Save","انصراف":"Cancel",
+    "ویرایش":"Edit","حذف":"Delete","بالا":"Up","پایین":"Down","ذخیره پروفایل":"Save Profile",
+    "مدیریت پروفایل‌ها":"Manage Profiles","＋ افزودن شرط":"＋ Add Condition","ساخت از Trading Plan":"Build from Trading Plan",
+    "نسخه‌های ذخیره‌شده":"Saved Versions","خروجی A4":"Export A4","ذخیره به‌عنوان Trading Plan":"Save as Trading Plan",
+    "انتخاب تصویر":"Choose Image","باز کردن پوشه":"Open Folder","ذخیره معامله":"Save Trade","ثبت معامله":"Add Trade",
+    "خروجی CSV":"Export CSV","باز کردن پوشه تصاویر":"Open Screenshots","پایان MARK UP":"End MARK UP",
+    "روز قبل":"Previous Day","روز بعد":"Next Day","＋ فعالیت جدید":"＋ New Activity","عنوان":"Title","دسته":"Category",
+    "فعالیت":"Activity","زمان":"Time","پروفایل":"Profile","بازار":"Market","سرمایه اولیه":"Initial Capital",
+    "عنوان شرط":"Condition Title","منبع":"Source","اجباری":"Required","بله":"Yes","خیر":"No","دستی":"Manual"
+}
+
+
 TASKS = [
     ("07:00","بیداری + آب + نور صبح","سلامت"),("07:15","صبحانه","غذا"),
     ("07:45","ورزش / پیاده‌روی صبح 30–45 دقیقه","ورزش"),("08:35","دوش + آماده‌سازی میز","روتین"),
@@ -98,7 +177,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 703, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks}
+    return {"version": 710, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language": "fa"}}
 
 def numeric(value):
     try:
@@ -113,6 +192,9 @@ def migrate_payload(old):
     # Preserve legacy daily planner.
     if isinstance(old.get("tasks"), dict):
         base["tasks"] = old["tasks"]
+    if isinstance(old.get("settings"), dict):
+        base["settings"].update(old["settings"])
+    base["settings"].setdefault("language", "fa")
     if isinstance(old.get("profiles"), list) and old["profiles"]:
         base["profiles"] = old["profiles"]
         active = old.get("active_profile_id") or base["profiles"][0].get("id")
@@ -131,7 +213,7 @@ def migrate_payload(old):
             p.setdefault("checklist", default_checklist())
             for item in p["checklist"]:
                 item.setdefault("id", str(uuid4())); item.setdefault("done", False)
-        base["version"] = 703
+        base["version"] = 710
         return base
     # V7.0.2 -> profile migration without data loss.
     legacy_profile = old.get("profile") if isinstance(old.get("profile"), dict) else {}
@@ -164,7 +246,7 @@ def migrate_payload(old):
         ]
     base["profiles"] = [p]
     base["active_profile_id"] = p["id"]
-    base["version"] = 703
+    base["version"] = 710
     return base
 
 def load_db(path=DATA):
@@ -285,6 +367,8 @@ class App(tk.Tk):
         self.title(f"{APP} V{VERSION}")
         self.geometry("1520x960"); self.minsize(1180, 760); self.configure(bg=C["bg"])
         self.cur = "home"; self.day = date.today().isoformat(); self.market = active_profile().get("market", "Crypto")
+        self.language = DB.get("settings", {}).get("language", "fa")
+        if self.language not in dict(LANGUAGE_OPTIONS): self.language = "fa"
         self.menu_open = False
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
@@ -294,8 +378,38 @@ class App(tk.Tk):
         self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
         self._logo_photo = None
         self.build_shell()
+        self.apply_language()
         self.show("home")
         self.after(500, self.clock)
+
+    def tr(self, key, **kwargs):
+        table = I18N.get(self.language, I18N["fa"])
+        text = table.get(key, key)
+        return text.format(**kwargs) if kwargs else text
+
+    def ui_text(self, text):
+        if self.language != "en":
+            return text
+        return FA_TO_EN.get(str(text), str(text))
+
+    def apply_language(self):
+        self.title(f"{APP} V{VERSION}")
+        if hasattr(self, "brand_title"): self.brand_title.config(text=APP)
+        if hasattr(self, "brand_subtitle"): self.brand_subtitle.config(text="PRO TRADING WORKSPACE")
+        if hasattr(self, "menu_title"): self.menu_title.config(text="TRADER PLANNER PRO")
+        if hasattr(self, "menu_buttons"):
+            for key, button in self.menu_buttons.items():
+                button.config(text=self.tr(key))
+        if hasattr(self, "market_btn"):
+            self.market_btn.config(text=self.market)
+
+    def set_language(self, code):
+        if code not in dict(LANGUAGE_OPTIONS): return
+        DB.setdefault("settings", {})["language"] = code
+        self.language = code
+        save_db()
+        self.apply_language()
+        self.show(self.cur)
 
     def build_shell(self):
         top = tk.Frame(self, bg=C["bg"]); top.pack(fill="x", padx=18, pady=14)
@@ -309,8 +423,8 @@ class App(tk.Tk):
         except Exception:
             pass
         brand = tk.Frame(top, bg=C["bg"]); brand.pack(side="left")
-        tk.Label(brand, text=APP, bg=C["bg"], fg=C["text"], font=("Segoe UI", 21, "bold")).pack(anchor="w")
-        tk.Label(brand, text="PRO TRADING WORKSPACE", bg=C["bg"], fg=C["accent"], font=("Segoe UI", 8, "bold")).pack(anchor="w")
+        self.brand_title = tk.Label(brand, text=APP, bg=C["bg"], fg=C["text"], font=("Segoe UI", 21, "bold")); self.brand_title.pack(anchor="w")
+        self.brand_subtitle = tk.Label(brand, text="PRO TRADING WORKSPACE", bg=C["bg"], fg=C["accent"], font=("Segoe UI", 8, "bold")); self.brand_subtitle.pack(anchor="w")
         self.clock_label = tk.Label(top, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 10, "bold")); self.clock_label.pack(side="right")
         self.profile_combo = ttk.Combobox(top, state="readonly", width=22, justify="right")
         self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
@@ -322,14 +436,13 @@ class App(tk.Tk):
         self.content = tk.Frame(self, bg=C["bg"]); self.content.pack(fill="both", expand=True, padx=16)
         self.menu = tk.Frame(self, bg=C["panel"], width=300, highlightbackground=C["line"], highlightthickness=1)
         self.menu.place(x=-310, y=0, relheight=1)
-        tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"], font=("Segoe UI", 17, "bold")).pack(anchor="w", padx=22, pady=24)
-        for text, key in [
-            ("⌂  Home","home"),("◫  برنامه روزانه","daily"),("◈  Trading Plan","plan"),
-            ("✓  Checklist","check"),("▣  Journal","journal"),("⚙  تنظیمات","settings")
-        ]:
-            tk.Button(self.menu, text=text, command=lambda k=key:self.go(k), anchor="w",
-                      bg=C["panel"], fg=C["text"], activebackground=C["soft"], relief="flat",
-                      font=("Segoe UI",11), padx=22, pady=11).pack(fill="x")
+        self.menu_title = tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"], font=("Segoe UI", 17, "bold")); self.menu_title.pack(anchor="w", padx=22, pady=24)
+        self.menu_buttons = {}
+        for key in ("home","daily","plan","check","journal","settings"):
+            b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
+                          bg=C["panel"], fg=C["text"], activebackground=C["soft"], relief="flat",
+                          font=("Segoe UI",11), padx=22, pady=11)
+            b.pack(fill="x"); self.menu_buttons[key] = b
 
     def refresh_profile_selector(self):
         names = [p.get("name", "Profile") for p in DB["profiles"]]
@@ -363,6 +476,7 @@ class App(tk.Tk):
         self.after(500, self.clock)
 
     def heading(self, title, sub=""):
+        title = self.ui_text(title); sub = self.ui_text(sub)
         tk.Label(self.content, text=title, bg=C["bg"], fg=C["text"], font=("Segoe UI",22,"bold")).pack(anchor="e", pady=(8,2))
         if sub: tk.Label(self.content, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI",10)).pack(anchor="e", pady=(0,10))
 
@@ -370,7 +484,7 @@ class App(tk.Tk):
         return tk.Frame(parent, bg=C["panel"], highlightbackground=C["line"], highlightthickness=padx)
 
     def btn(self, parent, text, cmd, primary=False, **kw):
-        return tk.Button(parent, text=text, command=cmd, bg=C["accent"] if primary else C["soft"],
+        return tk.Button(parent, text=self.ui_text(text), command=cmd, bg=C["accent"] if primary else C["soft"],
                          fg="#061019" if primary else C["text"], activebackground=C["gold"], relief="flat",
                          font=("Segoe UI",10,"bold"), padx=13, pady=8, **kw)
 
@@ -649,21 +763,23 @@ class App(tk.Tk):
 
     def plan(self):
         p=active_profile()
-        self.heading("Trading Plan","پلن را ویرایش کن، به‌عنوان نسخه مستقل ذخیره کن و خروجی A4 بگیر")
+        self.heading("Trading Plan", self.tr("plan_sub"))
         toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=4)
-        self.btn(toolbar,"💾 ذخیره به‌عنوان Trading Plan",self.save_plan,True).pack(side="left",padx=3)
-        self.btn(toolbar,"🖼 خروجی A4",self.export_current_plan).pack(side="left",padx=3)
-        self.btn(toolbar,"نسخه‌های ذخیره‌شده",self.plan_history).pack(side="left",padx=3)
+        self.btn(toolbar,self.tr("save_plan"),self.save_plan,True).pack(side="left",padx=3)
+        self.btn(toolbar,self.tr("export_a4"),self.export_current_plan).pack(side="left",padx=3)
+        self.btn(toolbar,self.tr("saved_versions"),self.plan_history).pack(side="left",padx=3)
         title_var=tk.StringVar(value=self.current_plan_title())
-        tk.Label(toolbar,text="عنوان نسخه فعلی:",bg=C["bg"],fg=C["muted"]).pack(side="right",padx=5)
-        tk.Entry(toolbar,textvariable=title_var,width=30,justify="right",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right")
+        tk.Label(toolbar,text=self.tr("current_version"),bg=C["bg"],fg=C["muted"]).pack(side="right",padx=5)
+        tk.Entry(toolbar,textvariable=title_var,width=34,justify="right",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right")
         wrap=tk.Frame(self.content,bg=C["bg"]); wrap.pack(fill="both",expand=True,pady=8)
-        left=self.card(wrap); right=self.card(wrap); left.pack(side="left",fill="both",expand=True,padx=4); right.pack(side="left",fill="both",expand=True,padx=4)
+        left=self.card(wrap); right=self.card(wrap)
+        left.pack(side="left",fill="both",expand=True,padx=4); right.pack(side="left",fill="both",expand=True,padx=4)
         draft=p["plan_draft"]
         for i,key in enumerate(PLAN_FIELDS):
             parent=left if i < len(PLAN_FIELDS)//2+1 else right
             tk.Label(parent,text=key,bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(anchor="e",padx=14,pady=(9,2))
-            value=tk.StringVar(value=draft.get(key,"")); ent=tk.Entry(parent,textvariable=value,justify="right",bg=C["soft"],fg=C["text"],relief="flat")
+            value=tk.StringVar(value=draft.get(key,""))
+            ent=tk.Entry(parent,textvariable=value,justify="right",bg=C["soft"],fg=C["text"],relief="flat")
             ent.pack(fill="x",padx=14,pady=(0,8)); ent.bind("<FocusOut>",lambda e,k=key,v=value:self.plan_save(k,v))
         self._plan_title_var=title_var
 
@@ -699,77 +815,149 @@ class App(tk.Tk):
 
     def check(self):
         p=active_profile()
-        self.heading("Checklist","موارد قابل تغییر، جابه‌جایی و اتصال مستقیم به Strategy / Trading Plan")
-        top=tk.Frame(self.content,bg=C["bg"]); top.pack(fill="x",pady=4)
-        self.btn(top,"＋ افزودن شرط",self.add_check_item,True).pack(side="left",padx=3)
-        self.btn(top,"ویرایش",self.edit_check_item).pack(side="left",padx=3)
-        self.btn(top,"حذف",self.delete_check_item).pack(side="left",padx=3)
-        self.btn(top,"↑ بالاتر",lambda:self.move_check(-1)).pack(side="left",padx=3)
-        self.btn(top,"↓ پایین‌تر",lambda:self.move_check(1)).pack(side="left",padx=3)
-        self.btn(top,"ساخت از Trading Plan",self.sync_check_from_plan).pack(side="left",padx=3)
-        tree=ttk.Treeview(self.content,columns=("done","required","title","category","source"),show="headings",selectmode="browse"); self.check_tree=tree
-        for col,txt in [("done","✓"),("required","اجباری"),("title","شرط"),("category","دسته"),("source","منبع")]:
-            tree.heading(col,text=txt)
-        tree.column("done",width=55,anchor="center"); tree.column("required",width=70,anchor="center"); tree.column("title",anchor="e",width=560); tree.column("category",width=150); tree.column("source",width=180)
-        tree.pack(fill="both",expand=True,pady=10); tree.bind("<Double-1>",lambda e:self.toggle_check())
-        self.fill_check_tree()
+        self.heading(self.tr("check_title"), self.tr("check_sub"))
+        top=self.card(self.content); top.pack(fill="x",pady=6)
+        left=tk.Frame(top,bg=C["panel"]); left.pack(side="left",fill="x",expand=True,padx=12,pady=10)
+        self.btn(left,self.tr("add_condition"),self.add_check_item,True).pack(side="left",padx=3)
+        self.btn(left,self.tr("from_plan"),self.sync_check_from_plan).pack(side="left",padx=3)
+        self.check_progress_label=tk.Label(top,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold"))
+        self.check_progress_label.pack(side="right",padx=16)
+        body=tk.Frame(self.content,bg=C["bg"]); body.pack(fill="both",expand=True,pady=6)
+        self.check_canvas=tk.Canvas(body,bg=C["bg"],highlightthickness=0,borderwidth=0)
+        scrollbar=ttk.Scrollbar(body,orient="vertical",command=self.check_canvas.yview)
+        self.check_list_frame=tk.Frame(self.check_canvas,bg=C["bg"])
+        self.check_window=self.check_canvas.create_window((0,0),window=self.check_list_frame,anchor="nw")
+        self.check_canvas.configure(yscrollcommand=scrollbar.set)
+        self.check_list_frame.bind("<Configure>",lambda e:self.check_canvas.configure(scrollregion=self.check_canvas.bbox("all")))
+        self.check_canvas.bind("<Configure>",lambda e:self.check_canvas.itemconfigure(self.check_window,width=e.width))
+        self.check_canvas.pack(side="left",fill="both",expand=True); scrollbar.pack(side="right",fill="y")
+        self.check_canvas.bind_all("<MouseWheel>",self._check_mousewheel)
+        self.render_checklist()
 
-    def fill_check_tree(self):
+    def _check_mousewheel(self,event):
+        try: self.check_canvas.yview_scroll(int(-1*(event.delta/120)),"units")
+        except Exception: pass
+
+    def render_checklist(self):
+        p=active_profile(); items=p.get("checklist",[])
+        for w in self.check_list_frame.winfo_children(): w.destroy()
+        done=sum(1 for x in items if x.get("done"))
+        self.check_progress_label.config(text=self.tr("check_progress",done=done,total=len(items)))
+        if not items:
+            box=self.card(self.check_list_frame); box.pack(fill="x",padx=4,pady=20)
+            tk.Label(box,text=self.tr("no_checklist"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",12)).pack(pady=35)
+            return
+        for idx,item in enumerate(items):
+            self._check_row(idx,item)
+
+    def _check_row(self,index,item):
+        row=tk.Frame(self.check_list_frame,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
+        row.pack(fill="x",padx=4,pady=5)
+        num=tk.Label(row,text=f"{index+1:02d}",bg=C["panel2"],fg=C["gold"],font=("Segoe UI",10,"bold"),width=4)
+        num.pack(side="left",padx=(8,4),pady=8)
+        toggle=tk.Button(row,text="☑" if item.get("done") else "☐",command=lambda i=index:self.toggle_check(i),
+                         bg=C["accent"] if item.get("done") else C["soft"],fg="#061019" if item.get("done") else C["text"],
+                         relief="flat",font=("Segoe UI",11,"bold"),width=3,pady=4)
+        toggle.pack(side="left",padx=4,pady=8)
+        info=tk.Frame(row,bg=C["panel"]); info.pack(side="left",fill="both",expand=True,padx=10,pady=8)
+        title=item.get("title","")
+        title_btn=tk.Button(info,text=title,command=lambda i=index:self.edit_check_index(i),anchor="e",justify="right",
+                            wraplength=760,bg=C["panel"],fg=C["text"],activebackground=C["panel"],activeforeground=C["accent"],
+                            relief="flat",font=("Segoe UI",11,"bold"),cursor="hand2")
+        title_btn.pack(fill="x",anchor="e")
+        meta=tk.Frame(info,bg=C["panel"]); meta.pack(fill="x",pady=(5,0))
+        tk.Label(meta,text=f"{self.tr('category') if self.language=='en' else 'دسته'}: {item.get('category') or self.tr('general')}",
+                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="left",padx=4)
+        tk.Label(meta,text=f"{self.tr('source') if self.language=='en' else 'منبع'}: {item.get('source') or self.tr('manual')}",
+                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="left",padx=12)
+        required=tk.Label(meta,text=self.tr("required"),bg=C["soft"],fg=C["text"],font=("Segoe UI",8,"bold"),padx=7,pady=3)
+        required.pack(side="right",padx=4)
+        controls=tk.Frame(row,bg=C["panel"]); controls.pack(side="right",padx=8,pady=8)
+        self.btn(controls,self.tr("edit_row"),lambda i=index:self.edit_check_index(i)).pack(fill="x",pady=2)
+        self.btn(controls,self.tr("move_up"),lambda i=index:self.move_check_index(i,-1)).pack(fill="x",pady=2)
+        self.btn(controls,self.tr("move_down"),lambda i=index:self.move_check_index(i,1)).pack(fill="x",pady=2)
+        self.btn(controls,self.tr("remove"),lambda i=index:self.delete_check_index(i)).pack(fill="x",pady=2)
+
+    def toggle_check(self,index):
         p=active_profile()
-        for x in self.check_tree.get_children(): self.check_tree.delete(x)
-        for i,item in enumerate(p["checklist"]):
-            self.check_tree.insert("", "end",iid=str(i),values=("☑" if item.get("done") else "☐","بله" if item.get("required",True) else "خیر",item.get("title",""),item.get("category",""),item.get("source","")))
+        if not 0 <= index < len(p["checklist"]): return
+        p["checklist"][index]["done"]=not p["checklist"][index].get("done",False)
+        save_db(); self.render_checklist()
 
-    def toggle_check(self):
-        sel=self.check_tree.selection()
-        if not sel:return
-        i=int(sel[0]); p=active_profile(); p["checklist"][i]["done"]=not p["checklist"][i].get("done",False); save_db(); self.fill_check_tree()
+    def add_check_item(self):
+        self.check_item_dialog()
 
-    def add_check_item(self): self.check_item_dialog()
     def edit_check_item(self):
-        sel=self.check_tree.selection()
-        if not sel:return messagebox.showinfo("انتخاب شرط","یک شرط را انتخاب کن",parent=self)
-        self.check_item_dialog(active_profile()["checklist"][int(sel[0])],int(sel[0]))
+        return
+
     def delete_check_item(self):
-        sel=self.check_tree.selection()
-        if not sel:return
-        i=int(sel[0]); item=active_profile()["checklist"][i]
-        if messagebox.askyesno("حذف شرط",f"«{item.get('title','')}» حذف شود؟",parent=self):
-            active_profile()["checklist"].pop(i); save_db(); self.fill_check_tree()
+        return
+
     def move_check(self,delta):
-        sel=self.check_tree.selection()
-        if not sel:return
-        p=active_profile(); i=int(sel[0]); j=i+delta
-        if not 0<=j<len(p["checklist"]): return
-        p["checklist"][i],p["checklist"][j]=p["checklist"][j],p["checklist"][i]; save_db(); self.fill_check_tree(); self.check_tree.selection_set(str(j))
+        return
+
+    def edit_check_index(self,index):
+        p=active_profile()
+        if 0 <= index < len(p["checklist"]):
+            self.check_item_dialog(p["checklist"][index],index)
+
+    def delete_check_index(self,index):
+        p=active_profile()
+        if not 0 <= index < len(p["checklist"]): return
+        item=p["checklist"][index]
+        if messagebox.askyesno(self.tr("delete_item"),item.get("title",""),parent=self):
+            p["checklist"].pop(index); save_db(); self.render_checklist()
+
+    def move_check_index(self,index,delta):
+        p=active_profile(); j=index+delta
+        if not 0 <= index < len(p["checklist"]) or not 0 <= j < len(p["checklist"]): return
+        p["checklist"][index],p["checklist"][j]=p["checklist"][j],p["checklist"][index]
+        save_db(); self.render_checklist()
+
     def sync_check_from_plan(self):
         p=active_profile(); items=[]
         for key,value in p["plan_draft"].items():
             value=str(value).strip()
             if value:
-                items.append({"id":str(uuid4()),"title":f"{key}: {value}","category":"Trading Plan","required":True,"done":False,"source":"Trading Plan"})
+                items.append({"id":str(uuid4()),"title":f"{key}: {value}","category":self.tr("trading_plan"),"required":True,"done":False,"source":"Trading Plan"})
         if not items:
-            return messagebox.showinfo("Trading Plan خالی است","ابتدا حداقل چند بخش از Trading Plan را پر کن.",parent=self)
+            return messagebox.showinfo(self.tr("check_title"),self.tr("empty_plan"),parent=self)
         p["checklist"] = items + [x for x in p["checklist"] if x.get("source") not in ("Trading Plan","Strategy")]
-        save_db(); self.fill_check_tree()
+        save_db(); self.render_checklist()
 
     def check_item_dialog(self,item=None,index=None):
-        dlg=tk.Toplevel(self); dlg.title("شرط Checklist"); dlg.geometry("620x360"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
-        vals={k:tk.StringVar(value=str((item or {}).get(k,""))) for k in ("title","category","source")}
+        dlg=tk.Toplevel(self)
+        dlg.title(self.tr("check_item"))
+        dlg.geometry("700x470"); dlg.minsize(620,420); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        outer=self.card(dlg); outer.pack(fill="both",expand=True,padx=18,pady=18)
+        tk.Label(outer,text=self.tr("condition_title"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(anchor="e",padx=18,pady=(16,4))
+        title_box=tk.Text(outer,height=5,wrap="word",bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",font=("Segoe UI",11))
+        title_box.pack(fill="x",padx=18,pady=(0,12))
+        title_box.insert("1.0",str((item or {}).get("title","")))
+        form=tk.Frame(outer,bg=C["panel"]); form.pack(fill="x",padx=18)
+        vals={k:tk.StringVar(value=str((item or {}).get(k,""))) for k in ("category","source")}
+        for r,(label,key) in enumerate(((self.tr("condition_category"),"category"),(self.tr("condition_source"),"source"))):
+            tk.Label(form,text=label,bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).grid(row=r,column=1,padx=8,pady=8,sticky="e")
+            ent=tk.Entry(form,textvariable=vals[key],bg=C["soft"],fg=C["text"],relief="flat",justify="right")
+            ent.grid(row=r,column=0,padx=8,pady=8,sticky="ew")
+        form.columnconfigure(0,weight=1)
         req=tk.BooleanVar(value=bool((item or {}).get("required",True)))
-        for i,(label,key) in enumerate([("عنوان شرط","title"),("دسته","category"),("منبع","source")]):
-            tk.Label(dlg,text=label,bg=C["bg"],fg=C["muted"]).grid(row=i,column=1,padx=16,pady=12,sticky="e")
-            tk.Entry(dlg,textvariable=vals[key],bg=C["soft"],fg=C["text"],relief="flat",justify="right").grid(row=i,column=0,padx=16,pady=12,sticky="ew")
-        tk.Checkbutton(dlg,text="این شرط اجباری است",variable=req,bg=C["bg"],fg=C["text"],selectcolor=C["soft"],anchor="e").grid(row=3,column=0,columnspan=2,padx=16,pady=12,sticky="e")
-        dlg.columnconfigure(0,weight=1)
+        tk.Checkbutton(outer,text=self.tr("required_item"),variable=req,bg=C["panel"],fg=C["text"],selectcolor=C["soft"],
+                       activebackground=C["panel"],activeforeground=C["text"],anchor="e").pack(fill="x",padx=18,pady=10)
+        footer=tk.Frame(outer,bg=C["panel"]); footer.pack(fill="x",padx=18,pady=(8,16))
         def submit():
-            if not vals["title"].get().strip(): return messagebox.showwarning("ورودی ناقص","عنوان شرط را وارد کن",parent=dlg)
-            data={"id":(item or {}).get("id",str(uuid4())),"title":vals["title"].get().strip(),"category":vals["category"].get().strip() or "General","source":vals["source"].get().strip() or "Manual","required":req.get(),"done":bool((item or {}).get("done",False))}
+            title=title_box.get("1.0","end").strip()
+            if not title:
+                return messagebox.showwarning(self.tr("check_item"),self.tr("condition_title"),parent=dlg)
+            data={"id":(item or {}).get("id",str(uuid4())),"title":title,
+                  "category":vals["category"].get().strip() or self.tr("general"),
+                  "source":vals["source"].get().strip() or self.tr("manual"),
+                  "required":req.get(),"done":bool((item or {}).get("done",False))}
             if item is None: active_profile()["checklist"].append(data)
             else: active_profile()["checklist"][index]=data
-            save_db(); dlg.destroy(); self.fill_check_tree()
-        self.btn(dlg,"ذخیره",submit,True).grid(row=4,column=0,padx=16,pady=15,sticky="e")
-        self.btn(dlg,"انصراف",dlg.destroy).grid(row=4,column=1,padx=16,pady=15)
+            save_db(); dlg.destroy(); self.render_checklist()
+        self.btn(footer,self.tr("cancel"),dlg.destroy).pack(side="right",padx=4)
+        self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
 
     def settings(self):
         p=active_profile()
