@@ -65,3 +65,10 @@ def test_icon_generator_exists():
 def test_language_options_include_persian_and_english():
     from TraderPlannerPro_v7_0_3 import LANGUAGE_OPTIONS
     assert dict(LANGUAGE_OPTIONS) == {"fa": "فارسی", "en": "English"}
+
+
+def test_3d_session_clock_face_renders_high_resolution():
+    from TraderPlannerPro_v7_0_3 import build_3d_clock_face
+    img = build_3d_clock_face(180)
+    assert img.size == (180, 180)
+    assert img.mode == "RGBA"
