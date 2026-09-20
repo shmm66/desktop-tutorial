@@ -866,9 +866,9 @@ class App(tk.Tk):
                             relief="flat",font=("Segoe UI",11,"bold"),cursor="hand2")
         title_btn.pack(fill="x",anchor="e")
         meta=tk.Frame(info,bg=C["panel"]); meta.pack(fill="x",pady=(5,0))
-        tk.Label(meta,text=f"{self.tr('category') if self.language=='en' else 'دسته'}: {item.get('category') or self.tr('general')}",
+        tk.Label(meta,text=f"{self.tr('condition_category') if self.language=='en' else 'دسته'}: {item.get('category') or self.tr('general')}",
                  bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="left",padx=4)
-        tk.Label(meta,text=f"{self.tr('source') if self.language=='en' else 'منبع'}: {item.get('source') or self.tr('manual')}",
+        tk.Label(meta,text=f"{self.tr('condition_source') if self.language=='en' else 'منبع'}: {item.get('source') or self.tr('manual')}",
                  bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="left",padx=12)
         required=tk.Label(meta,text=self.tr("required"),bg=C["soft"],fg=C["text"],font=("Segoe UI",8,"bold"),padx=7,pady=3)
         required.pack(side="right",padx=4)
