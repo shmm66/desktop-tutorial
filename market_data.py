@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import json
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -260,7 +261,7 @@ class MarketDataService:
                     self.callback(payload)
             except Exception:
                 pass
-        concurrent.futures.ThreadPoolExecutor(max_workers=1).submit(run)
+        threading.Thread(target=run, name="TraderPlannerMarketRefresh", daemon=True).start()
 
     def stop(self):
         self._running = False
