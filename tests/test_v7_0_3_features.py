@@ -29,3 +29,12 @@ def test_empty_db_has_persistent_profile_shell():
     db = empty_db()
     assert db["profiles"]
     assert db["active_profile_id"] == db["profiles"][0]["id"]
+
+
+def test_language_setting_is_persistent_and_bilingual():
+    from TraderPlannerPro_v7_0_3 import empty_db, I18N, LANGUAGE_OPTIONS
+    db = empty_db()
+    assert db["settings"]["language"] == "fa"
+    assert dict(LANGUAGE_OPTIONS) == {"fa": "فارسی", "en": "English"}
+    assert I18N["fa"]["settings_title"] == "تنظیمات"
+    assert I18N["en"]["settings_title"] == "Settings"
