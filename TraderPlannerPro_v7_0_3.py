@@ -1658,9 +1658,11 @@ class App(tk.Tk):
         tk.Label(theme_box,text=self.tr("theme_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
         theme_row=tk.Frame(theme_box,bg=C["panel"]); theme_row.pack(fill="x",padx=18,pady=(0,15))
         labels=THEME_LABELS.get(self.language,THEME_LABELS["en"])
-        theme_var=tk.StringVar(value=self.theme_mode)
+        theme_labels=THEME_LABELS.get(self.language,THEME_LABELS["en"])
+        theme_display={theme_labels["dark"]:"dark",theme_labels["light"]:"light",theme_labels["auto"]:"auto"}
+        theme_var=tk.StringVar(value=theme_labels.get(self.theme_mode,theme_labels["dark"]))
         theme_combo=ttk.Combobox(theme_row,textvariable=theme_var,state="readonly",
-                                 values=["dark","light","auto"],width=18,justify="center")
+                                 values=list(theme_display.keys()),width=18,justify="center")
         theme_combo.pack(side="right",padx=6)
         tk.Label(theme_row,text=self.ui_text("Dark / Light / Automatic"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=8)
 
@@ -1671,8 +1673,7 @@ class App(tk.Tk):
         tk.Label(times,text=labels["auto_end"],bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=10)
         tk.Entry(times,textvariable=end_var,width=8,justify="center",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right",padx=5)
         def save_theme():
-            mode=theme_var.get()
-            if mode not in ("dark","light","auto"): mode="dark"
+            mode=theme_display.get(theme_var.get(),"dark")
             start=start_var.get().strip() or "08:00"; end=end_var.get().strip() or "20:00"
             if not self._valid_hhmm(start): start="08:00"
             if not self._valid_hhmm(end): end="20:00"
