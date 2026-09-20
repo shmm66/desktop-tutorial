@@ -138,7 +138,6 @@ REMOTE_IMAGES = {
 }
 
 VISUAL_ALIASES = {
-    "bullish / bearish engulfing": "engulfing_pair",
     "bullish engulfing": "bullish_engulfing", "engulfing bullish": "bullish_engulfing",
     "bearish engulfing": "bearish_engulfing", "engulfing bearish": "bearish_engulfing",
     "inside bar": "candlestick", "morning star": "morning_star", "evening star": "evening_star",
@@ -162,10 +161,7 @@ def visual_key_for(term: str, category: str = "", context: str = "") -> str:
     text = f"{term} {category} {context}".lower()
     for token in sorted(VISUAL_ALIASES, key=len, reverse=True):
         if token in text:
-            key = VISUAL_ALIASES[token]
-            if key == "engulfing_pair":
-                return "bullish_engulfing" if "bullish" in text else "bearish_engulfing"
-            return key
+            return VISUAL_ALIASES[token]
     if "cand" in text or "candle" in text:
         return "candlestick"
     if "structure" in text:
