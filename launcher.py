@@ -1,9 +1,10 @@
 import tkinter as tk
 from pathlib import Path
 import tempfile
+import sys
 
 APP = "Trader Planner Pro"
-VERSION = "7.2.0"
+VERSION = "7.5.0"
 
 def show_splash():
     root = tk.Tk()
@@ -32,6 +33,10 @@ def show_splash():
     root.mainloop()
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--webview":
+        from webview_runner import main as webview_main
+        webview_main()
+        return
     show_splash()
     from TraderPlannerPro_v7_0_3 import App
     app=App()
