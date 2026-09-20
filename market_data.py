@@ -51,6 +51,7 @@ CRYPTO_ENDPOINT = (
 )
 
 YAHOO_ENDPOINT = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=5m"
+FEAR_GREED_ENDPOINT = "https://api.alternative.me/fng/?limit=1"
 
 
 def _request_json(url: str, timeout: float = 8.0):
@@ -147,12 +148,24 @@ def _forex_live():
     return result
 
 
+def _fear_greed():
+    try:
+        data = _request_json(FEAR_GREED_ENDPOINT)
+        row = (data.get("data") or [None])[0] or {}
+        value = _safe_float(row.get("value"))
+        if value is None:
+            return None
+        return {"value": int(value), "label": str(row.get("value_classification") or "")}
+    except Exception:
+        return None
+
 def fetch_market(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
     rows = _forex_live() if market == "Forex" else _crypto_live()
+    fear_greed = _fear_greed() if market == "Crypto" else None
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     if rows:
-        payload = {"market": market, "updated_at": now, "source": "live", "items": rows}
+        payload = {"market": market, "updated_at": now, "source": "live", "items": rows, "fear_greed": fear_greed}
         _write_cache(payload)
         return payload
     cached = _read_cache()
@@ -162,6 +175,7 @@ def fetch_market(mode: str):
             "updated_at": cached.get("updated_at"),
             "source": "cache",
             "items": cached.get("items", []),
+            "fear_greed": cached.get("fear_greed"),
         }
     return {"market": market, "updated_at": now, "source": "unavailable", "items": []}
 
