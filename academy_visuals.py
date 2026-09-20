@@ -125,7 +125,7 @@ REMOTE_IMAGES = {
     "three_black_crows": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663635/original/Vv2TmQIXNaE2ATUZ7vrkDAixoWypa6kDmg.png?1594050919=",
     "marubozu": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663051/original/ZxnIiMHC0Vw_HnBXm4xzx5P5Vub9plAlhg.png?1594050779=",
     "spinning_top": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663458/original/2j7_Xg1lX8wWwETjmQSa4X1VlxmpPYXk7A.png?1594050885=",
-    "long_legged_doji": "https://www.tradingview.com/chart/EURAUD/48g0fJv6-Candlestick-Patterns-Every-Trader-Should-Know-Long-Legged-Doji/",
+    "long_legged_doji": "https://s3.tradingview.com/4/48g0fJv6_mid.webp",
     "structure": "https://s3.tradingview.com/j/JhztA6F9_mid.webp",
     "liquidity": "https://s3.tradingview.com/g/GXZP7v3b_mid.webp",
     "fvg": "https://s3.tradingview.com/l/ls1qkg1J_mid.webp",
