@@ -601,7 +601,7 @@ class App(tk.Tk):
         self.profile_dialog(active_profile())
 
     def profile_dialog(self, profile=None):
-        dlg=tk.Toplevel(self); dlg.title("پروفایل ژورنال"); dlg.geometry("520x360"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=tk.Toplevel(self); dlg.title(self.ui_text("پروفایل ژورنال")); dlg.geometry("520x360"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
         vals = {
             "name": tk.StringVar(value=(profile or {}).get("name","")),
             "market": tk.StringVar(value=(profile or {}).get("market","Crypto")),
@@ -628,12 +628,13 @@ class App(tk.Tk):
             save_db(); dlg.destroy(); self.market=active_profile()["market"]; self.market_btn.config(text=self.market); self.refresh_profile_selector(); self.show(self.cur)
         self.btn(dlg,"ذخیره پروفایل",submit,True).grid(row=5,column=0,padx=16,pady=16,sticky="e")
         self.btn(dlg,"انصراف",dlg.destroy).grid(row=5,column=1,padx=16,pady=16,sticky="w")
+        self.translate_widget_tree(dlg)
 
     def delete_profile(self):
         if len(DB["profiles"]) <= 1:
-            return messagebox.showinfo("پروفایل","حداقل یک پروفایل باید باقی بماند.",parent=self)
+            return messagebox.showinfo(self.ui_text("پروفایل"),self.ui_text("حداقل یک پروفایل باید باقی بماند."),parent=self)
         p=active_profile()
-        if messagebox.askyesno("حذف پروفایل",f"پروفایل «{p['name']}» و ژورنال آن حذف شود؟",parent=self):
+        if messagebox.askyesno(self.ui_text("حذف پروفایل"),self.ui_text(f"پروفایل «{p['name']}» و ژورنال آن حذف شود؟"),parent=self):
             DB["profiles"]=[x for x in DB["profiles"] if x["id"]!=p["id"]]
             DB["active_profile_id"]=DB["profiles"][0]["id"]; save_db()
             self.market=active_profile()["market"]; self.refresh_profile_selector(); self.show("home")
@@ -781,14 +782,14 @@ class App(tk.Tk):
         save_db(); self.show("daily")
 
     def task_dialog(self,item=None):
-        dlg=tk.Toplevel(self); dlg.title("ویرایش فعالیت" if item else "فعالیت جدید"); dlg.geometry("560x320"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=tk.Toplevel(self); dlg.title(self.ui_text("ویرایش فعالیت" if item else "فعالیت جدید")); dlg.geometry("560x320"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
         vals={k:tk.StringVar(value=(item or {}).get(k,"")) for k in ("time","title","cat")}
         for i,(label,key) in enumerate([("زمان","time"),("عنوان","title"),("دسته","cat")]):
             tk.Label(dlg,text=label,bg=C["bg"],fg=C["muted"]).grid(row=i,column=1,padx=14,pady=12,sticky="e")
             tk.Entry(dlg,textvariable=vals[key],bg=C["soft"],fg=C["text"],relief="flat",justify="right").grid(row=i,column=0,padx=14,pady=12,sticky="ew")
         dlg.columnconfigure(0,weight=1)
         def submit():
-            if not vals["title"].get().strip(): return messagebox.showwarning("ورودی ناقص","عنوان فعالیت را وارد کن",parent=dlg)
+            if not vals["title"].get().strip(): return messagebox.showwarning(self.ui_text("ورودی ناقص"),self.ui_text("عنوان فعالیت را وارد کن"),parent=dlg)
             if item: item.update({k:v.get().strip() for k,v in vals.items()})
             else: DB["tasks"].setdefault(self.day,[]).append({"id":str(uuid4()),"time":vals["time"].get().strip(),"title":vals["title"].get().strip(),"cat":vals["cat"].get().strip(),"done":False})
             save_db(); dlg.destroy(); self.show("daily")
@@ -798,13 +799,13 @@ class App(tk.Tk):
     def add_task(self): self.task_dialog()
     def edit_task(self):
         sel=self.task_tree.selection()
-        if not sel:return messagebox.showinfo("انتخاب فعالیت","ابتدا یک فعالیت را انتخاب کن")
+        if not sel:return messagebox.showinfo(self.ui_text("انتخاب فعالیت"),self.ui_text("ابتدا یک فعالیت را انتخاب کن"))
         self.task_dialog(DB["tasks"][self.day][int(sel[0])])
     def delete_task(self):
         sel=self.task_tree.selection()
         if not sel:return messagebox.showinfo("انتخاب فعالیت","ابتدا یک فعالیت را انتخاب کن")
         idx=int(sel[0]); item=DB["tasks"][self.day][idx]
-        if messagebox.askyesno("حذف فعالیت",f"«{item.get('title','')}» حذف شود؟",parent=self):
+        if messagebox.askyesno(self.ui_text("حذف فعالیت"),self.ui_text(f"«{item.get('title','')}» حذف شود؟"),parent=self):
             DB["tasks"][self.day].pop(idx); save_db(); self.show("daily")
 
     def journal(self):
@@ -839,18 +840,18 @@ class App(tk.Tk):
 
     def edit_trade(self):
         sel=self.jtree.selection()
-        if not sel:return messagebox.showinfo("انتخاب معامله","ابتدا یک معامله را انتخاب کن")
+        if not sel:return messagebox.showinfo(self.ui_text("انتخاب معامله"),self.ui_text("ابتدا یک معامله را انتخاب کن"))
         self.trade_dialog(active_profile()["journals"][self.market][int(sel[0])],int(sel[0]))
     def delete_trade(self):
         sel=self.jtree.selection()
         if not sel:return messagebox.showinfo("انتخاب معامله","ابتدا یک معامله را انتخاب کن")
         idx=int(sel[0]); row=active_profile()["journals"][self.market][idx]
-        if messagebox.askyesno("حذف معامله",f"معامله {row.get('Symbol','')} حذف شود؟",parent=self):
+        if messagebox.askyesno(self.ui_text("حذف معامله"),self.ui_text(f"معامله {row.get('Symbol','')} حذف شود؟"),parent=self):
             active_profile()["journals"][self.market].pop(idx); save_db(); self.show("journal")
     def add_trade(self): self.trade_dialog()
 
     def trade_dialog(self,row=None,index=None):
-        dlg=tk.Toplevel(self); dlg.title(("ویرایش" if row else "ثبت")+f" معامله — {self.market}"); dlg.geometry("1180x800"); dlg.minsize(1020,700); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=tk.Toplevel(self); dlg.title(self.ui_text(("ویرایش" if row else "ثبت")+f" معامله — {self.market}")); dlg.geometry("1180x800"); dlg.minsize(1020,700); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
         outer=tk.Frame(dlg,bg=C["bg"]); outer.pack(fill="both",expand=True,padx=18,pady=14)
         left=self.card(outer); right=self.card(outer); left.pack(side="left",fill="both",expand=True,padx=6); right.pack(side="left",fill="both",expand=True,padx=6)
         vals={}; widgets={}
@@ -886,7 +887,7 @@ class App(tk.Tk):
         footer=tk.Frame(dlg,bg=C["bg"]); footer.pack(fill="x",padx=24,pady=8)
         def submit():
             data={k:v.get().strip() for k,v in vals.items()}
-            if not data.get("Symbol"): return messagebox.showwarning("ورودی ناقص","Symbol را وارد کن",parent=dlg)
+            if not data.get("Symbol"): return messagebox.showwarning(self.ui_text("ورودی ناقص"),"Enter Symbol.",parent=dlg)
             src=data.get("Screenshot","")
             if src and Path(src).is_file(): data["Screenshot"]=attach_screenshot(data,src,market=self.market)
             elif row is not None: data["Screenshot"]=row.get("Screenshot","")
@@ -895,12 +896,12 @@ class App(tk.Tk):
 
     def export_journal(self):
         rows=active_profile()["journals"][self.market]
-        if not rows:return messagebox.showinfo("ژورنال خالی","معامله‌ای برای خروجی وجود ندارد",parent=self)
+        if not rows:return messagebox.showinfo(self.ui_text("ژورنال خالی"),self.ui_text("معامله‌ای برای خروجی وجود ندارد"),parent=self)
         target=filedialog.asksaveasfilename(title="ذخیره CSV",defaultextension=".csv",initialfile=f"{self.market}_Journal_{date.today().isoformat()}.csv",filetypes=[("CSV","*.csv")])
         if not target:return
         with open(target,"w",newline="",encoding="utf-8-sig") as h:
             writer=csv.DictWriter(h,fieldnames=FIELDS); writer.writeheader(); writer.writerows(rows)
-        messagebox.showinfo("انجام شد","خروجی CSV ذخیره شد",parent=self)
+        messagebox.showinfo(self.ui_text("انجام شد"),self.ui_text("خروجی CSV ذخیره شد"),parent=self)
 
     def plan(self):
         p=active_profile()
@@ -938,10 +939,10 @@ class App(tk.Tk):
         title=title or "Trading Plan"
         item={"id":str(uuid4()),"title":title,"created_at":datetime.now().isoformat(timespec="seconds"),"fields":dict(p["plan_draft"])}
         p["plans"].append(item); p["active_plan_id"]=item["id"]; save_db()
-        messagebox.showinfo("ذخیره شد",f"نسخه «{title}» ذخیره شد.",parent=self); self.show("plan")
+        messagebox.showinfo(self.ui_text("ذخیره شد"),self.ui_text(f"نسخه «{title}» ذخیره شد."),parent=self); self.show("plan")
 
     def plan_history(self):
-        p=active_profile(); dlg=tk.Toplevel(self); dlg.title("نسخه‌های Trading Plan"); dlg.geometry("680x500"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        p=active_profile(); dlg=tk.Toplevel(self); dlg.title(self.ui_text("نسخه‌های Trading Plan")); dlg.geometry("680x500"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
         tree=ttk.Treeview(dlg,columns=("title","date"),show="headings"); tree.heading("title",text="عنوان"); tree.heading("date",text="تاریخ"); tree.column("title",width=400); tree.pack(fill="both",expand=True,padx=15,pady=15)
         for i,item in enumerate(p["plans"]): tree.insert("", "end",iid=str(i),values=(item.get("title",""),item.get("created_at","")))
         def load():
@@ -952,7 +953,7 @@ class App(tk.Tk):
 
     def export_current_plan(self):
         p=active_profile(); title=self.current_plan_title(); path=export_plan_a4(p,title,p["plan_draft"])
-        messagebox.showinfo("Export آماده شد",f"فایل A4 ساخته شد:\n{path}",parent=self)
+        messagebox.showinfo(self.ui_text("Export آماده شد"),self.ui_text(f"فایل A4 ساخته شد:\n{path}"),parent=self)
 
     def check(self):
         p=active_profile()
@@ -1062,7 +1063,7 @@ class App(tk.Tk):
             if value:
                 items.append({"id":str(uuid4()),"title":f"{key}: {value}","category":self.tr("trading_plan"),"required":True,"done":False,"source":"Trading Plan"})
         if not items:
-            return messagebox.showinfo(self.tr("check_title"),self.tr("empty_plan"),parent=self)
+            return messagebox.showinfo(self.ui_text(self.tr("check_title")),self.ui_text(self.tr("empty_plan")),parent=self)
         p["checklist"] = items + [x for x in p["checklist"] if x.get("source") not in ("Trading Plan","Strategy")]
         save_db(); self.render_checklist()
 
@@ -1089,7 +1090,7 @@ class App(tk.Tk):
         def submit():
             title=title_box.get("1.0","end").strip()
             if not title:
-                return messagebox.showwarning(self.tr("check_item"),self.tr("condition_title"),parent=dlg)
+                return messagebox.showwarning(self.ui_text(self.tr("check_item")),self.ui_text(self.tr("condition_title")),parent=dlg)
             data={"id":(item or {}).get("id",str(uuid4())),"title":title,
                   "category":vals["category"].get().strip() or self.tr("general"),
                   "source":vals["source"].get().strip() or self.tr("manual"),
@@ -1099,6 +1100,7 @@ class App(tk.Tk):
             save_db(); dlg.destroy(); self.render_checklist()
         self.btn(footer,self.tr("cancel"),dlg.destroy).pack(side="right",padx=4)
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
+        self.translate_widget_tree(dlg)
 
     def settings(self):
         p=active_profile()
