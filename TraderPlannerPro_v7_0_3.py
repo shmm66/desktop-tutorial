@@ -454,10 +454,20 @@ class App(tk.Tk):
         self.menu_hide_job = None
         self.session_clock_job = None
         self.session_clock_widgets = []
-        self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": []}
+        self.theme_auto_job = None
+        self.reminder_job = None
+        self.market_timeout_job = None
+        self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": [],
+                                    "indicators": {}, "status": "unavailable", "message": ""}
         self.ticker_offset = 0
         self.ticker_job = None
+        self.ai = AIOrchestrator()
+        self.ai_history = []
+        self.news_items = []
         self.market_data = MarketDataService(self._market_data_callback, refresh_seconds=60)
+        self.theme_mode = DB.get("settings", {}).get("theme", "dark")
+        self.theme_auto_start = DB.get("settings", {}).get("theme_auto_start", "08:00")
+        self.theme_auto_end = DB.get("settings", {}).get("theme_auto_end", "20:00")
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -465,6 +475,7 @@ class App(tk.Tk):
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
         self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
         self._logo_photo = None
+        self.apply_theme(initial=True)
         self.bind_all("<Home>", self._home_shortcut)
         self.bind_all("<Alt-Home>", lambda e: self.show("home"))
         self.protocol("WM_DELETE_WINDOW", self.close_app)
@@ -474,14 +485,30 @@ class App(tk.Tk):
         self.apply_language()
         self.show("home")
         self.market_data.start(self.market)
-        self.after(500, self.clock)
+        self.after(700, self.clock)
+        self.after(12000, self._market_loading_timeout)
+        self.check_reminders()
 
     def _home_shortcut(self, event=None):
         widget = getattr(event, "widget", None)
         if isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox)):
             return None
-        self.show("home")
+        self.go_home()
         return "break"
+
+    def go_home(self):
+        try:
+            self.focus_force()
+        except Exception:
+            pass
+        try:
+            self._cancel_menu_hide()
+            if self.menu_open:
+                self.menu.place_configure(x=-304)
+                self.menu_open = False
+        except Exception:
+            pass
+        self.after_idle(lambda: self.show("home"))
 
     def close_app(self):
         try:
@@ -489,7 +516,7 @@ class App(tk.Tk):
                 self.market_data.stop()
         except Exception:
             pass
-        for job_name in ("session_clock_job", "ticker_job", "menu_hide_job"):
+        for job_name in ("session_clock_job", "ticker_job", "menu_hide_job", "theme_auto_job", "reminder_job", "market_timeout_job"):
             job = getattr(self, job_name, None)
             if job:
                 try: self.after_cancel(job)
