@@ -29,6 +29,7 @@ jobs:
           python -m py_compile branding_assets.py
           python -m py_compile prepare_branding.py
           python -m py_compile academy_visuals.py
+          python -m py_compile market_data.py
       - name: Run tests
         run: python -m pytest -q
 
@@ -106,22 +107,22 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V7.3.1 Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/v7-3-1-release-fix') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/3d-visual-academy-7-3-0' && github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Publish V7.4.0 Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/v7-4-0-market-ui-academy') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/v7-4-0-market-ui-academy' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v7.3.1
-          name: Trader Planner Pro V7.3.1
+          tag_name: v7.4.0
+          name: Trader Planner Pro V7.4.0
           target_commitish: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V7.3.1
+            ## Trader Planner Pro V7.4.0
 
             Windows visual refinement release.
             Includes a richer 3D-inspired workspace, upgraded live session clocks, source-backed education visuals for Academy definitions, stronger English-language cleanup, and the existing Smart Money / ICT / Candlestick Academy and glossary.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v7.3.1.exe
+            installer/TraderPlannerPro_Setup_v7.4.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
