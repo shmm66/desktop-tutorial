@@ -590,6 +590,11 @@ class App(tk.Tk):
     def _refresh_shell_theme(self):
         if not hasattr(self, "topbar"):
             return
+        try:
+            self.topbar.configure(bg=C["panel"], highlightbackground=C["line"])
+            self.menu.configure(bg=C["panel"], highlightbackground=C["line"])
+        except Exception:
+            pass
         for widget in (self.topbar, self.content, self.menu, getattr(self, "brand_frame", None),
                        getattr(self, "status_bar", None), getattr(self, "menu_title", None)):
             if widget is None:
@@ -607,6 +612,11 @@ class App(tk.Tk):
             self.menu_home_hint.configure(bg=C["panel3"], fg=C["muted"])
         except Exception:
             pass
+        for key, button in getattr(self, "menu_buttons", {}).items():
+            try:
+                button.configure(bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"])
+            except Exception:
+                pass
         for widget_name in ("menu_button", "market_btn"):
             widget = getattr(self, widget_name, None)
             if widget:
