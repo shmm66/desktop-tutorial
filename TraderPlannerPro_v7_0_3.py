@@ -6,6 +6,7 @@ import math
 import os
 import re
 import shutil
+import subprocess
 import sys
 import webbrowser
 from datetime import date, datetime, timedelta
@@ -20,9 +21,12 @@ from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 from academy_visuals import render_visual, visual_key_for, source_for_visual
 from market_data import MarketDataService
+from calendar_utils import display_date
+from ai_assistant import AIOrchestrator
+from news_data import fetch_crypto_news, COINDESK_HOME, FOREX_FACTORY
 
 APP = "Trader Planner Pro"
-VERSION = "7.4.1"
+VERSION = "7.5.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -68,6 +72,29 @@ C = {
 }
 
 LANGUAGE_OPTIONS = [("fa", "فارسی"), ("en", "English")]
+THEMES = {
+    "dark": {
+        "bg":"#0A1018","panel":"#111A26","panel2":"#172230","soft":"#1D2B3A","text":"#EAF2F7","muted":"#90A3B3",
+        "accent":"#27D3B0","gold":"#F2C46D","danger":"#FF6F7D","line":"#27384A","blue":"#63A7FF","shadow":"#050911",
+        "panel3":"#0E1824","violet":"#9B8CFF","cyan":"#55D6FF"
+    },
+    "light": {
+        "bg":"#F4F7FA","panel":"#FFFFFF","panel2":"#EEF3F7","soft":"#E4EBF1","text":"#17212B","muted":"#5F6F7C",
+        "accent":"#0B9E83","gold":"#A96800","danger":"#C63A4D","line":"#CBD6DF","blue":"#2D74C8","shadow":"#C7D0D8",
+        "panel3":"#F0F4F7","violet":"#6F56C8","cyan":"#087EA4"
+    }
+}
+
+THEME_LABELS = {
+    "fa": {"dark":"تیره","light":"روشن","auto":"خودکار","auto_start":"شروع حالت روشن","auto_end":"پایان حالت روشن"},
+    "en": {"dark":"Dark","light":"Light","auto":"Automatic","auto_start":"Light mode start","auto_end":"Light mode end"},
+}
+
+INDICATOR_LABELS = {
+    "fa": {"fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار"},
+    "en": {"fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap"},
+}
+
 
 I18N = {
     "fa": {
@@ -104,7 +131,7 @@ I18N = {
         "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
         "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
-        "education_note":"یادداشت آموزشی","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
+        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  دستیار هوش مصنوعی","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
     },
     "en": {
         "home":"⌂  Home","daily":"◫  Daily Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
@@ -139,7 +166,7 @@ I18N = {
         "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
         "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
-        "education_note":"Training note","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
+        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Assistant","news":"📰  Market News","calculators":"🧮  Calculators","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
     }
 }
 
