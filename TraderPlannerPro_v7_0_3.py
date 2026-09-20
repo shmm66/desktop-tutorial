@@ -1176,7 +1176,7 @@ class App(tk.Tk):
             self.render_market_ticker(payload)
             self.render_market_indicators(payload)
 
-    defdef draw_session_clock(self, parent, session):
+    def draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
         canvas = tk.Canvas(holder, width=68, height=68, bg=C["panel"], highlightthickness=0)
         canvas.pack(side="left", padx=(3,8), pady=3)
