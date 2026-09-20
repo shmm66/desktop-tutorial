@@ -1666,29 +1666,39 @@ class App(tk.Tk):
     def settings(self):
         p=active_profile()
         self.heading(self.tr("settings_title"), self.tr("settings_sub"))
-        lang_box=self.card(self.content); lang_box.pack(fill="x",pady=10)
-        tk.Label(lang_box,text=self.tr("choose_language"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(18,6))
-        tk.Label(lang_box,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,14))
-        current=tk.StringVar(value=self.language)
-        row=tk.Frame(lang_box,bg=C["panel"]); row.pack(fill="x",padx=18,pady=(0,18))
-        fa_btn=tk.Button(row,text="فارسی",command=lambda:self.set_language("fa"),bg=C["accent"] if self.language=="fa" else C["soft"],
-                         fg="#061019" if self.language=="fa" else C["text"],relief="flat",font=("Segoe UI",11,"bold"),padx=30,pady=12)
-        en_btn=tk.Button(row,text="English",command=lambda:self.set_language("en"),bg=C["accent"] if self.language=="en" else C["soft"],
-                         fg="#061019" if self.language=="en" else C["text"],relief="flat",font=("Segoe UI",11,"bold"),padx=30,pady=12)
-        fa_btn.pack(side="right",padx=6); en_btn.pack(side="right",padx=6)
-        tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",
-                 bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(side="left",padx=10)
-        profile_box=self.card(self.content); profile_box.pack(fill="x",pady=10)
-        info=(f"{self.tr('profile')}: {p['name']}
-"
-              f"{self.tr('market')}: {p['market']}
-"
-              f"{self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}
-"
-              f"{self.tr('data_path')}: {DATA}
-{self.tr('reports_path')}: {REPORTS}")
-        tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",10)).pack(anchor="e",padx=18,pady=18)
-        self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=10)
+        lang_box=self.card(self.content); lang_box.pack(fill="x",pady=8)
+        tk.Label(lang_box,text=self.tr("choose_language"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(16,6))
+        tk.Label(lang_box,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,10))
+        row=tk.Frame(lang_box,bg=C["panel"]); row.pack(fill="x",padx=18,pady=(0,16))
+        self.btn(row,"English",lambda:self.set_language("en"),self.language=="en").pack(side="right",padx=5)
+        self.btn(row,"فارسی",lambda:self.set_language("fa"),self.language=="fa").pack(side="right",padx=5)
+        tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(side="left",padx=8)
+
+        theme_box=self.card(self.content); theme_box.pack(fill="x",pady=8)
+        tk.Label(theme_box,text=self.tr("theme"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
+        tk.Label(theme_box,text=self.tr("theme_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,8))
+        tr=tk.Frame(theme_box,bg=C["panel"]); tr.pack(fill="x",padx=18,pady=(0,8))
+        modes=[("dark",self.tr("dark")),("light",self.tr("light")),("auto",self.tr("auto"))]
+        for mode,label in modes:
+            self.btn(tr,label,lambda m=mode:self.apply_theme_settings(m,self.dark_start,self.dark_end),self.theme_mode==mode).pack(side="right",padx=4)
+        times=tk.Frame(theme_box,bg=C["panel"]); times.pack(fill="x",padx=18,pady=(0,14))
+        tk.Label(times,text=self.tr("dark_start"),bg=C["panel"],fg=C["muted"]).pack(side="right",padx=4)
+        start_var=tk.StringVar(value=self.dark_start); end_var=tk.StringVar(value=self.dark_end)
+        tk.Entry(times,textvariable=start_var,width=8,bg=C["soft"],fg=C["text"],relief="flat",justify="center").pack(side="right",padx=5)
+        tk.Label(times,text=self.tr("dark_end"),bg=C["panel"],fg=C["muted"]).pack(side="right",padx=10)
+        tk.Entry(times,textvariable=end_var,width=8,bg=C["soft"],fg=C["text"],relief="flat",justify="center").pack(side="right",padx=5)
+        def save_theme():
+            try: self.apply_theme_settings(self.theme_mode,start_var.get().strip(),end_var.get().strip())
+            except ValueError as exc: messagebox.showwarning(self.tr("theme"),str(exc),parent=self)
+        self.btn(times,self.tr("save_theme"),save_theme,True).pack(side="left",padx=4)
+
+        profile_box=self.card(self.content); profile_box.pack(fill="x",pady=8)
+        info=(f"{self.tr('profile')}: {p['name']}\n"
+              f"{self.tr('market')}: {p['market']}\n"
+              f"{self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}\n"
+              f"{self.tr('data_path')}: {DATA}\n{self.tr('reports_path')}: {REPORTS}")
+        tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",10)).pack(anchor="e",padx=18,pady=16)
+        self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=8)
 
     def _academy_visual(self, parent, key, title, subtitle):
         box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
@@ -1696,11 +1706,11 @@ class App(tk.Tk):
         image_label = tk.Label(box, bg=C["panel3"])
         image_label.pack(fill="x", padx=8, pady=(8,4))
         meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,8))
-        source_label = tk.Label(meta, text="", bg=C["panel3"], fg=C["muted"], font=("Segoe UI",8),
-                                wraplength=760, justify="right")
+        source_label = tk.Label(meta, text="", bg=C["panel3"], fg=C["muted"], font=("Segoe UI",10,"bold"),
+                                wraplength=920, justify="right")
         source_label.pack(side="right", fill="x", expand=True)
         source_btn = tk.Button(meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
-                               activebackground=C["gold"], relief="flat", font=("Segoe UI",8,"bold"),
+                               activebackground=C["gold"], relief="flat", font=("Segoe UI",9,"bold"),
                                cursor="hand2")
         source_btn.pack(side="left", padx=(8,0))
         try:
@@ -1709,7 +1719,7 @@ class App(tk.Tk):
             source_path = render_visual(cache, kind, self.ui_text(title), self.ui_text(subtitle))
             from PIL import Image, ImageTk
             im = Image.open(source_path)
-            ratio = min(1.0, 900 / max(1, im.width))
+            ratio = min(1.0, 980 / max(1, im.width))
             shown = im.resize((max(1,int(im.width*ratio)), max(1,int(im.height*ratio))),
                               Image.Resampling.LANCZOS) if ratio < 1.0 else im.copy()
             ph = ImageTk.PhotoImage(shown)
@@ -1764,21 +1774,31 @@ class App(tk.Tk):
         wrap=tk.Frame(parent,bg=C["panel"]); wrap.pack(fill="both",expand=True,padx=8,pady=8)
         left=tk.Frame(wrap,bg=C["panel"]); left.pack(side="left",fill="both",expand=True,padx=8,pady=8)
         right=tk.Frame(wrap,bg=C["panel"]); right.pack(side="left",fill="both",expand=True,padx=8,pady=8)
-        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0); lb.pack(fill="both",expand=True)
+        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",
+                       font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0)
+        lb.pack(fill="both",expand=True)
         for name,en,fa in CANDLE_PLAYBOOK: lb.insert("end",fa if self.language=="fa" else name)
         tk.Label(right,text=self.ui_text("الگوهای کندلی"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=12,pady=10)
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=4)
-        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e"); desc.pack(fill="both",expand=True,padx=16,pady=10)
+        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=880,justify="right",anchor="e")
+        desc.pack(fill="both",expand=True,padx=16,pady=10)
         en_desc={
-            "Pin Bar / Rejection Candle":"A compact body with a dominant wick. Read it as rejection only with context, location and confirmation.",
-            "Bullish / Bearish Engulfing":"A new candle substantially covers the prior body. It can describe momentum change, not a standalone signal.",
-            "Inside Bar":"A candle remains within the prior range, showing compression and a possible breakout condition.",
-            "Morning Star":"A three-candle reversal pattern often used to study a shift from selling pressure to buying pressure.",
-            "Evening Star":"A three-candle reversal pattern often used to study a shift from buying pressure to selling pressure.",
-            "Hammer":"A small body with a long lower wick. Context and level matter.","Shooting Star":"A small body with a long upper wick. Context and level matter.",
-            "Doji":"Open and close are close together, describing short-term indecision.","Tweezer Top":"Two nearby highs that can highlight rejection near resistance.","Tweezer Bottom":"Two nearby lows that can highlight rejection near support.",
-            "Three White Soldiers":"Three consecutive strong bullish candles describing sustained buying pressure.","Three Black Crows":"Three consecutive strong bearish candles describing sustained selling pressure.",
-            "Marubozu":"A candle with very small wicks and a large body, showing directional momentum.","Spinning Top":"A small body with visible wicks on both sides, describing balance or indecision.","Long-Legged Doji":"A doji with long wicks, showing a wide battle range and indecision."
+            "Pin Bar / Rejection Candle":"A compact body with a pronounced wick. It is a rejection shape; its interpretation depends on location, trend and confirmation.",
+            "Bullish Engulfing":"TradingView describes this as a two-candle reversal pattern usually found after a decline: the second candle's body fully overtakes the prior body and closes in the opposite direction. The pattern still needs trend/context analysis.",
+            "Bearish Engulfing":"TradingView describes this as a two-candle reversal pattern usually found after an advance: the second candle's body fully overtakes the prior body and closes in the opposite direction. The pattern still needs trend/context analysis.",
+            "Inside Bar":"A candle whose range is essentially covered by the previous candle. TradingView describes it as reduced volatility/compression; breakout entries can produce false breakouts.",
+            "Morning Star":"A three-candle bullish reversal pattern: long red candle, smaller middle candle that gaps down, then a long green candle that gaps up and closes above the first candle's midpoint.",
+            "Evening Star":"A three-candle bearish reversal pattern: long green candle, a small gapped candle, then a bearish candle that closes below the first candle's midpoint.",
+            "Hammer":"During a decline, price moves lower after the open but rallies to close above the intraday low, leaving a small body with a long lower wick.",
+            "Shooting Star":"A single bearish pattern that can appear during an uptrend; price trades much higher but closes near its open, leaving a long upper wick.",
+            "Doji":"Open and close are essentially equal. Upper and lower shadows can vary, and the shape describes indecision between buyers and sellers.",
+            "Tweezer Top":"A two-candle pattern during an uptrend with nearly identical highs; the second candle reverses direction.",
+            "Tweezer Bottom":"A two-candle pattern during a downtrend with nearly identical lows; the second candle reverses direction.",
+            "Three White Soldiers":"Three long-bodied green candles in immediate succession; each opens within the prior body and closes near the high.",
+            "Three Black Crows":"Three long red-bodied candles in immediate succession; each opens within the prior body and closes at or near its low.",
+            "Marubozu":"A candle with no meaningful shadow extending from the body at the open or close.",
+            "Spinning Top":"A small body with upper and lower shadows that exceed the body length, commonly describing indecision.",
+            "Long-Legged Doji":"A Doji with long upper and lower shadows. Use the Doji source definition and interpret the pattern within market context."
         }
         def render(_=None):
             if not lb.curselection(): return
