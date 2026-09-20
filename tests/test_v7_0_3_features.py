@@ -51,7 +51,9 @@ def test_academy_content_is_populated():
     from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY
     assert len(SMART_MONEY_STRATEGIES) == 5
     assert len(ICT_STRATEGIES) == 5
-    assert len(CANDLE_PLAYBOOK) >= 10
+    assert len(CANDLE_PLAYBOOK) == 16
+    assert any(x[0] == "Bullish Engulfing" for x in CANDLE_PLAYBOOK)
+    assert any(x[0] == "Bearish Engulfing" for x in CANDLE_PLAYBOOK)
     assert len(GLOSSARY) >= 100
     assert any(x["term"] == "FVG" or x["term"].startswith("Fair Value Gap") for x in GLOSSARY)
     assert any(x["term"] == "BOS" for x in GLOSSARY)
