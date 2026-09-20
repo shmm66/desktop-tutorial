@@ -16,7 +16,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from logo_3d import create_logo_image
 
 APP = "Trader Planner Pro"
-VERSION = "7.0.3"
+VERSION = "7.0.4"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -463,7 +463,7 @@ class App(tk.Tk):
 
     def draw_bar_chart(self, parent, rows):
         c=tk.Canvas(parent,bg=C["panel"],highlightthickness=0,height=270); c.pack(fill="x",padx=10,pady=6)
-        vals=[result_num(r) for r in rows[-12:]] or [0]; lo=min(vals); hi=max(vals,1); span=max(hi-lo,1)
+        vals=[result_num(r) for r in rows[-12:]] or [0]; lo=min(vals); hi=max(max(vals),1); span=max(hi-lo,1)
         w=max(480,parent.winfo_width() or 700); h=240; pad=35; bw=max(18,(w-2*pad)/max(len(vals),1)-12)
         c.create_line(pad,h//2,w-pad,h//2,fill=C["line"])
         for i,v in enumerate(vals):
