@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import sys
+import webbrowser
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -17,9 +18,10 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
+from academy_visuals import render_visual, visual_key_for, source_for_visual
 
 APP = "Trader Planner Pro"
-VERSION = "7.2.0"
+VERSION = "7.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -61,6 +63,7 @@ C = {
     "bg": "#0A1018", "panel": "#111A26", "panel2": "#172230", "soft": "#1D2B3A",
     "text": "#EAF2F7", "muted": "#90A3B3", "accent": "#27D3B0", "gold": "#F2C46D",
     "danger": "#FF6F7D", "line": "#27384A", "blue": "#63A7FF",
+    "shadow": "#050911", "panel3": "#0E1824", "violet": "#9B8CFF", "cyan": "#55D6FF",
 }
 
 LANGUAGE_OPTIONS = [("fa", "فارسی"), ("en", "English")]
