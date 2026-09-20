@@ -605,6 +605,7 @@ class App(tk.Tk):
         DB["active_profile_id"] = DB["profiles"][idx]["id"]
         self.market = active_profile().get("market", "Crypto")
         self.market_btn.config(text=self.market)
+        self.market_data.set_market(self.market)
         save_db(); self.show(self.cur)
 
     def toggle_menu(self):
@@ -725,7 +726,7 @@ class App(tk.Tk):
 
     def change_market(self):
         p=active_profile(); p["market"]="Forex" if p.get("market")=="Crypto" else "Crypto"
-        self.market=p["market"]; self.market_btn.config(text=self.market); p["updated_at"]=datetime.now().isoformat(timespec="seconds")
+        self.market=p["market"]; self.market_btn.config(text=self.market); self.market_data.set_market(self.market); p["updated_at"]=datetime.now().isoformat(timespec="seconds")
         save_db(); self.show(self.cur)
 
     def home(self):
