@@ -1100,7 +1100,83 @@ class App(tk.Tk):
             canvas.create_line(pts,fill=C["accent"],width=2,smooth=True)
             canvas.create_text(8,10,text="LIVE",anchor="w",fill=C["muted"],font=("Consolas",7,"bold"))
 
-    def draw_session_clock(self, parent, session):
+    def render_market_ticker(self, payload=None):
+        payload = payload or self.market_data_payload
+        if not hasattr(self, "ticker_canvas") or not self.ticker_canvas.winfo_exists():
+            return
+        c = self.ticker_canvas
+        c.delete("all")
+        items = list(payload.get("items") or [])
+        if not items:
+            state = payload.get("status", "unavailable")
+            msg = payload.get("message") or (self.tr("market_loading") if state == "unavailable" else self.tr("market_unavailable"))
+            c.create_text(20, 38, text=msg, anchor="w", fill=C["muted"], font=("Segoe UI", 10, "bold"))
+        else:
+            width = max(self.ticker_canvas.winfo_width(), 820)
+            card_w = 170 if self.market == "Crypto" else 156
+            gap = 8
+            step = card_w + gap
+            offset = self.ticker_offset % max(step * len(items), 1)
+            x = 6 - offset
+            for item in items * 3:
+                price = item.get("price")
+                if price is None:
+                    x += step
+                    continue
+                tag = str(item.get("symbol", "")).upper()
+                change = item.get("change")
+                if price >= 1000: ptxt = f"{price:,.0f}"
+                elif price >= 1: ptxt = f"{price:,.2f}"
+                else: ptxt = f"{price:,.5f}"
+                ctxt = "—" if change is None else f"{change:+.2f}%"
+                accent = C["accent"] if (change or 0) >= 0 else C["danger"]
+                c.rounded_rectangle((x, 7, x+card_w, 69), radius=14, fill=C["panel"], outline=C["line"], width=1)
+                c.create_oval((x+10, 19, x+17, 26), fill=accent, outline="")
+                c.create_text(x+24, 23, text=tag, anchor="w", fill=C["muted"], font=("Segoe UI", 8, "bold"))
+                c.create_text(x+12, 47, text=ptxt, anchor="w", fill=C["text"], font=("Consolas", 12, "bold"))
+                c.create_text(x+card_w-12, 47, text=ctxt, anchor="e", fill=accent, font=("Consolas", 9, "bold"))
+                x += step
+        state = payload.get("status", "unavailable")
+        if hasattr(self, "market_status_label"):
+            if state == "live":
+                status_text = f"{self.tr('live')} • {payload.get('source','')}"
+                status_fg = C["accent"]
+            elif state == "cache":
+                status_text = f"{self.tr('cached')} • {payload.get('source','')}"
+                status_fg = C["gold"]
+            else:
+                status_text = self.tr("market_unavailable")
+                status_fg = C["danger"]
+            self.market_status_label.config(text=status_text, fg=status_fg)
+            if payload.get("message"):
+                self.market_status_label.config(text=f"{status_text}  |  {payload.get('message')}")
+        if hasattr(self, "market_update_label"):
+            stamp = payload.get("updated_at") or ""
+            self.market_update_label.config(text=f"{self.tr('last_update')}: {stamp.replace('T',' ')}")
+
+    def _animate_ticker(self):
+        if self.cur != "home":
+            self.ticker_job = None
+            return
+        self.ticker_offset += 1
+        self.render_market_ticker(self.market_data_payload)
+        self.ticker_job = self.after(45, self._animate_ticker)
+
+    def _market_data_callback(self, payload):
+        self.market_data_payload = payload
+        try:
+            self.after(0, lambda p=payload: self._apply_market_data(p))
+        except Exception:
+            pass
+
+    def _apply_market_data(self, payload):
+        self.market_data_payload = payload
+        if self.cur == "home":
+            self.ticker_offset = 0
+            self.render_market_ticker(payload)
+            self.render_market_indicators(payload)
+
+    defdef draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
         canvas = tk.Canvas(holder, width=68, height=68, bg=C["panel"], highlightthickness=0)
         canvas.pack(side="left", padx=(3,8), pady=3)
