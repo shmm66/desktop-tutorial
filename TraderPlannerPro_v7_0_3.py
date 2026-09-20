@@ -1855,11 +1855,11 @@ class App(tk.Tk):
         image_label = tk.Label(box, bg=C["panel3"])
         image_label.pack(fill="x", padx=8, pady=(8,4))
         meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,8))
-        source_label = tk.Label(meta, text="", bg=C["panel3"], fg=C["muted"], font=("Segoe UI",8),
-                                wraplength=760, justify="right")
+        source_label = tk.Label(meta, text="", bg=C["panel3"], fg=C["muted"], font=("Segoe UI",10,"bold"),
+                                wraplength=920, justify="right")
         source_label.pack(side="right", fill="x", expand=True)
         source_btn = tk.Button(meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
-                               activebackground=C["gold"], relief="flat", font=("Segoe UI",8,"bold"),
+                               activebackground=C["gold"], relief="flat", font=("Segoe UI",9,"bold"),
                                cursor="hand2")
         source_btn.pack(side="left", padx=(8,0))
         try:
@@ -1876,7 +1876,7 @@ class App(tk.Tk):
             image_label.image = ph
             stitle, surl = source_for_visual(kind)
             source_label.configure(text=f"{self.tr('original_source')}  •  {stitle}")
-            source_btn.configure(command=lambda u=surl:webbrowser.open(u))
+            source_btn.configure(command=lambda u=surl:self.open_webview(u,stitle))
         except Exception:
             source_label.configure(text=self.tr("market_unavailable") if self.language == "en" else "تصویر اصلی منبع در دسترس نیست")
         return box
@@ -1902,10 +1902,10 @@ class App(tk.Tk):
         lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0); lb.pack(fill="both",expand=True,padx=8,pady=8)
         for item in items: lb.insert("end",item["name_fa"] if self.language=="fa" else item["name_en"])
         title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",16,"bold"),anchor="e",justify="right"); title.pack(fill="x",padx=18,pady=(14,5))
-        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",10),anchor="e",justify="right",wraplength=760); summary.pack(fill="x",padx=18,pady=5)
+        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",12),anchor="e",justify="right",wraplength=860); summary.pack(fill="x",padx=18,pady=5)
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=3)
         steps_frame=tk.Frame(right,bg=C["panel"]); steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
-        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",10),height=12); text.pack(side="left",fill="both",expand=True)
+        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",12),height=12); text.pack(side="left",fill="both",expand=True)
         scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview); scr.pack(side="right",fill="y"); text.configure(yscrollcommand=scr.set)
         def render(_=None):
             sel=lb.curselection()
@@ -1927,17 +1927,23 @@ class App(tk.Tk):
         for name,en,fa in CANDLE_PLAYBOOK: lb.insert("end",fa if self.language=="fa" else name)
         tk.Label(right,text=self.ui_text("الگوهای کندلی"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=12,pady=10)
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=4)
-        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e"); desc.pack(fill="both",expand=True,padx=16,pady=10)
+        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); desc.pack(fill="both",expand=True,padx=16,pady=10)
         en_desc={
-            "Pin Bar / Rejection Candle":"A compact body with a dominant wick. Read it as rejection only with context, location and confirmation.",
-            "Bullish / Bearish Engulfing":"A new candle substantially covers the prior body. It can describe momentum change, not a standalone signal.",
-            "Inside Bar":"A candle remains within the prior range, showing compression and a possible breakout condition.",
-            "Morning Star":"A three-candle reversal pattern often used to study a shift from selling pressure to buying pressure.",
-            "Evening Star":"A three-candle reversal pattern often used to study a shift from buying pressure to selling pressure.",
-            "Hammer":"A small body with a long lower wick. Context and level matter.","Shooting Star":"A small body with a long upper wick. Context and level matter.",
-            "Doji":"Open and close are close together, describing short-term indecision.","Tweezer Top":"Two nearby highs that can highlight rejection near resistance.","Tweezer Bottom":"Two nearby lows that can highlight rejection near support.",
-            "Three White Soldiers":"Three consecutive strong bullish candles describing sustained buying pressure.","Three Black Crows":"Three consecutive strong bearish candles describing sustained selling pressure.",
-            "Marubozu":"A candle with very small wicks and a large body, showing directional momentum.","Spinning Top":"A small body with visible wicks on both sides, describing balance or indecision.","Long-Legged Doji":"A doji with long wicks, showing a wide battle range and indecision."
+            "Pin Bar / Rejection Candle":"A one-candle rejection pattern with a small body and a pronounced wick. TradingView's candlestick guidance stresses that the pattern must be read with trend, level and confirmation rather than in isolation.",
+            "Bullish / Bearish Engulfing":"Bullish engulfing: after a decline, the second candle's real body fully overtakes the prior real body. Bearish engulfing: after a rise, the second candle's real body fully overtakes the prior real body. The defining feature is the body relationship—not an ICT setup.",
+            "Inside Bar":"A two-candle containment pattern: the second candle's high and low remain inside the previous candle's range. It signals compression; direction needs context and confirmation.",
+            "Morning Star":"A three-candle bullish reversal pattern usually studied after a decline: a strong bearish candle, a small-bodied middle candle, then a strong bullish candle that closes well into the first candle's body.",
+            "Evening Star":"A three-candle bearish reversal pattern usually studied after a rise: a strong bullish candle, a small-bodied middle candle, then a strong bearish candle that closes well into the first candle's body.",
+            "Hammer":"A bullish-leaning single-candle pattern with a small body and a long lower shadow. It is most meaningful after a decline or at a defined support area, with confirmation.",
+            "Shooting Star":"A bearish-leaning single-candle pattern with a small body and a long upper shadow. It is most meaningful after an advance or near resistance, with confirmation.",
+            "Doji":"A candle whose open and close are very close, showing temporary balance or indecision. Context determines whether it matters.",
+            "Tweezer Top":"A bearish reversal pattern in which two nearby candles form matching or nearly matching highs near resistance; confirmation is still required.",
+            "Tweezer Bottom":"A bullish reversal pattern in which two nearby candles form matching or nearly matching lows near support; confirmation is still required.",
+            "Three White Soldiers":"Three consecutive strong bullish candles with progressively higher closes. It can describe sustained buying pressure after a decline, but context remains essential.",
+            "Three Black Crows":"Three consecutive strong bearish candles with progressively lower closes. It can describe sustained selling pressure after an advance, but context remains essential.",
+            "Marubozu":"A candle with little or no visible shadow and a large body, emphasizing directional movement from open toward close.",
+            "Spinning Top":"A small real body with visible upper and lower shadows, showing a period of balance or indecision within a wider range.",
+            "Long-Legged Doji":"A dramatic doji with long shadows showing a wide intraday battle between buyers and sellers. TradingView notes that a close below the candle midpoint can signal weakness in the example it discusses."
         }
         def render(_=None):
             if not lb.curselection(): return
