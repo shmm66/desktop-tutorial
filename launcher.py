@@ -3,7 +3,7 @@ from pathlib import Path
 import tempfile
 
 APP = "Trader Planner Pro"
-VERSION = "7.1.0"
+VERSION = "7.1.1"
 
 def show_splash():
     root = tk.Tk()
