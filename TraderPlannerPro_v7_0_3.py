@@ -719,6 +719,7 @@ class App(tk.Tk):
 
     def build_shell(self):
         top = tk.Frame(self, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1, bd=0)
+        self.topbar = top
         top.pack(fill="x", padx=14, pady=(12, 7), ipady=5)
         self.menu_button = tk.Button(top, text="☰", command=self.toggle_menu, bg=C["panel2"], fg=C["text"],
                                      activebackground=C["accent"], activeforeground="#061019", relief="flat",
@@ -732,16 +733,19 @@ class App(tk.Tk):
             tk.Label(top, image=self._logo_photo, bg=C["panel"]).pack(side="left", padx=(2,8))
         except Exception:
             pass
-        brand = tk.Frame(top, bg=C["panel"]); brand.pack(side="left", padx=2)
+        brand = tk.Frame(top, bg=C["panel"]); self.brand_frame = brand; brand.pack(side="left", padx=2)
         self.brand_title = tk.Label(brand, text=APP, bg=C["panel"], fg=C["text"],
                                     font=("Segoe UI", 15, "bold")); self.brand_title.pack(anchor="w")
         self.brand_subtitle = tk.Label(brand, text="PRO TRADING WORKSPACE • MARKET DESK",
                                        bg=C["panel"], fg=C["accent"], font=("Segoe UI", 7, "bold"))
         self.brand_subtitle.pack(anchor="w")
-        status = tk.Frame(top, bg=C["panel"]); status.pack(side="right", padx=7)
+        status = tk.Frame(top, bg=C["panel"]); self.status_bar = status; status.pack(side="right", padx=7)
+        self.date_label = tk.Label(status, bg=C["panel3"], fg=C["muted"], font=("Segoe UI", 8, "bold"),
+                                   padx=10, pady=6, anchor="center")
+        self.date_label.pack(side="left", padx=3)
         self.clock_label = tk.Label(status, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 9, "bold"),
-                                     padx=10, pady=6); self.clock_label.pack(side="left", padx=4)
-        self.profile_combo = ttk.Combobox(status, state="readonly", width=20, justify="right")
+                                     padx=10, pady=6); self.clock_label.pack(side="left", padx=3)
+        self.profile_combo = ttk.Combobox(status, state="readonly", width=18, justify="right")
         self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
         self.profile_combo.pack(side="left", padx=5)
         self.market_btn = tk.Button(status, text=self.market, command=self.change_market, bg=C["soft"], fg=C["text"],
@@ -761,7 +765,7 @@ class App(tk.Tk):
         tk.Label(self.menu, text="FAST NAVIGATION • AUTO HIDE", bg=C["panel"], fg=C["muted"],
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
-        for key in ("home","daily","plan","check","journal","academy","settings"):
+        for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","settings"):
             b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
@@ -857,8 +861,16 @@ class App(tk.Tk):
             pass
 
     def clock(self):
-        self.clock_label.config(text=datetime.now().strftime("%Y-%m-%d  |  %H:%M:%S"))
-        self.after(500, self.clock)
+        now = datetime.now()
+        self.clock_label.config(text=now.strftime("%H:%M:%S"))
+        try:
+            self.date_label.config(text=display_date(now, self.language).replace(" | ", "\n"))
+        except Exception:
+            self.date_label.config(text=now.strftime("%Y-%m-%d"))
+        if self.theme_mode == "auto" and self._effective_theme() != getattr(self, "_last_effective_theme", self._effective_theme()):
+            self.apply_theme()
+            self.show(self.cur)
+        self.after(1000, self.clock)
 
     def heading(self, title, sub=""):
         title = self.ui_text(title); sub = self.ui_text(sub)
@@ -869,7 +881,7 @@ class App(tk.Tk):
         if sub:
             tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9)).pack(anchor="e", pady=(2,0))
         left_tools = tk.Frame(band, bg=C["bg"]); left_tools.pack(side="left", padx=2)
-        home_btn = tk.Button(left_tools, text="⌂  Home", command=lambda:self.show("home"),
+        home_btn = tk.Button(left_tools, text=self.tr("home_shortcut"), command=self.go_home,
                              bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
