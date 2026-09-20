@@ -533,6 +533,13 @@ class App(tk.Tk):
         h, m = [int(x) for x in fallback.split(":")]
         return h * 60 + m
 
+    def _valid_hhmm(self, value):
+        try:
+            h, m = [int(x) for x in str(value).split(":", 1)]
+            return 0 <= h <= 23 and 0 <= m <= 59 and len(str(value).split(":",1)) == 2
+        except Exception:
+            return False
+
     def _effective_theme(self):
         mode = self.theme_mode if self.theme_mode in ("dark", "light", "auto") else "dark"
         if mode != "auto":
@@ -1667,8 +1674,8 @@ class App(tk.Tk):
             mode=theme_var.get()
             if mode not in ("dark","light","auto"): mode="dark"
             start=start_var.get().strip() or "08:00"; end=end_var.get().strip() or "20:00"
-            if self._parse_hhmm(start,"08:00") is None: start="08:00"
-            if self._parse_hhmm(end,"20:00") is None: end="20:00"
+            if not self._valid_hhmm(start): start="08:00"
+            if not self._valid_hhmm(end): end="20:00"
             DB.setdefault("settings",{}).update({"theme":mode,"theme_auto_start":start,"theme_auto_end":end})
             self.theme_mode=mode; self.theme_auto_start=start; self.theme_auto_end=end
             save_db(); self.apply_theme(); self.show(self.cur)
@@ -1836,7 +1843,7 @@ class App(tk.Tk):
         tk.Checkbutton(dlg,text=self.tr("reminder_enabled"),variable=enabled,bg=C["bg"],fg=C["text"],selectcolor=C["soft"],activebackground=C["bg"],activeforeground=C["text"]).pack(anchor="e",padx=16)
         def save():
             value=tm.get().strip()
-            if self._parse_hhmm(value,"09:00") is None:
+            if not self._valid_hhmm(value):
                 return messagebox.showwarning(self.tr("reminders"),self.tr("reminder_time"),parent=dlg)
             DB.setdefault("settings",{}).setdefault("ai_reminders",[]).append({"id":str(uuid4()),"title":title.get().strip() or self.tr("reminders"),"time":value,"daily":True,"enabled":enabled.get(),"last_notified":""})
             save_db(); dlg.destroy(); self.show("ai")
