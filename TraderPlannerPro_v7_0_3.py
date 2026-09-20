@@ -16,7 +16,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
-from PIL import Image, ImageDraw, ImageFilter, ImageTk
+from PIL import Image, ImageDraw, ImageFilter, ImageTk, ImageFont
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 
 APP = "Trader Planner Pro"
@@ -224,7 +224,7 @@ def build_3d_clock_face(size=244, accent=(39,211,176), accent2=(242,196,109)):
     f_big=max(10,int(size*.058))
     f_small=max(8,int(size*.042))
     for num in (12,3,6,9):
-        font=__import__("PIL").ImageFont.truetype(
+        font=ImageFont.truetype(
             r"C:\\Windows\\Fonts\\segoeuib.ttf" if Path(r"C:\\Windows\\Fonts\\segoeuib.ttf").exists()
             else "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", f_big*scale)
         ang=math.radians(num*30-90)
