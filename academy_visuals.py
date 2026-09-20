@@ -16,6 +16,62 @@ EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
         "TradingView Support — Introduction to Candlestick Charts and Patterns",
         "https://www.tradingview.com/support/solutions/43000745269-introduction-to-candlestick-charts-and-patterns/",
     ),
+    "bullish_engulfing": (
+        "TradingView Support — Engulfing Bullish",
+        "https://www.tradingview.com/support/solutions/43000583771-engulfing-bullish/",
+    ),
+    "bearish_engulfing": (
+        "TradingView Support — Engulfing Bearish",
+        "https://www.tradingview.com/support/solutions/43000583769-engulfing-bearish/",
+    ),
+    "doji": (
+        "TradingView Support — Doji",
+        "https://www.tradingview.com/support/solutions/43000583767-doji/",
+    ),
+    "hammer": (
+        "TradingView Support — Hammer Bullish",
+        "https://www.tradingview.com/support/solutions/43000583775-hammer-bullish/",
+    ),
+    "shooting_star": (
+        "TradingView Support — Shooting Star Bearish",
+        "https://www.tradingview.com/support/solutions/43000583789-shooting-star-bearish/",
+    ),
+    "morning_star": (
+        "TradingView Support — Morning Star Bullish",
+        "https://www.tradingview.com/support/solutions/43000583787-morning-star-bullish/",
+    ),
+    "evening_star": (
+        "TradingView Support — Evening Star Bearish",
+        "https://www.tradingview.com/support/solutions/43000583772-evening-star-bearish/",
+    ),
+    "tweezer_top": (
+        "TradingView Support — Tweezer Top Bearish",
+        "https://www.tradingview.com/support/solutions/43000592710-tweezer-top-bearish/",
+    ),
+    "tweezer_bottom": (
+        "TradingView Support — Tweezer Bottom Bullish",
+        "https://www.tradingview.com/support/solutions/43000592709-tweezer-bottom-bullish/",
+    ),
+    "three_white_soldiers": (
+        "TradingView Support — Three White Soldiers Bullish",
+        "https://www.tradingview.com/support/solutions/43000583793-three-white-soldiers-bullish/",
+    ),
+    "three_black_crows": (
+        "TradingView Support — Three Black Crows Bearish",
+        "https://www.tradingview.com/support/solutions/43000583792-three-black-crows-bearish/",
+    ),
+    "marubozu": (
+        "TradingView Support — Marubozu White Bullish",
+        "https://www.tradingview.com/support/solutions/43000583786-marubozu-white-bullish/",
+    ),
+    "spinning_top": (
+        "TradingView Support — Spinning Top Black",
+        "https://www.tradingview.com/support/solutions/43000583791-spinning-top-black/",
+    ),
+    "long_legged_doji": (
+        "TradingView Support — Doji / Long-Legged Doji family",
+        "https://www.tradingview.com/support/solutions/43000583767-doji/",
+    ),
     "structure": (
         "TradingView — ICT-Based Market Structure, Liquidity & Order Block Framework",
         "https://www.tradingview.com/chart/XAUUSD/JhztA6F9-ICT-Based-Market-Structure-Liquidity-Order-Block-Framework/",
@@ -56,6 +112,20 @@ EDUCATION_SOURCES: Dict[str, Tuple[str, str]] = {
 
 REMOTE_IMAGES = {
     "candlestick": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43635857165/original/-Ia8yAZJrCU4h3GbdUIpsOThy0H_d6CBTg.png?1785426335=",
+    "bullish_engulfing": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140576863/original/FzSw1eshLDDK6tbAKjWAEcvsbGwV_P6I1g.png?1594035480=",
+    "bearish_engulfing": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140575464/original/ADUJsusxPP04iHaA9Uw11EjW1h8V8TDKoA.png?1594035191=",
+    "doji": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140574680/original/Xp7aOIXvJW7K5ISvRgpuU4JMEeANkdhHlA.png?1594035038=",
+    "hammer": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140655364/original/OxDwofTwjzrB3U39MQIA84SBJEGSHqzsmw.png?1594049237=",
+    "shooting_star": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663222/original/CnuC4FilCeARVduBmClqt_AEBFTuc8K4Jg.png?1594050818=",
+    "morning_star": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663117/original/fBm54T9JW5iwHZKV1XXuGIgnCRu_Xwr1ig.png?1594050798=",
+    "evening_star": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140577088/original/WWwb0D6fWZj4r9nl9cJ8fSqITe4dfgfBUQ.png?1594035521=",
+    "tweezer_top": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43154904284/original/ZzNHsnqYXL7FHbMUbbFptBrXpZ59jJ70fg.png?1599140098=",
+    "tweezer_bottom": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43154904006/original/gIM6m6P0cZSwOXhAmdiKEyoFN9v5k7vEpw.png?1599140049=",
+    "three_white_soldiers": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663547/original/nYiI0HB78VkeXFVHUm3FPHYH48RDA4LVLw.png?1594050904=",
+    "three_black_crows": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663635/original/Vv2TmQIXNaE2ATUZ7vrkDAixoWypa6kDmg.png?1594050919=",
+    "marubozu": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663051/original/ZxnIiMHC0Vw_HnBXm4xzx5P5Vub9plAlhg.png?1594050779=",
+    "spinning_top": "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/43140663458/original/2j7_Xg1lX8wWwETjmQSa4X1VlxmpPYXk7A.png?1594050885=",
+    "long_legged_doji": "https://s3.tradingview.com/4/48g0fJv6_mid.webp",
     "structure": "https://s3.tradingview.com/j/JhztA6F9_mid.webp",
     "liquidity": "https://s3.tradingview.com/g/GXZP7v3b_mid.webp",
     "fvg": "https://s3.tradingview.com/l/ls1qkg1J_mid.webp",
@@ -68,21 +138,22 @@ REMOTE_IMAGES = {
 }
 
 VISUAL_ALIASES = {
+    "bullish engulfing": "bullish_engulfing", "engulfing bullish": "bullish_engulfing",
+    "bearish engulfing": "bearish_engulfing", "engulfing bearish": "bearish_engulfing",
+    "inside bar": "candlestick", "morning star": "morning_star", "evening star": "evening_star",
+    "pin bar": "candlestick", "hammer": "hammer", "shooting star": "shooting_star",
+    "doji": "doji", "tweezer top": "tweezer_top", "tweezer bottom": "tweezer_bottom",
+    "three white soldiers": "three_white_soldiers", "three black crows": "three_black_crows",
+    "marubozu": "marubozu", "spinning top": "spinning_top", "long-legged doji": "long_legged_doji",
     "fair value gap": "fvg", "fvg": "fvg", "imbalance": "fvg", "ifvg": "fvg", "bpr": "fvg",
     "order block": "order_block", "orderblock": "order_block", "mitigation block": "order_block", "ob": "order_block",
-    "breaker block": "breaker", "breaker": "breaker",
-    "unicorn": "unicorn",
+    "breaker block": "breaker", "breaker": "breaker", "unicorn": "unicorn",
     "bos": "structure", "choch": "structure", "mss": "structure", "market structure": "structure",
     "swing high": "structure", "swing low": "structure", "hh": "structure", "hl": "structure", "lh": "structure", "ll": "structure",
     "liquidity": "liquidity", "bsl": "liquidity", "ssl": "liquidity", "sweep": "liquidity",
     "equal high": "liquidity", "equal low": "liquidity", "resting liquidity": "liquidity", "stop": "liquidity",
-    "premium": "timing", "discount": "timing", "ote": "timing", "equilibrium": "timing", "dealing range": "timing",
     "killzone": "timing", "judas": "timing", "silver bullet": "timing", "amd": "timing", "power of three": "timing",
     "smt": "smt", "smart money divergence": "smt",
-    "candlestick": "candlestick", "candlestick pattern": "candlestick", "engulfing": "candlestick", "pin bar": "candlestick",
-    "doji": "candlestick", "hammer": "candlestick", "shooting star": "candlestick", "inside bar": "candlestick",
-    "marubozu": "candlestick", "spinning top": "candlestick", "tweezer": "candlestick", "morning star": "candlestick",
-    "evening star": "candlestick", "three white soldiers": "candlestick", "three black crows": "candlestick",
     "risk": "technical", "rr": "technical", "psychology": "technical",
 }
 

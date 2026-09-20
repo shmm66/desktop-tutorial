@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test/build dependencies
-        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata tzdata
+        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview
       - name: Syntax check
         run: |
           python -m py_compile TraderPlannerPro_v7_0_3.py
@@ -30,6 +30,10 @@ jobs:
           python -m py_compile prepare_branding.py
           python -m py_compile academy_visuals.py
           python -m py_compile market_data.py
+          python -m py_compile calendar_utils.py
+          python -m py_compile ai_assistant.py
+          python -m py_compile news_data.py
+          python -m py_compile webview_runner.py
           python -m py_compile prepare_education_assets.py
       - name: Run tests
         run: python -m pytest -q
@@ -43,7 +47,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build dependencies
-        run: python -m pip install --upgrade pip pyinstaller pillow tzdata tzdata
+        run: python -m pip install --upgrade pip pyinstaller pillow tzdata jdatetime hijridate pywebview
       - name: Prepare exact education image assets
         run: python prepare_education_assets.py
       - name: Build Windows icon
@@ -67,6 +71,8 @@ jobs:
           --hidden-import re
           --hidden-import uuid
           --collect-all tzdata
+          --collect-all webview
+          --hidden-import webview.platforms.edgechromium
           --add-data "education_sources;education_sources"
           launcher.py
       - name: Verify EXE
@@ -111,22 +117,21 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V7.4.1 Release
+      - name: Publish V7.5.0 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v7.4.1
-          name: Trader Planner Pro V7.4.1
+          tag_name: v7.5.0
+          name: Trader Planner Pro V7.5.0
           target_commitish: ${{ github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V7.4.1
+            ## Trader Planner Pro V7.5.0
 
-            Windows visual refinement release.
-            Includes a richer 3D-inspired workspace, compact session clocks, live market tape, exact unmodified educational source images bundled into the app, stronger English-language cleanup, and the existing Smart Money / ICT / Candlestick Academy and glossary.
+            Trader Planner Pro complete trader desk upgrade: reliable market feed with cross-market indicators, corrected source-backed Academy visuals, AI assistant, market news, themes, calendars, calculators, compact sessions and global Home navigation.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v7.4.1.exe
+            installer/TraderPlannerPro_Setup_v7.5.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
