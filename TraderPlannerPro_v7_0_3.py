@@ -1265,7 +1265,7 @@ class App(tk.Tk):
         self.heading("برنامه روزانه","قابل ویرایش، قابل تیک‌زدن و ذخیره روی همان مسیر داده قبلی")
         nav=tk.Frame(self.content,bg=C["bg"]); nav.pack(fill="x",pady=4)
         self.btn(nav,"روز قبل",lambda:self.shift_day(-1)).pack(side="left")
-        tk.Label(nav,text=self.day,bg=C["bg"],fg=C["text"],font=("Segoe UI",12,"bold")).pack(side="left",padx=15)
+        tk.Label(nav,text=display_date(date.fromisoformat(self.day), self.language),bg=C["bg"],fg=C["text"],font=("Segoe UI",11,"bold")).pack(side="left",padx=15)
         self.btn(nav,"روز بعد",lambda:self.shift_day(1)).pack(side="left")
         self.btn(nav,"＋ فعالیت جدید",self.add_task,True).pack(side="right",padx=3)
         self.btn(nav,"ویرایش",self.edit_task).pack(side="right",padx=3); self.btn(nav,"حذف",self.delete_task).pack(side="right",padx=3)
