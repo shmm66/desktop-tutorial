@@ -123,7 +123,7 @@ jobs:
             ## Trader Planner Pro V7.4.1
 
             Windows visual refinement release.
-            Includes a richer 3D-inspired workspace, upgraded live session clocks, source-backed education visuals for Academy definitions, stronger English-language cleanup, and the existing Smart Money / ICT / Candlestick Academy and glossary.
+            Includes a richer 3D-inspired workspace, compact session clocks, live market tape, exact unmodified educational source images bundled into the app, stronger English-language cleanup, and the existing Smart Money / ICT / Candlestick Academy and glossary.
 
           files: |
             dist/TraderPlannerPro.exe
