@@ -523,6 +523,139 @@ class App(tk.Tk):
                 except Exception: pass
         self.destroy()
 
+    def _parse_hhmm(self, value, fallback="08:00"):
+        try:
+            h, m = [int(x) for x in str(value).split(":", 1)]
+            if 0 <= h <= 23 and 0 <= m <= 59:
+                return h * 60 + m
+        except Exception:
+            pass
+        h, m = [int(x) for x in fallback.split(":")]
+        return h * 60 + m
+
+    def _effective_theme(self):
+        mode = self.theme_mode if self.theme_mode in ("dark", "light", "auto") else "dark"
+        if mode != "auto":
+            return mode
+        now = datetime.now().hour * 60 + datetime.now().minute
+        start = self._parse_hhmm(self.theme_auto_start, "08:00")
+        end = self._parse_hhmm(self.theme_auto_end, "20:00")
+        if start <= end:
+            return "light" if start <= now < end else "dark"
+        return "light" if now >= start or now < end else "dark"
+
+    def apply_theme(self, initial=False):
+        effective = self._effective_theme()
+        palette = THEMES[effective]
+        C.update(palette)
+        self.configure(bg=C["bg"])
+        self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
+                             rowheight=38, borderwidth=0, font=("Segoe UI", 10))
+        self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
+        self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
+        self._last_effective_theme = effective
+        if not initial and hasattr(self, "content"):
+            self.content.configure(bg=C["bg"])
+            self._refresh_shell_theme()
+        if self.theme_mode == "auto":
+            if self.theme_auto_job:
+                try: self.after_cancel(self.theme_auto_job)
+                except Exception: pass
+            self.theme_auto_job = self.after(60000, self._theme_watch)
+        elif self.theme_auto_job:
+            try: self.after_cancel(self.theme_auto_job)
+            except Exception: pass
+            self.theme_auto_job = None
+
+    def _theme_watch(self):
+        self.theme_auto_job = None
+        if self.theme_mode != "auto":
+            return
+        effective = self._effective_theme()
+        if effective != getattr(self, "_last_effective_theme", effective):
+            self.apply_theme()
+            self.show(self.cur)
+        else:
+            self.apply_theme()
+        if self.theme_mode == "auto":
+            self.theme_auto_job = self.after(60000, self._theme_watch)
+
+    def _refresh_shell_theme(self):
+        if not hasattr(self, "topbar"):
+            return
+        for widget in (self.topbar, self.content, self.menu, getattr(self, "brand_frame", None),
+                       getattr(self, "status_bar", None), getattr(self, "menu_title", None)):
+            if widget is None:
+                continue
+            try:
+                widget.configure(bg=C["panel"] if widget is not self.content else C["bg"])
+            except Exception:
+                pass
+        for widget in self.menu.winfo_children():
+            try:
+                widget.configure(bg=C["panel"], fg=C["text"] if widget is not self.menu_title else C["accent"])
+            except Exception:
+                pass
+        try:
+            self.menu_home_hint.configure(bg=C["panel3"], fg=C["muted"])
+        except Exception:
+            pass
+        for widget_name in ("menu_button", "market_btn"):
+            widget = getattr(self, widget_name, None)
+            if widget:
+                try:
+                    widget.configure(bg=C["panel2"] if widget_name == "menu_button" else C["soft"], fg=C["text"],
+                                      activebackground=C["accent"] if widget_name == "menu_button" else C["gold"],
+                                      activeforeground="#061019")
+                except Exception:
+                    pass
+        for widget in (getattr(self, "brand_title", None), getattr(self, "brand_subtitle", None)):
+            if widget:
+                try:
+                    widget.configure(bg=C["panel"], fg=C["text"] if widget is self.brand_title else C["accent"])
+                except Exception:
+                    pass
+        if hasattr(self, "clock_label"):
+            self.clock_label.configure(bg=C["panel3"], fg=C["cyan"])
+        if hasattr(self, "date_label"):
+            self.date_label.configure(bg=C["panel3"], fg=C["muted"])
+
+    def _market_loading_timeout(self):
+        self.market_timeout_job = None
+        if self.cur == "home" and self.market_data_payload.get("status") in ("unavailable", None):
+            self.market_data_payload["status"] = "unavailable"
+            self.market_data_payload["message"] = self.tr("market_error")
+            self._apply_market_data(self.market_data_payload)
+        if self.cur == "home" and self.market_timeout_job is None:
+            self.market_timeout_job = self.after(15000, self._market_loading_timeout)
+
+    def check_reminders(self):
+        self.reminder_job = None
+        reminders = DB.get("settings", {}).get("ai_reminders", [])
+        now = datetime.now()
+        hhmm = now.strftime("%H:%M")
+        changed = False
+        for reminder in reminders:
+            if not reminder.get("enabled", True):
+                continue
+            if reminder.get("time") != hhmm:
+                continue
+            if reminder.get("daily", True) and reminder.get("last_notified") == now.date().isoformat():
+                continue
+            reminder["last_notified"] = now.date().isoformat()
+            changed = True
+            title = reminder.get("title") or self.tr("reminders")
+            messagebox.showinfo(title, f"{title}\\n{self.display_date_now()}", parent=self)
+        if changed:
+            save_db()
+        self.reminder_job = self.after(30000, self.check_reminders)
+
+    def display_date_now(self):
+        try:
+            return display_date(date.today(), self.language)
+        except Exception:
+            return datetime.now().strftime("%Y-%m-%d")
+ 
     def tr(self, key, **kwargs):
         table = I18N.get(self.language, I18N["fa"])
         text = table.get(key, key)
