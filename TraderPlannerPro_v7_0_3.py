@@ -258,7 +258,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 710, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language": "fa"}}
+    return {"version": 750, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language": "fa", "theme":"dark", "dark_start":"20:00", "dark_end":"07:00", "reminders":[]}}
 
 def numeric(value):
     try:
@@ -276,6 +276,10 @@ def migrate_payload(old):
     if isinstance(old.get("settings"), dict):
         base["settings"].update(old["settings"])
     base["settings"].setdefault("language", "fa")
+    base["settings"].setdefault("theme", "dark")
+    base["settings"].setdefault("dark_start", "20:00")
+    base["settings"].setdefault("dark_end", "07:00")
+    base["settings"].setdefault("reminders", [])
     if isinstance(old.get("profiles"), list) and old["profiles"]:
         base["profiles"] = old["profiles"]
         active = old.get("active_profile_id") or base["profiles"][0].get("id")
@@ -294,7 +298,7 @@ def migrate_payload(old):
             p.setdefault("checklist", default_checklist())
             for item in p["checklist"]:
                 item.setdefault("id", str(uuid4())); item.setdefault("done", False)
-        base["version"] = 710
+        base["version"] = 750
         return base
     # V7.0.2 -> profile migration without data loss.
     legacy_profile = old.get("profile") if isinstance(old.get("profile"), dict) else {}
@@ -327,7 +331,7 @@ def migrate_payload(old):
         ]
     base["profiles"] = [p]
     base["active_profile_id"] = p["id"]
-    base["version"] = 710
+    base["version"] = 750
     return base
 
 def load_db(path=DATA):
@@ -1506,6 +1510,159 @@ class App(tk.Tk):
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
         self.translate_widget_tree(dlg)
 
+    def _append_chat(self, text, tag=None):
+        if not hasattr(self, "ai_chat"):
+            return
+        self.ai_chat.configure(state="normal")
+        self.ai_chat.insert("end", text + "\n\n")
+        self.ai_chat.see("end")
+        self.ai_chat.configure(state="disabled")
+
+    def _ai_reply(self, answer):
+        self._append_chat("AI: " + answer)
+        if hasattr(self, "ai_status_label"):
+            self.ai_status_label.config(text=self.tr("ai_ready") if ollama_models() else self.tr("ai_fallback"))
+
+    def send_ai(self, quick_text=None):
+        if not hasattr(self, "ai_input"):
+            return
+        text = (quick_text if quick_text is not None else self.ai_input.get()).strip()
+        if not text:
+            return
+        self.ai_input.delete(0, "end")
+        self._append_chat("You: " + text)
+        p = active_profile()
+        context = {
+            "market": self.market,
+            "profile": p.get("name"),
+            "journal_count": len(p.get("journals",{}).get(self.market,[])),
+            "plan": p.get("plan_draft",{}),
+            "checklist_open": sum(1 for x in p.get("checklist",[]) if not x.get("done")),
+            "market_data": self.market_data_payload,
+        }
+        ai_ask(self.ai_agent, text, context=context, callback=lambda ans:self.after(0, lambda:self._ai_reply(ans)))
+
+    def add_reminder(self):
+        if not hasattr(self,"reminder_time_var"): return
+        tm=self.reminder_time_var.get().strip()
+        txt=self.reminder_text_var.get().strip()
+        try: datetime.strptime(tm,"%H:%M")
+        except ValueError:
+            return messagebox.showwarning(self.tr("reminders"),"Use HH:MM.",parent=self)
+        if not txt: return
+        items=DB.setdefault("settings",{}).setdefault("reminders",[])
+        items.append({"time":tm,"text":txt,"created_at":datetime.now().isoformat(timespec="seconds"),"last_fired":""})
+        save_db()
+        self.reminder_text_var.set("")
+        self.render_reminders()
+
+    def render_reminders(self):
+        if not hasattr(self,"reminder_list"): return
+        self.reminder_list.delete(0,"end")
+        items=DB.setdefault("settings",{}).setdefault("reminders",[])
+        for item in items:
+            self.reminder_list.insert("end",f"{item.get('time','')}  •  {item.get('text','')}")
+
+    def _check_reminders(self):
+        settings=DB.setdefault("settings",{})
+        items=settings.setdefault("reminders",[])
+        now=datetime.now()
+        key=now.strftime("%Y-%m-%d %H:%M")
+        changed=False
+        for item in items:
+            if item.get("time")==now.strftime("%H:%M") and item.get("last_fired")!=key:
+                item["last_fired"]=key; changed=True
+                try: messagebox.showinfo(self.tr("reminders"),item.get("text",""),parent=self)
+                except Exception: pass
+        if changed: save_db()
+
+    def open_in_app(self, url, title):
+        try:
+            import webview
+            def runner():
+                try:
+                    webview.create_window(title, url, width=1450, height=900, min_size=(960,700))
+                    webview.start()
+                except Exception:
+                    webbrowser.open(url)
+            threading.Thread(target=runner, daemon=True).start()
+        except Exception:
+            webbrowser.open(url)
+
+    def refresh_news(self):
+        if hasattr(self,"news_status"):
+            self.news_status.config(text=self.tr("market_connecting"))
+        fetch_news_all(lambda payload:self.after(0, lambda:self._apply_news(payload)))
+
+    def _apply_news(self,payload):
+        self.news_payload=payload
+        if hasattr(self,"news_lists"):
+            for key,lb in self.news_lists.items():
+                lb.delete(0,"end")
+                rows=(payload.get(key) or {}).get("items") or []
+                for row in rows:
+                    lb.insert("end",f"{row.get('published','')}  •  {row.get('title','')}")
+        if hasattr(self,"news_status"):
+            self.news_status.config(text=self.tr("updated"))
+
+    def news(self):
+        self.heading(self.tr("news_title"), self.tr("news_title"))
+        top=self.card(self.content); top.pack(fill="x",pady=5)
+        tk.Label(top,text=self.tr("forex_news"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",11,"bold")).pack(side="left",padx=10,pady=8)
+        self.btn(top,self.tr("open_in_app"),lambda:self.open_in_app(NEWS_SOURCES["forex_factory"]["url"],"Forex Factory"),True).pack(side="left",padx=4)
+        self.btn(top,self.tr("open_in_app"),lambda:self.open_in_app(NEWS_SOURCES["coindesk"]["url"],"CoinDesk")).pack(side="left",padx=4)
+        self.btn(top,self.tr("refresh_news"),self.refresh_news).pack(side="right",padx=5)
+        self.news_status=tk.Label(top,text=self.tr("market_connecting"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",8,"bold")); self.news_status.pack(side="right",padx=8)
+        tabs=ttk.Notebook(self.content); tabs.pack(fill="both",expand=True,pady=5)
+        pane1=tk.Frame(tabs,bg=C["panel"]); pane2=tk.Frame(tabs,bg=C["panel"])
+        tabs.add(pane1,text=self.tr("forex_news")); tabs.add(pane2,text=self.tr("crypto_news"))
+        self.news_lists={}
+        for key,pane in (("forex_factory",pane1),("coindesk",pane2)):
+            lb=tk.Listbox(pane,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",
+                          font=("Segoe UI",10),activestyle="none",borderwidth=0,highlightthickness=0)
+            lb.pack(fill="both",expand=True,padx=10,pady=10); self.news_lists[key]=lb
+        self.refresh_news()
+
+    def assistant(self):
+        self.heading(self.tr("assistant_title"), self.tr("assistant_sub"))
+        wrap=tk.Frame(self.content,bg=C["bg"]); wrap.pack(fill="both",expand=True,pady=5)
+        left=self.card(wrap); right=self.card(wrap)
+        left.pack(side="left",fill="y",padx=(0,5)); right.pack(side="left",fill="both",expand=True,padx=(5,0))
+        tk.Label(left,text=self.tr("assistant"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",14,"bold")).pack(padx=16,pady=(16,8))
+        options=[("planner",self.tr("planner_agent")),("strategy",self.tr("strategy_agent")),("psychology",self.tr("psychology_agent")),("journal",self.tr("journal_agent"))]
+        names=[x[1] for x in options]
+        agent_var=tk.StringVar(value=names[0])
+        combo=ttk.Combobox(left,textvariable=agent_var,values=names,state="readonly",width=25,justify="right"); combo.pack(padx=14,pady=6)
+        def sync_agent(_=None):
+            for key,name in options:
+                if name==agent_var.get(): self.ai_agent=key
+        combo.bind("<<ComboboxSelected>>",sync_agent)
+        self.ai_status_label=tk.Label(left,text=self.tr("ai_ready") if ollama_models() else self.tr("ai_fallback"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",8),wraplength=220,justify="center")
+        self.ai_status_label.pack(padx=14,pady=8)
+        quicks=[
+            ("Fill current trade form","Fill my current journal fields from what I have provided."),
+            ("Strategy checklist","Turn my selected strategy into a step-by-step checklist."),
+            ("Psychology reset","Give me a 3-minute reset routine before trading."),
+            ("Plan today","Build a disciplined plan for today's session."),
+        ]
+        for _,q in quicks:
+            self.btn(left,_,lambda text=q:self.send_ai(text)).pack(fill="x",padx=12,pady=3)
+        rem=self.card(left); rem.pack(fill="x",padx=10,pady=15)
+        tk.Label(rem,text=self.tr("reminders"),bg=C["panel"],fg=C["accent"],font=("Segoe UI",10,"bold")).pack(anchor="e",padx=10,pady=8)
+        self.reminder_time_var=tk.StringVar(value="09:00"); self.reminder_text_var=tk.StringVar()
+        tk.Entry(rem,textvariable=self.reminder_time_var,width=9,bg=C["soft"],fg=C["text"],relief="flat").pack(side="left",padx=6,pady=5)
+        tk.Entry(rem,textvariable=self.reminder_text_var,width=24,bg=C["soft"],fg=C["text"],relief="flat").pack(side="left",padx=6,pady=5)
+        self.btn(rem,self.tr("save_reminder"),self.add_reminder,True).pack(side="right",padx=6,pady=5)
+        self.reminder_list=tk.Listbox(left,height=6,bg=C["panel2"],fg=C["text"],font=("Segoe UI",8),borderwidth=0,highlightthickness=0)
+        self.reminder_list.pack(fill="x",padx=12,pady=(0,12)); self.render_reminders()
+        self.ai_chat=tk.Text(right,bg=C["panel2"],fg=C["text"],font=("Segoe UI",10),wrap="word",relief="flat",state="disabled")
+        self.ai_chat.pack(fill="both",expand=True,padx=10,pady=10)
+        bottom=tk.Frame(right,bg=C["panel"]); bottom.pack(fill="x",padx=10,pady=(0,10))
+        self.ai_input=tk.Entry(bottom,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",font=("Segoe UI",10))
+        self.ai_input.pack(side="left",fill="x",expand=True,padx=5,pady=6); self.ai_input.bind("<Return>",lambda e:self.send_ai())
+        self.btn(bottom,self.tr("ask_ai"),self.send_ai,True).pack(side="right",padx=5,pady=5)
+        self._append_chat("Trader Planner Pro AI\n"+self.tr("ai_context")+f": {self.market}")
+        
     def settings(self):
         p=active_profile()
         self.heading(self.tr("settings_title"), self.tr("settings_sub"))
@@ -1522,10 +1679,14 @@ class App(tk.Tk):
         tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",
                  bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(side="left",padx=10)
         profile_box=self.card(self.content); profile_box.pack(fill="x",pady=10)
-        info=(f"{self.tr('profile')}: {p['name']}\n"
-              f"{self.tr('market')}: {p['market']}\n"
-              f"{self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}\n"
-              f"{self.tr('data_path')}: {DATA}\n{self.tr('reports_path')}: {REPORTS}")
+        info=(f"{self.tr('profile')}: {p['name']}
+"
+              f"{self.tr('market')}: {p['market']}
+"
+              f"{self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}
+"
+              f"{self.tr('data_path')}: {DATA}
+{self.tr('reports_path')}: {REPORTS}")
         tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",10)).pack(anchor="e",padx=18,pady=18)
         self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=10)
 
