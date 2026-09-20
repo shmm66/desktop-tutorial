@@ -495,38 +495,34 @@ class App(tk.Tk):
         self.show(self.cur)
 
     def build_shell(self):
-        top = tk.Frame(self, bg=C["bg"]); top.pack(fill="x", padx=18, pady=14)
-        tk.Button(top, text="☰", command=self.toggle_menu, bg=C["panel2"], fg=C["text"], relief="flat",
-                  font=("Segoe UI", 18, "bold"), width=3).pack(side="left")
+        top = tk.Frame(self, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1, bd=0)
+        top.pack(fill="x", padx=18, pady=(14, 8), ipady=7)
+        tk.Button(top, text="☰", command=self.toggle_menu, bg=C["panel2"], fg=C["text"], activebackground=C["soft"],
+                  relief="flat", highlightthickness=1, highlightbackground=C["line"], font=("Segoe UI", 16, "bold"), width=3, cursor="hand2").pack(side="left", padx=10)
         try:
-            logo_path = create_logo_image(Path(tempfile_path()), 260)
+            logo_path = create_logo_image(Path(tempfile_path()), 300)
             from PIL import Image, ImageTk
-            self._logo_photo = ImageTk.PhotoImage(Image.open(logo_path).convert("RGBA").resize((62,62)))
-            tk.Label(top, image=self._logo_photo, bg=C["bg"]).pack(side="left", padx=(12,4))
+            self._logo_photo = ImageTk.PhotoImage(Image.open(logo_path).convert("RGBA").resize((70,70)))
+            tk.Label(top, image=self._logo_photo, bg=C["panel"]).pack(side="left", padx=(4,8))
         except Exception:
             pass
-        brand = tk.Frame(top, bg=C["bg"]); brand.pack(side="left")
-        self.brand_title = tk.Label(brand, text=APP, bg=C["bg"], fg=C["text"], font=("Segoe UI", 21, "bold")); self.brand_title.pack(anchor="w")
-        self.brand_subtitle = tk.Label(brand, text="PRO TRADING WORKSPACE", bg=C["bg"], fg=C["accent"], font=("Segoe UI", 8, "bold")); self.brand_subtitle.pack(anchor="w")
-        self.clock_label = tk.Label(top, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 10, "bold")); self.clock_label.pack(side="right")
-        self.profile_combo = ttk.Combobox(top, state="readonly", width=22, justify="right")
-        self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
-        self.profile_combo.pack(side="right", padx=10)
-        self.market_btn = tk.Button(top, text=self.market, command=self.change_market, bg=C["soft"], fg=C["text"],
-                                    relief="flat", font=("Segoe UI", 10, "bold"), padx=14, pady=8)
-        self.market_btn.pack(side="right", padx=6)
+        brand = tk.Frame(top, bg=C["panel"]); brand.pack(side="left", padx=4)
+        self.brand_title = tk.Label(brand, text=APP, bg=C["panel"], fg=C["text"], font=("Segoe UI", 20, "bold")); self.brand_title.pack(anchor="w")
+        self.brand_subtitle = tk.Label(brand, text="PRO TRADING WORKSPACE  •  3D EDITION", bg=C["panel"], fg=C["accent"], font=("Segoe UI", 8, "bold")); self.brand_subtitle.pack(anchor="w")
+        right = tk.Frame(top, bg=C["panel"]); right.pack(side="right", padx=12)
+        self.clock_label = tk.Label(right, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 10, "bold"), padx=12, pady=8); self.clock_label.pack(side="left", padx=4)
+        self.profile_combo = ttk.Combobox(right, state="readonly", width=22, justify="right"); self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change); self.profile_combo.pack(side="left", padx=8)
+        self.market_btn = tk.Button(right, text=self.market, command=self.change_market, bg=C["soft"], fg=C["text"], activebackground=C["gold"], relief="flat", highlightthickness=1, highlightbackground=C["line"], font=("Segoe UI",10,"bold"), padx=16, pady=8, cursor="hand2"); self.market_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
         self.content = tk.Frame(self, bg=C["bg"]); self.content.pack(fill="both", expand=True, padx=16)
-        self.menu = tk.Frame(self, bg=C["panel"], width=300, highlightbackground=C["line"], highlightthickness=1)
-        self.menu.place(x=-310, y=0, relheight=1)
-        self.menu_title = tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"], font=("Segoe UI", 17, "bold")); self.menu_title.pack(anchor="w", padx=22, pady=24)
+        self.menu = tk.Frame(self, bg=C["panel"], width=330, highlightbackground=C["line"], highlightthickness=1, bd=0)
+        self.menu.place(x=-340, y=0, relheight=1)
+        self.menu_title = tk.Label(self.menu, text="TRADER PLANNER PRO", bg=C["panel"], fg=C["accent"], font=("Segoe UI",17,"bold")); self.menu_title.pack(anchor="w", padx=22, pady=(24,8))
+        tk.Label(self.menu, text="SMART • VISUAL • TRADING WORKSPACE", bg=C["panel"], fg=C["muted"], font=("Segoe UI",8,"bold")).pack(anchor="w", padx=24, pady=(0,18))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","settings"):
-            b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
-                          bg=C["panel"], fg=C["text"], activebackground=C["soft"], relief="flat",
-                          font=("Segoe UI",11), padx=22, pady=11)
-            b.pack(fill="x"); self.menu_buttons[key] = b
-
+            b=tk.Button(self.menu,text=self.tr(key),command=lambda k=key:self.go(k),anchor="w",bg=C["panel"],fg=C["text"],activebackground=C["soft"],activeforeground=C["accent"],relief="flat",highlightthickness=0,font=("Segoe UI",11,"bold"),padx=22,pady=13,cursor="hand2")
+            b.pack(fill="x",padx=8,pady=2); self.menu_buttons[key]=b
     def refresh_profile_selector(self):
         names = [p.get("name", "Profile") for p in DB["profiles"]]
         self.profile_combo["values"] = names
@@ -568,17 +564,25 @@ class App(tk.Tk):
         self.after(500, self.clock)
 
     def heading(self, title, sub=""):
-        title = self.ui_text(title); sub = self.ui_text(sub)
-        tk.Label(self.content, text=title, bg=C["bg"], fg=C["text"], font=("Segoe UI",22,"bold")).pack(anchor="e", pady=(8,2))
-        if sub: tk.Label(self.content, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI",10)).pack(anchor="e", pady=(0,10))
+        title=self.ui_text(title); sub=self.ui_text(sub)
+        band=tk.Frame(self.content,bg=C["bg"]); band.pack(fill="x",pady=(8,4))
+        accent=tk.Frame(band,bg=C["accent"],width=5,height=48); accent.pack(side="right",padx=(10,0),pady=2)
+        texts=tk.Frame(band,bg=C["bg"]); texts.pack(side="right",fill="x",expand=True)
+        tk.Label(texts,text=title,bg=C["bg"],fg=C["text"],font=("Segoe UI",23,"bold")).pack(anchor="e")
+        if sub: tk.Label(texts,text=sub,bg=C["bg"],fg=C["muted"],font=("Segoe UI",10)).pack(anchor="e",pady=(2,0))
 
     def card(self, parent, padx=1):
-        return tk.Frame(parent, bg=C["panel"], highlightbackground=C["line"], highlightthickness=padx)
+        frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
+        return frame
 
     def btn(self, parent, text, cmd, primary=False, **kw):
-        return tk.Button(parent, text=self.ui_text(text), command=cmd, bg=C["accent"] if primary else C["soft"],
-                         fg="#061019" if primary else C["text"], activebackground=C["gold"], relief="flat",
-                         font=("Segoe UI",10,"bold"), padx=13, pady=8, **kw)
+        base=C["accent"] if primary else C["soft"]
+        button=tk.Button(parent,text=self.ui_text(text),command=cmd,bg=base,fg="#061019" if primary else C["text"],
+                         activebackground=C["gold"],relief="flat",highlightthickness=1,highlightbackground=C["line"],
+                         borderwidth=0,font=("Segoe UI",10,"bold"),padx=13,pady=9,cursor="hand2",**kw)
+        button.bind("<Enter>",lambda e:button.configure(bg=C["gold"] if not primary else C["cyan"]))
+        button.bind("<Leave>",lambda e:button.configure(bg=base))
+        return button
 
     def profile_panel(self, parent):
         box = self.card(parent); box.pack(fill="x", pady=8)
