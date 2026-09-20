@@ -150,7 +150,33 @@ SESSION_CLOCKS = [
     {"key":"new_york","fa":"نیویورک","en":"New York","tz":"America/New_York","start":8,"end":17,"abbr":"NY"},
 ]
 
-FA_TO_EN = {
+FA_TO_EN = { {
+    "ژورنال":"Journal","چک‌لیست":"Checklist","تنظیمات":"Settings","آموزش":"Academy","خانه":"Home","برنامه روزانه":"Daily Planner",
+    "＋ ثبت معامله":"＋ Add Trade","تعداد معاملات":"Trades","نمودار عملکرد معاملات":"Trade Performance","توزیع نتایج ژورنال":"Journal Results",
+    "سرمایه اولیه":"Initial Capital","پروفایل فعال":"Active Profile","پروفایل ژورنال":"Journal Profile","بازار پیش‌فرض":"Default Market","ارز سرمایه":"Account Currency","نام پروفایل":"Profile Name",
+    "حداقل یک پروفایل باید باقی بماند.":"At least one profile must remain.","ذخیره پروفایل":"Save Profile","لغو":"Cancel","انصراف":"Cancel",
+    "عنوان":"Title","دسته":"Category","شرط":"Condition","عنوان شرط":"Condition Title","منبع":"Source","اجباری":"Required","بله":"Yes","خیر":"No","دستی":"Manual","عمومی":"General",
+    "روز قبل":"Previous Day","روز بعد":"Next Day","＋ فعالیت جدید":"＋ New Activity","فعالیت جدید":"New Activity","ویرایش فعالیت":"Edit Activity","ورودی ناقص":"Incomplete Input",
+    "عنوان فعالیت را وارد کن":"Enter an activity title","انتخاب فعالیت":"Select Activity","ابتدا یک فعالیت را انتخاب کن":"Select an activity first","حذف فعالیت":"Delete Activity",
+    "حذف معامله":"Delete Trade","ابتدا یک معامله را انتخاب کن":"Select a trade first","ذخیره معامله":"Save Trade","انتخاب اسکرین‌شات":"Choose Screenshot","انتخاب تصویر":"Choose Image","باز کردن پوشه":"Open Folder",
+    "خروجی CSV":"Export CSV","ژورنال خالی":"Empty Journal","معامله‌ای برای خروجی وجود ندارد":"No trades to export","ذخیره CSV":"Save CSV","انجام شد":"Done","خروجی CSV ذخیره شد":"CSV export saved",
+    "نسخه‌های Trading Plan":"Trading Plan Versions","تاریخ":"Date","باز کردن نسخه انتخاب‌شده":"Open Selected Version","ذخیره شد":"Saved","Export آماده شد":"Export Ready","فایل A4 ساخته شد":"A4 file created",
+    "الگوهای کندلی":"Candlestick Patterns","مراحل":"Steps","ابطال":"Invalidation","تعریف":"Definition","کاربرد":"Usage","آخرین معاملات | R":"Recent Trades | R","هنوز داده‌ای برای نمودار نیست":"No chart data yet",
+    "تکمیل شده":"Completed","این شرط اجباری است":"This condition is required","فروش":"Sell","خرید":"Buy","جهت":"Direction","سشن":"Session","نتیجه":"Result","برد":"Win","باخت":"Loss","خنثی":"Flat",
+    "اطلاعات معامله":"Trade Information","قیمت و ریسک":"Price & Risk","تحلیل":"Analysis","روانشناسی":"Psychology","اسکرین‌شات":"Screenshot","بسته":"CLOSED","باز":"OPEN",
+    "بیداری + آب + نور صبح":"Wake + water + morning light","صبحانه":"Breakfast","ورزش / پیاده‌روی صبح 30–45 دقیقه":"Morning walk / exercise 30–45 min","دوش + آماده‌سازی میز":"Shower + desk setup",
+    "MARK UP — ساختار، روند، نقدینگی و نواحی":"MARK UP — structure, trend, liquidity and zones","استراحت 15 دقیقه":"15 minute break","MARK UP — سناریوی A/B و نقاط ابطال":"MARK UP — A/B scenarios and invalidation",
+    "ثبت سناریو + بررسی خبرها":"Log scenarios + check news","پایان MARK UP + بستن چارت":"End MARK UP + close charts","مرور پلن + آماده‌سازی سشن":"Review plan + session preparation",
+    "TRADING — فقط ستاپ‌های مجاز":"TRADING — allowed setups only","TRADING — ادامه سشن":"TRADING — continue session","پایان قطعی ترید":"Hard stop trading","ژورنال + اسکرین‌شات + درس روز":"Journal + screenshot + lesson of the day",
+    "مطالعه / بک‌تست سبک":"Study / light backtest","خاموشی صفحه‌نمایش":"Screen-off time","خواب":"Sleep","سلامت":"Health","غذا":"Food","ورزش":"Exercise","روتین":"Routine","استراحت":"Break","آماده‌سازی":"Preparation","تحلیل":"Analysis","پایان":"End","یادگیری":"Learning",
+    "نام استراتژی":"Strategy Name","نسخه استراتژی":"Strategy Version","بازارهای مجاز":"Allowed Markets","تایم‌فریم‌های اصلی":"Primary Timeframes","ستاپ‌های مجاز":"Allowed Setups","شرایط ورود":"Entry Conditions","شرایط عدم ورود":"No-Trade Conditions",
+    "حداکثر ریسک هر معامله (%)":"Max Risk per Trade (%)","حداکثر ضرر روزانه (%)":"Max Daily Loss (%)","حداکثر معاملات روزانه":"Max Daily Trades","قانون خروج":"Exit Rule","قانون توقف بعد از باخت":"Stop-After-Loss Rule","قوانین روانشناسی":"Psychology Rules","اهداف ماهانه":"Monthly Goals",
+    "انتخاب زبان":"Choose Language","زبان فعلی":"Current Language","زبان برنامه":"Application Language","زبان رابط کاربری را انتخاب کن. تغییر زبان بلافاصله اعمال می‌شود.":"Choose the interface language. The change applies immediately.",
+    "زبان تغییر کرد":"Language Changed","مسیر داده":"Data Path","مسیر خروجی A4":"A4 Output Path","مدیریت پروفایل‌ها":"Manage Profiles","پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه":"Profile, capital, journal performance and trading status at a glance",
+    "قابل ویرایش، قابل تیک‌زدن و ذخیره روی همان مسیر داده قبلی":"Editable, checkable and saved to the existing data path","موارد را سریع ببین، تیک بزن، ویرایش کن و با دکمه‌های هر ردیف جابه‌جا کن":"Review items, tick them, edit them and reorder them",
+    "جستجو:":"Search:","زمان":"Time","ساعت سشن‌ها":"Trading Session Clocks","زمان محلی":"Local Time","ساعت سشن":"Session Hours",
+    "جهت و ساختار بازار مشخص است":"Market direction and structure are clear","نقدینگی و ناحیه مهم مشخص است":"Liquidity and key zone are marked","ستاپ مطابق Trading Plan است":"Setup matches the Trading Plan","تریگر ورود تایید شده است":"Entry trigger is confirmed",
+    "ریسک و حجم محاسبه شده":"Risk and position size are calculated","حد ضرر قبل از ورود مشخص است":"Stop loss is defined before entry","R:R قابل قبول است":"R:R is acceptable","خبر مهم بررسی شده است":"Important news checked","حالت روانی مناسب است":"Psychology is appropriate","FOMO / Revenge ندارم":"No FOMO / Revenge","بعد از ورود قانون را تغییر نمی‌دهم":"Do not change the rules after entry"
     "خانه":"Home","برنامه روزانه":"Daily Planner","تنظیمات":"Settings","پروفایل جدید":"New Profile",
     "ویرایش پروفایل":"Edit Profile","حذف پروفایل":"Delete Profile","ذخیره":"Save","انصراف":"Cancel",
     "ویرایش":"Edit","حذف":"Delete","بالا":"Up","پایین":"Down","ذخیره پروفایل":"Save Profile",
@@ -415,9 +441,41 @@ class App(tk.Tk):
         return text.format(**kwargs) if kwargs else text
 
     def ui_text(self, text):
+        value = str(text)
         if self.language != "en":
-            return text
-        return FA_TO_EN.get(str(text), str(text))
+            return value
+        for fa, en in sorted(FA_TO_EN.items(), key=lambda kv: len(kv[0]), reverse=True):
+            if fa and fa in value:
+                value = value.replace(fa, en)
+        return value
+
+    def translate_widget_tree(self, root=None):
+        root = root or self.content
+        for widget in root.winfo_children():
+            try:
+                if isinstance(widget, ttk.Notebook):
+                    for tab_id in widget.tabs():
+                        widget.tab(tab_id, text=self.ui_text(widget.tab(tab_id, "text")))
+                elif isinstance(widget, ttk.Treeview):
+                    for col in widget["columns"]:
+                        widget.heading(col, text=self.ui_text(widget.heading(col, "text")))
+                elif isinstance(widget, tk.Text):
+                    if str(widget.cget("state")) == "disabled":
+                        current = widget.get("1.0", "end-1c")
+                        translated = self.ui_text(current)
+                        if translated != current:
+                            widget.configure(state="normal")
+                            widget.delete("1.0", "end")
+                            widget.insert("1.0", translated)
+                            widget.configure(state="disabled")
+                elif "text" in widget.keys():
+                    current = widget.cget("text")
+                    translated = self.ui_text(current)
+                    if translated != current:
+                        widget.config(text=translated)
+            except Exception:
+                pass
+            self.translate_widget_tree(widget)
 
     def apply_language(self):
         self.title(f"{APP} V{VERSION}")
@@ -502,6 +560,10 @@ class App(tk.Tk):
         self.cur = key
         for widget in self.content.winfo_children(): widget.destroy()
         getattr(self, key)()
+        try:
+            self.translate_widget_tree(self.content)
+        except Exception:
+            pass
 
     def clock(self):
         self.clock_label.config(text=datetime.now().strftime("%Y-%m-%d  |  %H:%M:%S"))
