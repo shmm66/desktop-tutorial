@@ -1953,7 +1953,8 @@ class App(tk.Tk):
         desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); desc.pack(fill="both",expand=True,padx=16,pady=10)
         en_desc={
             "Pin Bar / Rejection Candle":"A one-candle rejection pattern with a small body and a pronounced wick. TradingView's candlestick guidance stresses that the pattern must be read with trend, level and confirmation rather than in isolation.",
-            "Bullish / Bearish Engulfing":"Bullish engulfing: after a decline, the second candle's real body fully overtakes the prior real body. Bearish engulfing: after a rise, the second candle's real body fully overtakes the prior real body. The defining feature is the body relationship—not an ICT setup.",
+            "Bullish Engulfing":"After selling pressure, the second candle's real body fully overtakes the prior bearish real body. This is a candlestick pattern; it is not an ICT setup by itself.",
+            "Bearish Engulfing":"After buying pressure, the second candle's real body fully overtakes the prior bullish real body. This is a candlestick pattern; it is not an ICT setup by itself.",
             "Inside Bar":"A two-candle containment pattern: the second candle's high and low remain inside the previous candle's range. It signals compression; direction needs context and confirmation.",
             "Morning Star":"A three-candle bullish reversal pattern usually studied after a decline: a strong bearish candle, a small-bodied middle candle, then a strong bullish candle that closes well into the first candle's body.",
             "Evening Star":"A three-candle bearish reversal pattern usually studied after a rise: a strong bullish candle, a small-bodied middle candle, then a strong bearish candle that closes well into the first candle's body.",
