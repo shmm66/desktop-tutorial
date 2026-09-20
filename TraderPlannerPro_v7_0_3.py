@@ -1618,28 +1618,236 @@ class App(tk.Tk):
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
         self.translate_widget_tree(dlg)
 
+    def open_webview(self, url, title="Trader Planner Pro"):
+        try:
+            if getattr(sys, "frozen", False):
+                cmd = [sys.executable, "--webview", url, title]
+            else:
+                launcher = Path(__file__).with_name("launcher.py")
+                cmd = [sys.executable, str(launcher), "--webview", url, title]
+            creationflags = 0x08000000 if sys.platform.startswith("win") else 0
+            subprocess.Popen(cmd, creationflags=creationflags)
+        except Exception:
+            webbrowser.open(url)
+
     def settings(self):
         p=active_profile()
         self.heading(self.tr("settings_title"), self.tr("settings_sub"))
-        lang_box=self.card(self.content); lang_box.pack(fill="x",pady=10)
-        tk.Label(lang_box,text=self.tr("choose_language"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(18,6))
-        tk.Label(lang_box,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,14))
-        current=tk.StringVar(value=self.language)
-        row=tk.Frame(lang_box,bg=C["panel"]); row.pack(fill="x",padx=18,pady=(0,18))
+
+        lang_box=self.card(self.content); lang_box.pack(fill="x",pady=8)
+        tk.Label(lang_box,text=self.tr("choose_language"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(16,5))
+        tk.Label(lang_box,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
+        row=tk.Frame(lang_box,bg=C["panel"]); row.pack(fill="x",padx=18,pady=(0,15))
         fa_btn=tk.Button(row,text="فارسی",command=lambda:self.set_language("fa"),bg=C["accent"] if self.language=="fa" else C["soft"],
-                         fg="#061019" if self.language=="fa" else C["text"],relief="flat",font=("Segoe UI",11,"bold"),padx=30,pady=12)
+                         fg="#061019" if self.language=="fa" else C["text"],relief="flat",font=("Segoe UI",10,"bold"),padx=24,pady=10)
         en_btn=tk.Button(row,text="English",command=lambda:self.set_language("en"),bg=C["accent"] if self.language=="en" else C["soft"],
-                         fg="#061019" if self.language=="en" else C["text"],relief="flat",font=("Segoe UI",11,"bold"),padx=30,pady=12)
-        fa_btn.pack(side="right",padx=6); en_btn.pack(side="right",padx=6)
+                         fg="#061019" if self.language=="en" else C["text"],relief="flat",font=("Segoe UI",10,"bold"),padx=24,pady=10)
+        fa_btn.pack(side="right",padx=5); en_btn.pack(side="right",padx=5)
         tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",
-                 bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(side="left",padx=10)
-        profile_box=self.card(self.content); profile_box.pack(fill="x",pady=10)
+                 bg=C["panel"],fg=C["gold"],font=("Segoe UI",9,"bold")).pack(side="left",padx=8)
+
+        theme_box=self.card(self.content); theme_box.pack(fill="x",pady=8)
+        tk.Label(theme_box,text=self.tr("theme"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
+        tk.Label(theme_box,text=self.tr("theme_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
+        theme_row=tk.Frame(theme_box,bg=C["panel"]); theme_row.pack(fill="x",padx=18,pady=(0,15))
+        labels=THEME_LABELS.get(self.language,THEME_LABELS["en"])
+        theme_var=tk.StringVar(value=self.theme_mode)
+        theme_combo=ttk.Combobox(theme_row,textvariable=theme_var,state="readonly",
+                                 values=["dark","light","auto"],width=18,justify="center")
+        theme_combo.pack(side="right",padx=6)
+        tk.Label(theme_row,text=self.ui_text("Dark / Light / Automatic"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=8)
+
+        times=tk.Frame(theme_box,bg=C["panel"]); times.pack(fill="x",padx=18,pady=(0,14))
+        start_var=tk.StringVar(value=self.theme_auto_start); end_var=tk.StringVar(value=self.theme_auto_end)
+        tk.Label(times,text=labels["auto_start"],bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=5)
+        tk.Entry(times,textvariable=start_var,width=8,justify="center",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right",padx=5)
+        tk.Label(times,text=labels["auto_end"],bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=10)
+        tk.Entry(times,textvariable=end_var,width=8,justify="center",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right",padx=5)
+        def save_theme():
+            mode=theme_var.get()
+            if mode not in ("dark","light","auto"): mode="dark"
+            start=start_var.get().strip() or "08:00"; end=end_var.get().strip() or "20:00"
+            if self._parse_hhmm(start,"08:00") is None: start="08:00"
+            if self._parse_hhmm(end,"20:00") is None: end="20:00"
+            DB.setdefault("settings",{}).update({"theme":mode,"theme_auto_start":start,"theme_auto_end":end})
+            self.theme_mode=mode; self.theme_auto_start=start; self.theme_auto_end=end
+            save_db(); self.apply_theme(); self.show(self.cur)
+        self.btn(theme_box,self.tr("save_theme"),save_theme,True).pack(anchor="e",padx=18,pady=(0,14))
+
+        profile_box=self.card(self.content); profile_box.pack(fill="x",pady=8)
         info=(f"{self.tr('profile')}: {p['name']}\n"
               f"{self.tr('market')}: {p['market']}\n"
               f"{self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}\n"
               f"{self.tr('data_path')}: {DATA}\n{self.tr('reports_path')}: {REPORTS}")
-        tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",10)).pack(anchor="e",padx=18,pady=18)
-        self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=10)
+        tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=14)
+        self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=8)
+
+    def calculators(self):
+        self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
+        nb=ttk.Notebook(self.content); nb.pack(fill="both",expand=True,pady=8)
+        crypto_tab=tk.Frame(nb,bg=C["bg"]); forex_tab=tk.Frame(nb,bg=C["bg"])
+        nb.add(crypto_tab,text=self.tr("crypto_calc")); nb.add(forex_tab,text=self.tr("forex_calc"))
+
+        def field(parent,label,default,row):
+            tk.Label(parent,text=label,bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).grid(row=row,column=1,padx=8,pady=7,sticky="e")
+            var=tk.StringVar(value=str(default))
+            ent=tk.Entry(parent,textvariable=var,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="center")
+            ent.grid(row=row,column=0,padx=8,pady=7,sticky="ew")
+            return var
+
+        def build_crypto(parent):
+            box=self.card(parent); box.pack(fill="x",padx=18,pady=18)
+            box.columnconfigure(0,weight=1)
+            balance=field(box,self.tr("balance"),1000,0); risk=field(box,self.tr("risk_pct"),1,1)
+            entry=field(box,self.tr("entry"),100,2); stop=field(box,self.tr("stop"),95,3); target=field(box,self.tr("target"),110,4)
+            out=tk.Label(parent,text="",bg=C["panel2"],fg=C["text"],justify="right",font=("Consolas",11),padx=14,pady=14)
+            out.pack(fill="x",padx=18,pady=8)
+            def calc():
+                try:
+                    bal=numeric(balance.get()); rp=numeric(risk.get())/100; en=numeric(entry.get()); sl=numeric(stop.get()); tp=numeric(target.get())
+                    risk_usd=bal*rp; dist=abs(en-sl); qty=risk_usd/dist if dist>0 else 0; notional=qty*en; rr=abs(tp-en)/dist if dist>0 else 0
+                    out.config(text=f"{self.tr('risk_usd')}: {risk_usd:,.2f}\n{self.tr('stop_distance')}: {dist:,.6f}\n{self.tr('crypto_qty')}: {qty:,.6f}\n{self.tr('notional')}: {notional:,.2f}\n{self.tr('rr')}: {rr:.2f}")
+                except Exception: out.config(text=self.tr("invalid_input"))
+            self.btn(parent,self.tr("calc"),calc,True).pack(anchor="e",padx=18,pady=8)
+        build_crypto(crypto_tab)
+
+        def build_forex(parent):
+            box=self.card(parent); box.pack(fill="x",padx=18,pady=18); box.columnconfigure(0,weight=1)
+            balance=field(box,self.tr("balance"),1000,0); risk=field(box,self.tr("risk_pct"),1,1)
+            entry=field(box,self.tr("entry"),1.1000,2); stop=field(box,self.tr("stop"),1.0950,3); target=field(box,self.tr("target"),1.1100,4)
+            pip_size=field(box,self.tr("pip_size"),0.0001,5); pip_value=field(box,self.tr("pip_value"),10,6)
+            out=tk.Label(parent,text="",bg=C["panel2"],fg=C["text"],justify="right",font=("Consolas",11),padx=14,pady=14); out.pack(fill="x",padx=18,pady=8)
+            def calc():
+                try:
+                    bal=numeric(balance.get()); rp=numeric(risk.get())/100; en=numeric(entry.get()); sl=numeric(stop.get()); tp=numeric(target.get())
+                    ps=max(numeric(pip_size.get()),1e-12); pv=max(numeric(pip_value.get()),1e-12)
+                    risk_usd=bal*rp; pips=abs(en-sl)/ps; lots=risk_usd/(pips*pv) if pips>0 else 0; units=lots*100000; rr=abs(tp-en)/abs(en-sl) if abs(en-sl)>0 else 0
+                    out.config(text=f"{self.tr('risk_usd')}: {risk_usd:,.2f}\n{self.tr('stop_distance')}: {pips:.1f} pips\n{self.tr('lot_size')}: {lots:.3f}\n{self.tr('units')}: {units:,.0f}\n{self.tr('rr')}: {rr:.2f}")
+                except Exception: out.config(text=self.tr("invalid_input"))
+            self.btn(parent,self.tr("calc"),calc,True).pack(anchor="e",padx=18,pady=8)
+        build_forex(forex_tab)
+
+        shortcuts=tk.Frame(self.content,bg=C["bg"]); shortcuts.pack(fill="x",pady=(4,8))
+        self.btn(shortcuts,self.tr("home_shortcut"),self.go_home).pack(side="left")
+
+    def news(self):
+        self.heading(self.tr("news_title"), self.tr("news_sub"))
+        toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=5)
+        self.btn(toolbar,self.tr("open_forex_factory"),lambda:self.open_webview(FOREX_FACTORY,"Forex Factory — Economic Calendar"),True).pack(side="right",padx=3)
+        self.btn(toolbar,self.tr("open_coindesk"),lambda:self.open_webview(COINDESK_HOME,"CoinDesk — Crypto News")).pack(side="right",padx=3)
+        self.btn(toolbar,self.tr("refresh_news"),self.refresh_news).pack(side="left",padx=3)
+        self.news_tree=ttk.Treeview(self.content,columns=("time","title"),show="headings",selectmode="browse")
+        self.news_tree.heading("time",text=self.ui_text("Date")); self.news_tree.heading("title",text=self.ui_text("Title"))
+        self.news_tree.column("time",width=180,anchor="center"); self.news_tree.column("title",anchor="w")
+        self.news_tree.pack(fill="both",expand=True,pady=8)
+        self.news_tree.bind("<Double-1>",self.open_selected_news)
+        self.refresh_news()
+
+    def refresh_news(self):
+        if not hasattr(self,"news_tree"): return
+        for item in self.news_tree.get_children(): self.news_tree.delete(item)
+        self.news_tree.insert("","end",iid="loading",values=("…",self.tr("market_loading")))
+        def done(rows):
+            try:
+                self.after(0,lambda:self._apply_news(rows))
+            except Exception: pass
+        fetch_crypto_news(done)
+
+    def _apply_news(self,rows):
+        self.news_items=rows or []
+        if not hasattr(self,"news_tree"): return
+        for item in self.news_tree.get_children(): self.news_tree.delete(item)
+        for i,row in enumerate(self.news_items):
+            self.news_tree.insert("","end",iid=str(i),values=(row.get("published",""),row.get("title","")))
+        if not self.news_items:
+            self.news_tree.insert("","end",values=("",self.ui_text("market_unavailable")))
+
+    def open_selected_news(self,_=None):
+        if not hasattr(self,"news_tree"): return
+        sel=self.news_tree.selection()
+        if not sel: return
+        try:
+            url=self.news_items[int(sel[0])]["link"]
+            self.open_webview(url,"CoinDesk")
+        except Exception: pass
+
+    def ai(self):
+        self.heading(self.tr("ai_title"), self.tr("ai_sub"))
+        top=self.card(self.content); top.pack(fill="x",pady=6)
+        info=tk.Frame(top,bg=C["panel"]); info.pack(fill="x",padx=14,pady=12)
+        role_var=tk.StringVar(value="form")
+        role_labels={"form": "Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach"}
+        tk.Label(info,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
+        role_combo=ttk.Combobox(info,textvariable=role_var,state="readonly",values=list(role_labels.values()),justify="right",width=28)
+        role_combo.pack(side="right",padx=6)
+        model_var=tk.StringVar(value=self.ai.model)
+        model_combo=ttk.Combobox(info,textvariable=model_var,state="readonly",values=[self.ai.model],width=22,justify="center")
+        model_combo.pack(side="left",padx=6)
+        status_label=tk.Label(info,text=self.tr("ai_status"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",9,"bold")); status_label.pack(side="left",padx=8)
+        status=self.ai.status()
+        status_label.config(text=("LOCAL "+("• READY" if status["online"] else "• BUILT-IN FALLBACK")))
+        if status["models"]:
+            model_combo["values"]=status["models"]; model_var.set(status["models"][0])
+        tk.Label(self.content,text=self.tr("ai_local_note"),bg=C["panel2"],fg=C["muted"],justify="right",wraplength=1150,padx=12,pady=8).pack(fill="x",pady=(0,6))
+        chat=tk.Text(self.content,bg=C["soft"],fg=C["text"],insertbackground=C["text"],wrap="word",relief="flat",font=("Segoe UI",11),height=18)
+        chat.pack(fill="both",expand=True,padx=5,pady=5)
+        input_box=tk.Frame(self.content,bg=C["bg"]); input_box.pack(fill="x",pady=6)
+        prompt=tk.Entry(input_box,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",font=("Segoe UI",11),justify="right")
+        prompt.pack(side="right",fill="x",expand=True,padx=5,ipady=8)
+        def send():
+            msg=prompt.get().strip()
+            if not msg: return
+            prompt.delete(0,"end")
+            chat.insert("end",f"\nYou: {msg}\nAssistant: ...\n")
+            role=next((k for k,v in role_labels.items() if v==role_var.get()),"form")
+            self.ai.model=model_var.get() or self.ai.model
+            context=f"Current page: {self.cur}\nMarket: {self.market}\nProfile: {active_profile().get('name','')}\nTrades: {len(active_profile()['journals'][self.market])}\nChecklist done: {sum(1 for x in active_profile().get('checklist',[]) if x.get('done'))}"
+            self.ai.respond(role,msg,context,lambda answer:self.after(0,lambda:self._ai_finish(chat,answer)))
+        self.btn(input_box,self.tr("ai_send"),send,True).pack(side="left",padx=5)
+        reminders=self.card(self.content); reminders.pack(fill="x",pady=7)
+        tk.Label(reminders,text=self.tr("reminders"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(anchor="e",padx=12,pady=7)
+        rem_tree=ttk.Treeview(reminders,columns=("time","title","enabled"),show="headings",height=4)
+        rem_tree.heading("time",text=self.tr("reminder_time")); rem_tree.heading("title",text=self.tr("reminder_title")); rem_tree.heading("enabled",text=self.tr("reminder_enabled"))
+        rem_tree.column("time",width=90); rem_tree.column("title",width=500); rem_tree.column("enabled",width=90)
+        rem_tree.pack(fill="x",padx=10,pady=5)
+        for i,r in enumerate(DB.get("settings",{}).get("ai_reminders",[])):
+            rem_tree.insert("","end",iid=str(i),values=(r.get("time",""),r.get("title",""),"✓" if r.get("enabled",True) else ""))
+        controls=tk.Frame(reminders,bg=C["panel"]); controls.pack(fill="x",padx=10,pady=5)
+        self.btn(controls,self.tr("add_reminder"),self.add_reminder,True).pack(side="right",padx=3)
+        self.btn(controls,self.tr("delete_reminder"),lambda:self.delete_reminder(rem_tree),).pack(side="right",padx=3)
+
+    def _ai_finish(self,chat,answer):
+        try:
+            lines=chat.get("1.0","end-1c").splitlines()
+            if lines and lines[-1].strip()=="Assistant: ...":
+                chat.delete(f"{len(lines)}.0", "end")
+            chat.insert("end",str(answer)+"\n")
+            chat.see("end")
+        except Exception: pass
+
+    def add_reminder(self):
+        dlg=tk.Toplevel(self); dlg.title(self.tr("add_reminder")); dlg.geometry("520x300"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        title=tk.StringVar(); tm=tk.StringVar(value="09:00"); enabled=tk.BooleanVar(value=True)
+        tk.Label(dlg,text=self.tr("reminder_title"),bg=C["bg"],fg=C["muted"]).pack(anchor="e",padx=16,pady=(16,5))
+        tk.Entry(dlg,textvariable=title,bg=C["soft"],fg=C["text"],relief="flat",justify="right").pack(fill="x",padx=16)
+        row=tk.Frame(dlg,bg=C["bg"]); row.pack(fill="x",padx=16,pady=12)
+        tk.Label(row,text=self.tr("reminder_time"),bg=C["bg"],fg=C["muted"]).pack(side="right",padx=5)
+        tk.Entry(row,textvariable=tm,width=8,bg=C["soft"],fg=C["text"],relief="flat",justify="center").pack(side="right",padx=5)
+        tk.Checkbutton(dlg,text=self.tr("reminder_enabled"),variable=enabled,bg=C["bg"],fg=C["text"],selectcolor=C["soft"],activebackground=C["bg"],activeforeground=C["text"]).pack(anchor="e",padx=16)
+        def save():
+            value=tm.get().strip()
+            if self._parse_hhmm(value,"09:00") is None:
+                return messagebox.showwarning(self.tr("reminders"),self.tr("reminder_time"),parent=dlg)
+            DB.setdefault("settings",{}).setdefault("ai_reminders",[]).append({"id":str(uuid4()),"title":title.get().strip() or self.tr("reminders"),"time":value,"daily":True,"enabled":enabled.get(),"last_notified":""})
+            save_db(); dlg.destroy(); self.show("ai")
+        self.btn(dlg,self.tr("save_reminder"),save,True).pack(anchor="e",padx=16,pady=14)
+
+    def delete_reminder(self,tree):
+        sel=tree.selection()
+        if not sel: return
+        idx=int(sel[0]); reminders=DB.get("settings",{}).get("ai_reminders",[])
+        if 0<=idx<len(reminders):
+            reminders.pop(idx); save_db(); self.show("ai")
 
     def _academy_visual(self, parent, key, title, subtitle):
         box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
