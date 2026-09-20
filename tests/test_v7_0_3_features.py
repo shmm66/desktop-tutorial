@@ -90,3 +90,32 @@ def test_visual_render_smoke(tmp_path):
     out = render_visual(tmp_path / "structure.jpg", "structure", "Market Structure", "Highs, lows and structure break")
     assert out.exists()
     assert out.stat().st_size > 5000
+
+
+def test_v740_visual_sources_are_original_remote_assets():
+    from TraderPlannerPro_v7_0_3 import VERSION
+    from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
+    assert VERSION == "7.4.0"
+    for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
+        assert key in REMOTE_IMAGES
+        assert REMOTE_IMAGES[key].startswith("https://")
+        assert image_url_for_visual(key) == REMOTE_IMAGES[key]
+        assert key in EDUCATION_SOURCES
+        assert "TradingView" in EDUCATION_SOURCES[key][0] or "CME" in EDUCATION_SOURCES[key][0]
+
+
+def test_v740_market_data_configuration():
+    from market_data import CRYPTO_FALLBACK, FOREX_SYMBOLS, fetch_market
+    assert len(CRYPTO_FALLBACK) == 10
+    assert len(FOREX_SYMBOLS) >= 10
+    payload = fetch_market("UnsupportedMode")
+    assert payload["market"] == "Crypto"
+
+
+def test_v740_home_shortcut_and_auto_hide_are_present():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert 'self.bind_all("<Home>"' in source
+    assert "self.menu_hide_job" in source
+    assert "_schedule_menu_hide" in source
+    assert "MARKET TAPE" in source
