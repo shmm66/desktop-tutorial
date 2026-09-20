@@ -38,3 +38,10 @@ def test_language_setting_is_persistent_and_bilingual():
     assert dict(LANGUAGE_OPTIONS) == {"fa": "فارسی", "en": "English"}
     assert I18N["fa"]["settings_title"] == "تنظیمات"
     assert I18N["en"]["settings_title"] == "Settings"
+
+
+def test_session_clock_configuration_has_four_major_sessions():
+    from TraderPlannerPro_v7_0_3 import SESSION_CLOCKS
+    assert [x["abbr"] for x in SESSION_CLOCKS] == ["SYD", "TYO", "LON", "NY"]
+    assert len(SESSION_CLOCKS) == 4
+    assert all(x["start"] < x["end"] and x["tz"] for x in SESSION_CLOCKS)
