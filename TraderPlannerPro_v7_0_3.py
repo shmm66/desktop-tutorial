@@ -434,8 +434,9 @@ class App(tk.Tk):
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
         self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
         self._logo_photo = None
-        self.bind_all("<Home>", lambda e: self.show("home"))
+        self.bind_all("<Home>", self._home_shortcut)
         self.bind_all("<Alt-Home>", lambda e: self.show("home"))
+        self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
         self.bind("<Motion>", self._shell_motion, add="+")
         self.build_shell()
@@ -443,6 +444,26 @@ class App(tk.Tk):
         self.show("home")
         self.market_data.start(self.market)
         self.after(500, self.clock)
+
+    def _home_shortcut(self, event=None):
+        widget = getattr(event, "widget", None)
+        if isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox)):
+            return None
+        self.show("home")
+        return "break"
+
+    def close_app(self):
+        try:
+            if self.market_data:
+                self.market_data.stop()
+        except Exception:
+            pass
+        for job_name in ("session_clock_job", "ticker_job", "menu_hide_job"):
+            job = getattr(self, job_name, None)
+            if job:
+                try: self.after_cancel(job)
+                except Exception: pass
+        self.destroy()
 
     def tr(self, key, **kwargs):
         table = I18N.get(self.language, I18N["fa"])
@@ -649,12 +670,20 @@ class App(tk.Tk):
         self.after(500, self.clock)
 
     def heading(self, title, sub=""):
-        title=self.ui_text(title); sub=self.ui_text(sub)
-        band=tk.Frame(self.content,bg=C["bg"]); band.pack(fill="x",pady=(8,4))
-        accent=tk.Frame(band,bg=C["accent"],width=5,height=48); accent.pack(side="right",padx=(10,0),pady=2)
-        texts=tk.Frame(band,bg=C["bg"]); texts.pack(side="right",fill="x",expand=True)
-        tk.Label(texts,text=title,bg=C["bg"],fg=C["text"],font=("Segoe UI",23,"bold")).pack(anchor="e")
-        if sub: tk.Label(texts,text=sub,bg=C["bg"],fg=C["muted"],font=("Segoe UI",10)).pack(anchor="e",pady=(2,0))
+        title = self.ui_text(title); sub = self.ui_text(sub)
+        band = tk.Frame(self.content, bg=C["bg"]); band.pack(fill="x", pady=(7,4))
+        accent = tk.Frame(band, bg=C["accent"], width=4, height=44); accent.pack(side="right", padx=(9,0), pady=2)
+        texts = tk.Frame(band, bg=C["bg"]); texts.pack(side="right", fill="x", expand=True)
+        tk.Label(texts, text=title, bg=C["bg"], fg=C["text"], font=("Segoe UI", 20, "bold")).pack(anchor="e")
+        if sub:
+            tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9)).pack(anchor="e", pady=(2,0))
+        left_tools = tk.Frame(band, bg=C["bg"]); left_tools.pack(side="left", padx=2)
+        home_btn = tk.Button(left_tools, text="⌂  Home", command=lambda:self.show("home"),
+                             bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
+                             relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
+        home_btn.pack(side="left", padx=(0,5))
+        tk.Label(left_tools, text="HOME", bg=C["panel3"], fg=C["muted"],
+                 font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
 
     def card(self, parent, padx=1):
         frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
