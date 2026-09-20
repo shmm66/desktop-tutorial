@@ -114,7 +114,7 @@ jobs:
             ## Trader Planner Pro V7.1.0
 
             Windows patch release.
-            Includes the 3D logo, customizable Checklist, versioned Trading Plan with A4 export, independent journal profiles, and dashboard charts.
+            Includes the redesigned Checklist editor, Persian/English interface selection, versioned Trading Plan with A4 export, independent journal profiles, and dashboard charts.
 
           files: |
             dist/TraderPlannerPro.exe
