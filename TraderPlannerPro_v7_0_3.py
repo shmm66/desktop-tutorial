@@ -1045,7 +1045,8 @@ class App(tk.Tk):
 
         actions = tk.Frame(self.content, bg=C["bg"]); actions.pack(fill="x", pady=(4,8))
         self.btn(actions, self.tr("new_trade"), self.add_trade, True).pack(side="right")
-        self.btn(actions, self.tr("calculators"), lambda:self.show("calculators")).pack(side="left", padx=3)
+        self.btn(actions, self.tr("crypto_calc"), lambda:self.open_calculator("Crypto")).pack(side="left", padx=3)
+        self.btn(actions, self.tr("forex_calc"), lambda:self.open_calculator("Forex")).pack(side="left", padx=3)
         self.btn(actions, self.tr("ai"), lambda:self.show("ai")).pack(side="left", padx=3)
         self.btn(actions, self.tr("news"), lambda:self.show("news")).pack(side="left", padx=3)
 
@@ -1705,11 +1706,18 @@ class App(tk.Tk):
         tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=14)
         self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=8)
 
+    def open_calculator(self, market):
+        self._calculator_market = "Forex" if market == "Forex" else "Crypto"
+        self.show("calculators")
+
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
         nb=ttk.Notebook(self.content); nb.pack(fill="both",expand=True,pady=8)
         crypto_tab=tk.Frame(nb,bg=C["bg"]); forex_tab=tk.Frame(nb,bg=C["bg"])
         nb.add(crypto_tab,text=self.tr("crypto_calc")); nb.add(forex_tab,text=self.tr("forex_calc"))
+        default_market = getattr(self, "_calculator_market", self.market)
+        nb.select(forex_tab if default_market == "Forex" else crypto_tab)
+        self._calculator_market = default_market
 
         def field(parent,label,default,row):
             tk.Label(parent,text=label,bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).grid(row=row,column=1,padx=8,pady=7,sticky="e")
