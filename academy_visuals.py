@@ -63,6 +63,7 @@ REMOTE_IMAGES = {
     "unicorn": "https://s3.tradingview.com/v/VZbs9Ofu_mid.webp",
     "smt": "https://s3.tradingview.com/q/QZNZVNUf_mid.webp",
     "timing": "https://s3.tradingview.com/a/ahxFLqq4_mid.webp",
+    "technical": "https://www.cmegroup.com/content/dam/cmegroup/education/courses/images/technical-analysis-02.png",
 }
 
 VISUAL_ALIASES = {
