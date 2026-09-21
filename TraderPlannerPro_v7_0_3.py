@@ -682,6 +682,13 @@ class App(tk.Tk):
             self.clock_label.configure(bg=C["panel3"], fg=C["cyan"])
         if hasattr(self, "date_label"):
             self.date_label.configure(bg=C["panel3"], fg=C["muted"])
+        if hasattr(self, "quickbar"):
+            self.quickbar.configure(bg=C["bg"], highlightbackground=C["line"])
+        for button in getattr(self, "_quick_nav_buttons", {}).values():
+            try:
+                button.configure(bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019")
+            except Exception:
+                pass
 
     def _market_loading_timeout(self):
         self.market_timeout_job = None
@@ -771,6 +778,19 @@ class App(tk.Tk):
                 button.config(text=self.tr(key))
         if hasattr(self, "market_btn"):
             self.market_btn.config(text=self.market)
+        if hasattr(self, "_quick_nav_buttons"):
+            labels={
+                "home":self.tr("nav_home"),
+                "crypto":self.tr("crypto_mode"),
+                "forex":self.tr("forex_mode"),
+                "academy":self.tr("academy_hub"),
+                "ai":self.tr("ai_chat"),
+                "news":self.tr("news"),
+                "calculators":self.tr("calculators"),
+            }
+            for key,label in labels.items():
+                if key in self._quick_nav_buttons:
+                    self._quick_nav_buttons[key].config(text=label)
 
     def set_language(self, code):
         if code not in dict(LANGUAGE_OPTIONS): return
