@@ -1,5 +1,5 @@
 #define MyAppName "Trader Planner Pro"
-#define MyAppVersion "7.8.0"
+#define MyAppVersion "7.9.0"
 #define MyAppExeName "TraderPlannerPro.exe"
 [Setup]
 AppId={{8D6D0F58-7D16-4C1B-9D0C-20A4F1B8C901}
@@ -11,11 +11,17 @@ DefaultDirName={localappdata}\Programs\Trader Planner Pro
 DefaultGroupName=Trader Planner Pro
 SetupIconFile=app.ico
 OutputDir=installer
-OutputBaseFilename=TraderPlannerPro_Setup_v7.8.0
+OutputBaseFilename=TraderPlannerPro_Setup_v7.9.0
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+DisableProgramGroupPage=yes
+UninstallDisplayIcon={app}\app.ico
+SetupLogging=yes
+CloseApplications=yes
+RestartApplications=no
 PrivilegesRequired=lowest
 [Files]
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
