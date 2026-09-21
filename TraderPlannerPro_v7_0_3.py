@@ -2514,9 +2514,10 @@ class App(tk.Tk):
             pass
 
         diagram_holder=tk.Frame(box,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=8,pady=(2,4))
-         try:
+        try:
             if family in ("smc","ict"):
-                draw_setup(diagram_holder,family,self.ui_text(title),C)
+                draw_model = {"smc_liquidity":"liquidity sweep","order_block":"order block","breaker":"breaker","ict_2022":"2022","ict_silver_bullet":"silver bullet","ict_amd":"power of three (amd)","ict_judas":"judas","ict_ote":"ote","unicorn":"unicorn","smt":"smt"}.get(str(kind), self.ui_text(title))
+                draw_setup(diagram_holder,family,draw_model,C)
             elif family=="candles":
                 draw_candlestick(diagram_holder,self.ui_text(title),C)
             else:
