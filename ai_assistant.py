@@ -11,7 +11,7 @@ ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
 DEFAULT_MODEL = "gpt-5.6-sol"
-REASONING_EFFORT = "high"
+REASONING_EFFORT = "max"
 
 ROLES = {
     "form": "Form Coach: fill forms step-by-step, detect missing fields and convert context into concise journal/checklist entries.",
@@ -155,6 +155,8 @@ class AIOrchestrator:
         self.model = model
         self.roles = ROLES
         self._cloud_agents = None
+        self._previous_response_id = None
+        self._last_provider = "fallback"
 
     def status(self):
         ollama_online, ollama_models = ollama_status()
