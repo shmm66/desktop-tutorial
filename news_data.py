@@ -34,7 +34,7 @@ FEEDS = [
     ("Google News • Crypto", GOOGLE_CRYPTO_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/7.9"
+USER_AGENT = "TraderPlannerPro/8.0"
 NEWS_CACHE = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 
