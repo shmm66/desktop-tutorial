@@ -1985,10 +1985,21 @@ class App(tk.Tk):
 
     def _save_ai_key(self, api_key):
         try:
-            from ai_assistant import save_openai_key
-            save_openai_key(api_key)
-            messagebox.showinfo(self.tr("ai_cloud"), self.tr("ai_cloud_ready"), parent=self)
-            self.show("settings")
+            key = str(api_key or "").strip()
+            if not key:
+                raise ValueError("OpenAI API key is empty.")
+            from ai_assistant import verify_openai_key, save_openai_key
+            check = verify_openai_key(key)
+            if not check.get("ok"):
+                detail = check.get("detail") or check.get("reason") or "unknown error"
+                raise RuntimeError(f"AI connection test failed: {detail}")
+            save_openai_key(key)
+            messagebox.showinfo(
+                self.tr("ai_cloud"),
+                f"{self.tr('ai_cloud_ready')}\nModel: {check.get('detail', 'gpt-5.6-sol')}",
+                parent=self
+            )
+            self.show("ai")
         except Exception as exc:
             messagebox.showerror(self.tr("ai_cloud"), str(exc), parent=self)
 
@@ -2345,12 +2356,39 @@ class App(tk.Tk):
             status_text="LOCAL OLLAMA • READY"
             status_fg=C["cyan"]
         else:
-            status_text="BUILT-IN FALLBACK • CONNECT AI IN SETTINGS"
+            reason = status.get("cloud_reason") or "not configured"
+            status_text=f"BUILT-IN FALLBACK • {reason.upper()}"
             status_fg=C["gold"]
         tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
-        if not status.get("cloud") and not status.get("ollama"):
-            self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
+
+        # Visible activation strip so the AI never appears silently disabled.
+        ai_config=self.card(self.content)
+        ai_config.pack(fill="x",pady=(0,7))
+        tk.Label(
+            ai_config,text="OpenAI API Key • GPT-5.6-Sol",
+            bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold")
+        ).pack(side="right",padx=12,pady=9)
+        key_var=tk.StringVar()
+        key_entry=tk.Entry(
+            ai_config,textvariable=key_var,show="•",
+            bg=C["soft"],fg=C["text"],insertbackground=C["text"],
+            relief="flat",width=48
+        )
+        key_entry.pack(side="right",padx=6,pady=7,ipady=7)
+        self.btn(
+            ai_config,"Test & Activate",
+            lambda:self._save_ai_key(key_var.get()),True
+        ).pack(side="right",padx=6,pady=6)
+        self.btn(
+            ai_config,"Open Settings",
+            lambda:self.show("settings")
+        ).pack(side="right",padx=6,pady=6)
+        tk.Label(
+            ai_config,
+            text="Local Ollama remains available as a fallback. Cloud agent requires your own API key.",
+            bg=C["panel"],fg=C["muted"],font=("Segoe UI",8)
+        ).pack(side="left",padx=10)
 
         quick=tk.Frame(self.content,bg=C["bg"])
         quick.pack(fill="x",pady=(0,7))
