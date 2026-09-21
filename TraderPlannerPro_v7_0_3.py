@@ -1219,7 +1219,7 @@ class App(tk.Tk):
                 else: ptxt = f"{price:,.5f}"
                 ctxt = "—" if change is None else f"{change:+.2f}%"
                 accent = C["accent"] if (change or 0) >= 0 else C["danger"]
-                c.rounded_rectangle((x, 7, x+card_w, 69), radius=14, fill=C["panel"], outline=C["line"], width=1)
+                self._rounded_rect(c, x, 7, x+card_w, 69, radius=14, fill=C["panel"], outline=C["line"], width=1)
                 c.create_oval((x+10, 19, x+17, 26), fill=accent, outline="")
                 c.create_text(x+24, 23, text=tag, anchor="w", fill=C["muted"], font=("Segoe UI", 8, "bold"))
                 c.create_text(x+12, 47, text=ptxt, anchor="w", fill=C["text"], font=("Consolas", 12, "bold"))
