@@ -20,7 +20,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
-from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key
+from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key, bundled_asset_for_visual
 from academy_diagrams import draw_setup, draw_candlestick
 from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "7.8.0"
+VERSION = "7.9.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -856,7 +856,7 @@ class App(tk.Tk):
         )
         self.global_home_btn.pack(side="left", padx=4)
         self.global_ai_btn = tk.Button(
-            status, text=self.tr("ai_chat"), command=self.open_ai_chat,
+            status, text=self.tr("ai_chat"), command=lambda: self.go("ai"),
             bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
         )
@@ -2754,7 +2754,7 @@ class App(tk.Tk):
             item=GLOSSARY[int(sel[0])]
             kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
             for w in visual_holder.winfo_children(): w.destroy()
-            family = "ict" if kind.startswith("ict_") or kind in {"unicorn","breaker"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
+            family = "ict" if kind.startswith("ict_") or kind in {"unicorn","breaker","smt"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
             self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"],family=family)
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
             meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
