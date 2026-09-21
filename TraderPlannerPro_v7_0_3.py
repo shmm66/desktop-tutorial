@@ -2495,8 +2495,26 @@ class App(tk.Tk):
         tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
                  font=("Segoe UI",11,"bold")).pack(side="right",padx=8)
 
-        diagram_holder=tk.Frame(box,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=8,pady=(2,4))
+        # Always show the exact bundled source image mapped to this concept/model.
+        source_image_holder=tk.Frame(box,bg=C["panel3"])
+        source_image_holder.pack(fill="x",padx=8,pady=(2,4))
         try:
+            asset=bundled_asset_for_visual(kind)
+            if asset:
+                from PIL import Image, ImageTk
+                img=Image.open(asset).convert("RGBA")
+                img.thumbnail((940,430), Image.LANCZOS)
+                photo=ImageTk.PhotoImage(img)
+                source_image_holder._photo=photo
+                source_card=tk.Frame(source_image_holder,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
+                source_card.pack(fill="x",padx=2,pady=3)
+                tk.Label(source_card,text="ORIGINAL SOURCE IMAGE",bg=C["panel3"],fg=C["gold"],font=("Segoe UI",8,"bold")).pack(anchor="e",padx=10,pady=(7,2))
+                tk.Label(source_card,image=photo,bg=C["panel3"]).pack(padx=8,pady=(0,6))
+        except Exception:
+            pass
+
+        diagram_holder=tk.Frame(box,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=8,pady=(2,4))
+         try:
             if family in ("smc","ict"):
                 draw_setup(diagram_holder,family,self.ui_text(title),C)
             elif family=="candles":
