@@ -37,52 +37,85 @@ def _arrow(c, x1, y1, x2, y2, fill, text=""):
 
 
 def _grid(c, W, bg, grid, text, family, model):
-    c.configure(width=W, height=390)
-    for y in range(70, 350, 45):
-        c.create_line(20, y, W - 20, y, fill=grid, width=1)
-    _label(c, 24, 28, family.upper() + "  •  " + model, text, anchor="w", size=13)
-    _label(c, W - 24, 28, "SETUP MAP • EDUCATIONAL", text, anchor="e", size=8)
+    c.configure(width=W, height=410)
+    for y in range(78, 352, 42):
+        c.create_line(24, y, W - 24, y, fill=grid, width=1)
+    _label(c, 26, 28, family.upper() + "  •  " + model, text, anchor="w", size=14)
+    badge = "#193244" if str(family).lower() == "ict" else "#18352E"
+    c.create_rectangle(W - 248, 14, W - 24, 42, fill=badge, outline="")
+    _label(c, W - 136, 28, "SETUP MAP • NO TRADE SIGNAL", text, size=8)
+\n\ndef _ict_2022(c, palette):
+    text = palette["text"]
+    accent = palette["accent"]
+    danger = palette["danger"]
+    gold = palette["gold"]
+    blue = palette.get("blue", "#63A7FF")
+    violet = palette.get("violet", "#9B8CFF")
 
-
-def _ict_2022(c, palette):
-    text, muted = palette["text"], palette["muted"]
-    accent, danger, gold, blue = palette["accent"], palette["danger"], palette["gold"], palette.get("blue", "#63A7FF")
     candles = [
-        (60, 105, 42, 96), (96, 138, 82, 125), (124, 145, 102, 112),
-        (112, 128, 74, 82), (84, 98, 52, 64), (65, 102, 58, 98),
-        (98, 140, 94, 132), (132, 164, 120, 156), (156, 182, 144, 176),
-        (176, 196, 168, 190), (190, 210, 176, 204),
+        (68, 110, 46, 97), (97, 132, 83, 124), (124, 150, 105, 113),
+        (113, 132, 72, 82), (82, 98, 54, 63), (63, 104, 58, 98),
+        (98, 136, 91, 129), (129, 165, 121, 158), (158, 192, 148, 184),
+        (184, 214, 170, 206), (206, 232, 198, 226),
     ]
-    _candles(c, candles, x0=90, step=67, scale=1.15, base=310)
-    c.create_line(60, 195, 850, 195, fill=gold, dash=(7, 5), width=2)
-    _label(c, 70, 180, "LIQUIDITY POOL", gold, anchor="w", size=9)
-    c.create_line(90, 315, 850, 315, fill=danger, dash=(6, 5), width=2)
-    _label(c, 98, 334, "SELL-SIDE LIQUIDITY", danger, anchor="w", size=8)
-    _label(c, 360, 325, "SWEEP", danger, size=9)
-    c.create_oval(357, 302, 383, 328, outline=danger, width=3)
-    _arrow(c, 410, 285, 540, 150, accent, "MSS / DISPLACEMENT")
-    _zone(c, 520, 135, 650, 183, "#153C35", accent, "FVG", accent)
-    _arrow(c, 705, 205, 600, 158, blue, "RETURN")
-    _label(c, 890, 104, "TARGET", gold, size=9)
-    c.create_line(790, 115, 1070, 115, fill=gold, width=3)
-    _label(c, 420, 365, "Liquidity → Sweep → MSS/Displacement → FVG → Return", text, size=10)
+    _candles(c, candles, x0=92, step=66, scale=1.12, base=315)
 
+    # 1) liquidity target / raid
+    c.create_line(70, 185, 370, 185, fill=gold, dash=(7, 5), width=2)
+    _label(c, 72, 168, "EXTERNAL LIQUIDITY", gold, anchor="w", size=9)
+    c.create_oval(352, 172, 382, 202, outline=danger, width=3)
+    _label(c, 367, 220, "SWEEP", danger, size=9)
 
-def _ict_silver_bullet(c, palette):
-    text, muted = palette["text"], palette["muted"]
-    accent, danger, violet, blue = palette["accent"], palette["danger"], palette.get("violet", "#9B8CFF"), palette.get("blue", "#63A7FF")
-    c.create_rectangle(480, 60, 720, 350, outline=violet, width=3)
-    _label(c, 600, 78, "DEFINED TIME WINDOW", violet, size=11)
-    candles = [(45, 84, 28, 76), (76, 102, 60, 95), (95, 120, 84, 90),
-               (90, 112, 52, 64), (64, 100, 58, 98), (98, 132, 90, 124),
-               (124, 150, 116, 140), (140, 160, 128, 150)]
-    _candles(c, candles, x0=140, step=105, scale=1.3, base=310)
-    _zone(c, 570, 155, 710, 205, "#16382F", accent, "FVG", accent)
-    _arrow(c, 835, 235, 675, 180, blue, "RETURN")
-    _label(c, 60, 365, "Time window is a constraint; displacement + FVG define the entry model.", text, anchor="w", size=9)
+    # 2) structural shift + displacement
+    _arrow(c, 405, 294, 520, 120, accent, "MSS / DISPLACEMENT")
+    c.create_line(455, 142, 575, 142, fill=violet, dash=(4, 4), width=2)
+    _label(c, 515, 128, "DISPLACEMENT LEG", violet, size=8)
 
+    # 3) FVG and retrace
+    _zone(c, 525, 142, 670, 192, "#153C35", accent, "FVG / ENTRY AREA", accent)
+    _arrow(c, 742, 220, 650, 168, blue, "RETURN")
+    _label(c, 670, 244, "RETRACE INTO FVG", blue, size=9)
 
-def _ict_unicorn(c, palette):
+    # 4) invalidation + target
+    _zone(c, 730, 278, 880, 322, "#3A2730", danger, "INVALIDATION", danger)
+    c.create_line(790, 106, 1080, 106, fill=gold, width=3)
+    _label(c, 805, 88, "OPPOSING LIQUIDITY / TARGET", gold, anchor="w", size=9)
+    _arrow(c, 860, 235, 1020, 112, gold, "TARGET")
+
+    _label(
+        c, 585, 383,
+        "Sweep → MSS / displacement → FVG → return → target (educational model map)",
+        text, size=10
+    )
+\n\ndef _ict_silver_bullet(c, palette):
+    text = palette["text"]
+    accent = palette["accent"]
+    danger = palette["danger"]
+    violet = palette.get("violet", "#9B8CFF")
+    blue = palette.get("blue", "#63A7FF")
+    gold = palette["gold"]
+
+    c.create_rectangle(448, 58, 752, 350, outline=violet, width=3)
+    _label(c, 600, 77, "DEFINED SILVER BULLET TIME WINDOW", violet, size=11)
+
+    candles = [
+        (46, 84, 30, 74), (74, 102, 58, 95), (95, 124, 83, 91),
+        (91, 112, 52, 64), (64, 101, 58, 97), (97, 134, 88, 127),
+        (127, 154, 118, 146), (146, 170, 135, 160),
+    ]
+    _candles(c, candles, x0=118, step=98, scale=1.24, base=315)
+
+    c.create_line(88, 178, 340, 178, fill=gold, dash=(7, 5), width=2)
+    _label(c, 90, 160, "LIQUIDITY TARGET", gold, anchor="w", size=8)
+    c.create_oval(330, 166, 358, 194, outline=danger, width=3)
+    _label(c, 344, 210, "RUN / RAID", danger, size=8)
+
+    _arrow(c, 380, 286, 520, 125, accent, "DISPLACEMENT")
+    _zone(c, 566, 150, 718, 202, "#16382F", accent, "FVG", accent)
+    _arrow(c, 860, 225, 714, 180, blue, "RETRACE")
+    _label(c, 820, 115, "TIME + DISPLACEMENT + FVG", violet, size=9)
+    _label(c, 580, 383, "The time window is the constraint; the FVG is the entry mechanism in this model.", text, size=9)
+\n\ndef _ict_unicorn(c, palette):
     text = palette["text"]
     accent, violet, gold, blue = palette["accent"], palette.get("violet", "#9B8CFF"), palette["gold"], palette.get("blue", "#63A7FF")
     candles = [(60, 110, 42, 98), (98, 146, 80, 134), (134, 160, 112, 120),
@@ -182,41 +215,54 @@ def _smc_generic(c, palette, model):
 
 def _smc_liquidity_bos(c, palette):
     text = palette["text"]
-    accent, danger, gold, blue = palette["accent"], palette["danger"], palette["gold"], palette.get("blue", "#63A7FF")
-    # Clear SMC anatomy: equal highs -> sweep -> BOS close -> FVG/OB retest.
-    _candles(c, [
-        (70, 120, 52, 98), (98, 136, 86, 126), (126, 148, 112, 136),
-        (136, 176, 128, 168), (168, 190, 150, 158), (158, 166, 118, 124),
-        (124, 154, 118, 146), (146, 184, 138, 176), (176, 202, 160, 196),
-    ], x0=95, step=100, scale=1.15, base=315)
-    c.create_line(85, 110, 380, 110, fill=gold, dash=(7,5), width=2)
-    _label(c, 90, 93, "EQH / BUY-SIDE LIQUIDITY", gold, anchor="w", size=9)
-    c.create_oval(360, 94, 388, 122, outline=danger, width=3)
-    _label(c, 375, 138, "SWEEP", danger, size=9)
-    c.create_line(490, 155, 490, 235, fill=accent, width=3)
-    _label(c, 505, 198, "BOS CLOSE", accent, anchor="w", size=10)
-    _zone(c, 610, 190, 780, 238, "#16382F", accent, "FVG / OB", accent)
-    _arrow(c, 940, 160, 760, 215, blue, "RETEST")
-    _zone(c, 860, 90, 1060, 132, "#3A2730", danger, "INVALIDATION", danger)
-    _label(c, 590, 355, "SMC: liquidity event → confirmed structure break → reaction area → retest.", text, size=9)
+    accent = palette["accent"]
+    danger = palette["danger"]
+    gold = palette["gold"]
+    blue = palette.get("blue", "#63A7FF")
 
+    candles = [
+        (70, 118, 52, 98), (98, 136, 86, 126), (126, 149, 112, 137),
+        (137, 178, 129, 170), (170, 193, 150, 158), (158, 167, 119, 124),
+        (124, 153, 118, 145), (145, 184, 137, 176), (176, 208, 161, 200),
+    ]
+    _candles(c, candles, x0=92, step=96, scale=1.14, base=315)
 
-def _smc_ob_fvg(c, palette):
+    c.create_line(72, 110, 380, 110, fill=gold, dash=(7, 5), width=2)
+    _label(c, 76, 92, "EQUAL HIGHS / BUY-SIDE LIQUIDITY", gold, anchor="w", size=9)
+    c.create_oval(355, 94, 385, 124, outline=danger, width=3)
+    _label(c, 372, 144, "LIQUIDITY SWEEP", danger, size=9)
+
+    c.create_line(486, 150, 486, 244, fill=accent, width=4)
+    _label(c, 502, 198, "BOS CLOSE", accent, anchor="w", size=10)
+
+    _zone(c, 600, 182, 790, 238, "#183A31", accent, "REACTION AREA", accent)
+    _label(c, 695, 248, "FVG / OB", accent, size=8)
+    _arrow(c, 958, 148, 792, 210, blue, "RETEST")
+    _zone(c, 860, 94, 1068, 132, "#3A2730", danger, "INVALIDATION", danger)
+
+    _label(c, 590, 385, "SMC flow: liquidity event → confirmed structure break → reaction area → retest.", text, size=9)
+\n\ndef _smc_ob_fvg(c, palette):
     text = palette["text"]
-    accent, gold, blue, danger = palette["accent"], palette["gold"], palette.get("blue", "#63A7FF"), palette["danger"]
+    accent = palette["accent"]
+    gold = palette["gold"]
+    blue = palette.get("blue", "#63A7FF")
+    danger = palette["danger"]
+
     _candles(c, [
         (70, 120, 55, 62), (62, 98, 45, 92), (92, 122, 84, 116),
         (116, 205, 112, 198), (198, 228, 188, 214), (214, 236, 203, 230),
         (230, 244, 210, 220), (220, 232, 174, 182), (182, 212, 176, 205),
     ], x0=105, step=98, scale=1.1, base=315)
-    _zone(c, 350, 170, 460, 225, "#3A2730", danger, "LAST OPPOSING CANDLE = ORDER BLOCK", danger)
-    _zone(c, 500, 132, 655, 182, "#16382F", accent, "3-CANDLE FVG", accent)
-    _arrow(c, 900, 125, 635, 160, blue, "RETRACE")
-    _label(c, 885, 100, "ENTRY AREA", gold, size=10)
-    _label(c, 590, 355, "SMC: displacement creates two distinct objects — OB and the three-candle FVG.", text, size=9)
 
-
-def _smc_breaker(c, palette):
+    _zone(c, 330, 168, 460, 228, "#3A2730", danger, "ORDER BLOCK", danger)
+    _label(c, 395, 245, "last opposing candle / base", danger, size=8)
+    _zone(c, 500, 126, 660, 184, "#16382F", accent, "3-CANDLE FVG", accent)
+    _label(c, 580, 202, "IMBALANCE", accent, size=8)
+    _arrow(c, 900, 112, 658, 155, blue, "RETRACE / ENTRY")
+    c.create_line(760, 270, 1030, 270, fill=gold, dash=(6, 5), width=2)
+    _label(c, 765, 252, "INVALIDATION BELOW MODEL OR STRUCTURAL FAIL", gold, anchor="w", size=8)
+    _label(c, 590, 385, "SMC separates the OB and the three-candle FVG; the retest defines the reaction area.", text, size=9)
+\n\ndef _smc_breaker(c, palette):
     text = palette["text"]
     accent, danger, violet, gold, blue = palette["accent"], palette["danger"], palette.get("violet", "#9B8CFF"), palette["gold"], palette.get("blue", "#63A7FF")
     _candles(c, [
