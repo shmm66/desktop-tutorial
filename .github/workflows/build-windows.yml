@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test/build dependencies
-        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
       - name: Syntax check
         run: |
           python -m py_compile TraderPlannerPro_v7_0_3.py
