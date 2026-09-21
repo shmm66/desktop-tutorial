@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 import sys
 
-USER_AGENT = "TraderPlannerPro/7.8.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/8.0.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 # Each visual key has one specific source page and one exact source image.
 # The app never draws tags on these source images. It only resizes them for display.
