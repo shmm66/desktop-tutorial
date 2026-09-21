@@ -285,7 +285,7 @@ def test_v780_installer_and_launcher_metadata():
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
     assert 'MyAppVersion "8.1.0"' in iss
-    assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
+    assert "DefaultDirName={autopf}\\Trader Planner Pro" in iss
     assert "VERSION = \"8.1.0\"" in launcher
 
 
@@ -339,6 +339,7 @@ def test_v810_navigation_uses_deterministic_home_renderer():
     assert "def _hard_home(self):" in source
     assert "self.home()" in source
     assert "self.after(35, self.market_data.refresh_now)" in source
+    assert "self.market_data.set_market(self.market)" in source
     assert 'status = "loading"' in source or '["status"] = "loading"' in source
 
 
