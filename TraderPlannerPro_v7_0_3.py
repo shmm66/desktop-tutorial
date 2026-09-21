@@ -26,7 +26,7 @@ from ai_assistant import AIOrchestrator
 from news_data import fetch_crypto_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 
 APP = "Trader Planner Pro"
-VERSION = "7.6.0"
+VERSION = "7.6.1"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
