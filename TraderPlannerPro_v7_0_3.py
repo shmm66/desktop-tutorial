@@ -781,6 +781,8 @@ class App(tk.Tk):
                 button.config(text=self.tr(key))
         if hasattr(self, "market_btn"):
             self.market_btn.config(text=self.market)
+        if hasattr(self, "global_home_btn"):
+            self.global_home_btn.config(text=self.tr("nav_home"))
         if hasattr(self, "_quick_nav_buttons"):
             labels={
                 "home":self.tr("nav_home"),
@@ -838,6 +840,12 @@ class App(tk.Tk):
                                     activebackground=C["gold"], relief="flat", highlightthickness=0,
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
         self.market_btn.pack(side="left", padx=4)
+        self.global_home_btn = tk.Button(
+            status, text=self.tr("nav_home"), command=self.go_home,
+            bg=C["accent"], fg="#061019", activebackground=C["gold"], activeforeground="#061019",
+            relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
+        )
+        self.global_home_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
 
         self.quickbar = tk.Frame(self, bg=C["bg"], highlightbackground=C["line"], highlightthickness=1)
