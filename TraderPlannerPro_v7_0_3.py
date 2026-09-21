@@ -523,7 +523,7 @@ class App(tk.Tk):
         self._logo_photo = None
         self.apply_theme(initial=True)
         self.bind_all("<Home>", self._home_shortcut)
-        self.bind_all("<Alt-Home>", lambda e: self.go_home())
+        self.bind_all("<Alt-Home>", lambda e: self._hard_home())
         self.bind_all("<Control-K>", lambda e: self.open_ai_chat())
         self.bind_all("<F2>", lambda e: self.open_ai_chat())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
@@ -543,7 +543,7 @@ class App(tk.Tk):
         widget = getattr(event, "widget", None)
         if isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox)):
             return None
-        self.go_home()
+        self._hard_home()
         return "break"
 
     def _hard_home(self):
