@@ -103,7 +103,7 @@ def create_statement(rows, market, profile_name, out_dir):
         ("Win Rate", f"{stats['win_rate']:.1f}%"),
         ("Net R", f"{stats['net_r']:.2f}"),
         ("Average R", f"{stats['avg_r']:.2f}"),
-        ("Profit Factor", "∞" if math.isinf(stats["profit_factor"]) else f"{stats['profit_factor']:.2f}"),
+        ("Profit Factor", "N/A" if math.isinf(stats["profit_factor"]) else f"{stats['profit_factor']:.2f}"),
     ]
     x = 36
     for label, value in metrics:
