@@ -1844,6 +1844,8 @@ class App(tk.Tk):
         dlg.minsize(680,560)
         dlg.configure(bg=C["bg"])
         dlg.transient(self)
+        dlg.update_idletasks()
+        apply_glass(dlg, dark=self._effective_theme()=="dark", style="acrylic")
 
         header=tk.Frame(dlg,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
         header.pack(fill="x",padx=12,pady=12)
