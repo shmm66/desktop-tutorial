@@ -36,7 +36,7 @@ def _post_json(url, payload, timeout=25):
 
 def ollama_status():
     try:
-        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/7.8"})
+        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/7.9"})
         with urllib.request.urlopen(req, timeout=2.5) as response:
             data = json.loads(response.read().decode("utf-8"))
         models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict)]
@@ -165,113 +165,8 @@ class AIOrchestrator:
             "ollama": ollama_online,
             "models": ollama_models,
             "model": cloud["model"] if cloud["enabled"] else (ollama_models[0] if ollama_models else self.model),
+            "error": self._last_error,
+            "provider": "OpenAI Agents" if cloud["enabled"] else ("Ollama" if ollama_online else "Built-in agent"),
         }
 
-    def _build_cloud_agents(self):
-        if self._cloud_agents is not None:
-            return self._cloud_agents
-        from agents import Agent
-
-        common = (
-            "You are inside Trader Planner Pro, a professional trading workspace. "
-            "Never promise returns, never invent market data, and clearly separate observed facts "
-            "from hypotheses. Keep broad Smart Money/SMC concepts distinct from named ICT models. "
-            "Candlestick patterns must never be relabeled as ICT setups. "
-        )
-
-        specialists = {}
-        for key, instruction in ROLES.items():
-            specialists[key] = Agent(
-                name=key.replace("_", " ").title() + " Agent",
-                model=self.model,
-                instructions=common + instruction,
-            )
-
-        triage = Agent(
-            name="Trader Planner Orchestrator",
-            model=self.model,
-            instructions=(
-                common
-                + "You are the lead agent. Route each request to the best specialist when useful, "
-                  "cross-check the result, and return one practical answer. For product requests, "
-                  "suggest concrete UI/UX improvements and implementation ideas."
-            ),
-            handoffs=list(specialists.values()),
-        )
-        specialists["orchestrator"] = triage
-        self._cloud_agents = specialists
-        return specialists
-
-    def _cloud_respond(self, role, user_message, context):
-        api_key = _read_openai_key()
-        if not api_key:
-            raise RuntimeError("No OpenAI API key is configured.")
-        os.environ["OPENAI_API_KEY"] = api_key
-        from agents import Runner
-
-        agents_map = self._build_cloud_agents()
-        agent = agents_map.get(role) or agents_map["orchestrator"]
-        history = self._history.setdefault(role, [])[-8:]
-        conversation = "\n".join(
-            f"{item['speaker']}: {item['text']}" for item in history
-        )
-        prompt = (
-            f"APP CONTEXT:\n{context}\n\n"
-            f"RECENT CHAT:\n{conversation or '(none)'}\n\n"
-            f"USER QUESTION:\n{user_message}"
-        )
-        result = asyncio.run(Runner.run(agent, prompt, max_turns=8))
-        return str(result.final_output or "").strip()
-
-    def respond(self, role, user_message, context="", callback=None):
-        role = role if role in self.roles else "form"
-
-        def worker():
-            answer = None
-            self._last_error = ""
-            self._history.setdefault(role, []).append({"speaker": "User", "text": str(user_message)})
-
-            try:
-                if cloud_status()["enabled"]:
-                    answer = self._cloud_respond(role, user_message, context)
-            except Exception as exc:
-                self._last_error = f"Cloud agent: {exc}"
-
-            if not answer:
-                try:
-                    online, models = ollama_status()
-                    model = self.model
-                    if online and models:
-                        model = model if model in models else models[0]
-                        messages = [{
-                            "role": "system",
-                            "content": (
-                                "You are a practical assistant inside a trading journal. "
-                                "Use only supplied context. Never guarantee outcomes. "
-                                f"Your role: {self.roles[role]}"
-                            ),
-                        }]
-                        for item in self._history.setdefault(role, [])[-8:]:
-                            messages.append({
-                                "role": "user" if item["speaker"] == "User" else "assistant",
-                                "content": item["text"],
-                            })
-                        messages.append({
-                            "role": "user",
-                            "content": f"APP CONTEXT:\n{context}\n\nUSER:\n{user_message}",
-                        })
-                        answer = ollama_chat(model, messages)
-                except Exception as exc:
-                    if not self._last_error:
-                        self._last_error = f"Local agent: {exc}"
-
-            if not answer:
-                answer = _fallback(role, user_message, context)
-
-            self._history.setdefault(role, []).append({"speaker": "Assistant", "text": answer})
-            self._history[role] = self._history[role][-12:]
-            if callback:
-                callback(answer)
-
-        threading.Thread(target=worker, name="TraderPlannerAI", daemon=True).start()
 
