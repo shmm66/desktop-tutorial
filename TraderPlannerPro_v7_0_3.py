@@ -1316,7 +1316,10 @@ class App(tk.Tk):
         items = list(payload.get("items") or [])
         if not items:
             state = payload.get("status", "unavailable")
-            msg = payload.get("message") or (self.tr("market_loading") if state == "unavailable" else self.tr("market_unavailable"))
+            if state == "loading":
+                msg = payload.get("message") or self.tr("market_loading")
+            else:
+                msg = payload.get("message") or self.tr("market_unavailable")
             c.create_text(20, 38, text=msg, anchor="w", fill=C["muted"], font=("Segoe UI", 10, "bold"))
         else:
             width = max(self.ticker_canvas.winfo_width(), 820)
