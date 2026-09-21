@@ -1348,7 +1348,10 @@ class App(tk.Tk):
                 x += step
         state = payload.get("status", "unavailable")
         if hasattr(self, "market_status_label"):
-            if state == "live":
+            if state == "loading":
+                status_text = self.tr("market_loading")
+                status_fg = C["gold"]
+            elif state == "live":
                 status_text = f"{self.tr('live')} • {payload.get('source','')}"
                 status_fg = C["accent"]
             elif state == "cache":
