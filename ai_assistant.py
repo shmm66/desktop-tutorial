@@ -27,7 +27,7 @@ def _post_json(url, payload, timeout=25):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/7.7"},
+        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/7.8"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -36,7 +36,7 @@ def _post_json(url, payload, timeout=25):
 
 def ollama_status():
     try:
-        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/7.7"})
+        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/7.8"})
         with urllib.request.urlopen(req, timeout=2.5) as response:
             data = json.loads(response.read().decode("utf-8"))
         models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict)]
