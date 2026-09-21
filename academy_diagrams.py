@@ -259,6 +259,51 @@ def _smc_liquidity_displacement(c, palette):
     _label(c, 595, 355, "Broad SMC model: liquidity → displacement → reaction zone → retest, with fixed invalidation.", text, size=9)
 
 
+def _smc_structure(c, palette):
+    text, accent, gold, blue = palette["text"], palette["accent"], palette["gold"], palette.get("blue", "#63A7FF")
+    pts=[(70,255),(145,205),(220,235),(295,160),(370,195),(445,120),(520,165),(595,95),(670,145),(745,78)]
+    _line(c,[v for p in pts for v in p],blue,4)
+    _label(c,95,278,"HL",accent,size=9); _label(c,305,182,"HH",accent,size=9)
+    _label(c,455,142,"HL",accent,size=9); _label(c,690,120,"HH",accent,size=9)
+    c.create_line(445,120,620,120,fill=gold,dash=(7,5),width=2)
+    _label(c,530,102,"STRUCTURAL REFERENCE",gold,size=9)
+    _arrow(c,745,78,900,180,accent,"BOS / CLOSE")
+    _label(c,910,170,"STRUCTURE BREAK",accent,anchor="w",size=10)
+    _label(c,600,365,"SMC structure: swing sequence first; BOS/CHoCH is evaluated against a defined reference.",text,size=9)
+
+def _smc_liquidity(c, palette):
+    text, accent, danger, gold, blue = palette["text"], palette["accent"], palette["danger"], palette["gold"], palette.get("blue","#63A7FF")
+    c.create_line(90,110,420,110,fill=gold,dash=(7,5),width=2)
+    c.create_line(90,285,420,285,fill=gold,dash=(7,5),width=2)
+    _label(c,95,92,"EQUAL HIGHS / BUY-SIDE LIQUIDITY",gold,anchor="w",size=9)
+    _label(c,95,304,"EQUAL LOWS / SELL-SIDE LIQUIDITY",gold,anchor="w",size=9)
+    _candles(c,[(70,145,55,135),(135,150,80,90),(90,125,70,112),(112,155,95,142),(142,175,105,118),(118,210,112,195)],x0=250,step=105,scale=1.2,base=320)
+    c.create_oval(625,95,655,125,outline=danger,width=3)
+    _label(c,640,78,"SWEEP",danger,size=9)
+    _arrow(c,670,110,800,245,accent,"RAID / RECLAIM")
+    _zone(c,825,220,1030,275,"#16382F",accent,"POST-SWEEP REACTION",accent)
+    _label(c,595,365,"Liquidity map: equal/obvious highs and lows are reference pools; the sweep itself is not a complete entry.",text,size=9)
+
+def _smc_order_block(c, palette):
+    text, accent, danger, gold, blue = palette["text"], palette["accent"], palette["danger"], palette["gold"], palette.get("blue","#63A7FF")
+    _candles(c,[(70,120,50,60),(60,110,48,100),(100,132,92,124),(124,225,118,215),(215,250,205,240),(240,265,228,258)],x0=100,step=125,scale=1.05,base=320)
+    _zone(c,340,170,490,225,"#3A2730",danger,"ORDER BLOCK",danger)
+    _arrow(c,525,205,690,95,accent,"DISPLACEMENT")
+    _arrow(c,980,105,690,198,blue,"RETEST")
+    c.create_line(340,238,490,238,fill=gold,dash=(7,5),width=2)
+    _label(c,415,258,"INVALIDATION",gold,size=9)
+    _label(c,575,365,"Order Block: identify the qualifying opposing candle/zone in context, then define invalidation and retest rules.",text,size=9)
+
+def _smc_fvg(c, palette):
+    text, accent, gold, blue = palette["text"], palette["accent"], palette.get("blue","#63A7FF")
+    candles=[(90,150,70,135),(135,175,128,168),(168,250,160,242),(242,270,230,260)]
+    _candles(c,candles,x0=180,step=130,scale=1.0,base=320)
+    c.create_rectangle(420,150,555,205,fill="#16382F",outline=accent,width=3)
+    _label(c,488,178,"FAIR VALUE GAP",accent,size=10)
+    _arrow(c,890,120,555,180,blue,"RETURN / REBALANCE")
+    _label(c,580,365,"FVG: a three-candle imbalance area between the relevant wicks; entry rules must define fill/mitigation and invalidation.",text,size=9)
+
+
 def draw_setup(parent, family, model, palette):
     c = tk.Canvas(parent, height=390, bg=palette["panel3"], highlightthickness=0)
     c.pack(fill="x", padx=8, pady=8)
@@ -283,10 +328,18 @@ def draw_setup(parent, family, model, palette):
         else:
             _ict_2022(c, palette)
     else:
-        if "liquidity sweep" in m and "bos" in m:
-            _smc_liquidity_bos(c, palette)
-        elif "order block" in m and "fvg" in m:
+        if "order block" in m and "fvg" in m:
             _smc_ob_fvg(c, palette)
+        elif "order block" in m:
+            _smc_order_block(c, palette)
+        elif "fair value gap" in m or m.strip() == "fvg":
+            _smc_fvg(c, palette)
+        elif "market structure" in m or "swing high" in m or "swing low" in m or "higher high" in m or "lower low" in m:
+            _smc_structure(c, palette)
+        elif "liquidity sweep" in m and "bos" in m:
+            _smc_liquidity_bos(c, palette)
+        elif "liquidity" in m and "sweep" in m:
+            _smc_liquidity(c, palette)
         elif "breaker" in m:
             _smc_breaker(c, palette)
         elif "choch" in m or "mss" in m:
