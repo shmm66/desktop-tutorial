@@ -23,7 +23,7 @@ from academy_visuals import render_visual, visual_key_for, source_for_visual
 from market_data import MarketDataService
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
-from news_data import fetch_crypto_news, COINDESK_HOME, FOREX_FACTORY
+from news_data import fetch_crypto_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 
 APP = "Trader Planner Pro"
 VERSION = "7.6.0"
