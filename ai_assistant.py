@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import threading
@@ -15,22 +16,42 @@ MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-luna")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
-    "orchestrator": "Master Agent: route the request, combine journal, strategy, psychology, planner and Academy context, then answer clearly.",
-    "form": "Form Coach: turn messy information into completed plan/checklist/journal fields and point out missing values.",
-    "strategy": "Strategy Coach: separate context, setup, trigger, invalidation and target; never invent a rule.",
-    "psychology": "Trading Psychology Coach: help with FOMO, revenge trading, discipline, preparation and post-trade review.",
-    "planner": "Routine Coach: organize pre-market, sessions, review blocks, stop times and reminders.",
-    "academy": "Academy Tutor: teach broad SMC/Smart Money concepts separately from named ICT models and candlestick patterns.",
-    "product": "Product Strategist: propose concrete UI/UX improvements for Trader Planner Pro with emphasis on clarity, speed and reliability.",
+    "orchestrator": (
+        "Master Agent: route the request to the right specialist(s), synthesize their outputs, "
+        "and answer with a clear next action. Preserve app context and do not invent missing data."
+    ),
+    "form": (
+        "Form Coach: turn incomplete trading-plan/journal information into precise fields, "
+        "ask for missing values only when necessary, and flag contradictions."
+    ),
+    "strategy": (
+        "Strategy Coach: separate market context, structure, liquidity, setup, trigger, invalidation, "
+        "target and risk. Keep Smart Money/SMC, named ICT models, and ordinary candlestick patterns distinct."
+    ),
+    "psychology": (
+        "Trading Psychology Coach: help with FOMO, revenge trading, hesitation, discipline, preparation, "
+        "and post-trade review using concrete routines rather than vague motivation."
+    ),
+    "planner": (
+        "Routine Coach: organize pre-market preparation, sessions, risk stops, review blocks and reminders."
+    ),
+    "academy": (
+        "Academy Tutor: teach concepts with exact terminology and anatomy. Smart Money/SMC is a broad "
+        "framework; ICT is a family of named models; candlestick patterns are a separate technical language."
+    ),
+    "product": (
+        "Product Strategist: propose concrete UX/UI, reliability and workflow improvements for Trader Planner Pro "
+        "with emphasis on persistent navigation, clear states, fast actions, and testable behavior."
+    ),
 }
 
 SYSTEM_BASE = (
-    "You are the Master Agent inside Trader Planner Pro. "
-    "Be precise and practical. Never invent live market data, never promise returns, and never claim certainty. "
-    "Use only supplied app context for journal/profile/market values. "
-    "Keep Smart Money/SMC, named ICT models, and ordinary candlestick patterns clearly separated. "
-    "When a user asks about a setup, structure your answer as context -> setup -> trigger -> invalidation -> target -> risk. "
-    "When asked about the app, propose a concrete workflow and UI action. "
+    "You are the AI system inside Trader Planner Pro. "
+    "Be precise, practical and evidence-aware. Never invent live market values, never promise returns, "
+    "and never claim certainty. Use only supplied app context for journal/profile/market values. "
+    "When discussing trading setups, use context -> setup -> trigger -> invalidation -> target -> risk. "
+    "Keep Smart Money/SMC, named ICT models, and candlestick patterns clearly separated. "
+    "When the user asks about the app, give concrete in-app actions. "
 )
 
 def _post_json(url, payload, timeout=25):
@@ -45,7 +66,10 @@ def _post_json(url, payload, timeout=25):
 
 def ollama_status():
     try:
-        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/8.1.0"})
+        req = urllib.request.Request(
+            f"{OLLAMA_BASE}/tags",
+            headers={"User-Agent": "TraderPlannerPro/8.1.0"},
+        )
         with urllib.request.urlopen(req, timeout=2.5) as response:
             data = json.loads(response.read().decode("utf-8"))
         models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict)]
@@ -112,22 +136,39 @@ def _fallback(role, user_message, context):
         )
     if role == "strategy":
         if "engulf" in lower:
-            return "Bullish Engulfing and Bearish Engulfing are candlestick patterns, not ICT setup names. Use trend/level/context plus confirmation."
-        return "Strategy Coach: separate context -> setup -> trigger -> invalidation -> target. Use the exact Academy definition for the selected model."
+            return (
+                "Bullish Engulfing and Bearish Engulfing are candlestick patterns, not ICT setup names. "
+                "Use trend/level/context plus a separately defined confirmation rule."
+            )
+        return (
+            "Strategy Coach: separate context -> setup -> trigger -> invalidation -> target. "
+            "Use the exact Academy definition for the selected model."
+        )
     if role == "psychology":
-        return "Psychology check: pause -> name the emotion -> verify the checklist -> verify risk -> only then act. Record repeated FOMO/revenge triggers in the journal."
+        return (
+            "Psychology check: pause -> name the emotion -> verify the checklist -> verify risk -> only then act. "
+            "Record repeated FOMO/revenge triggers in the journal."
+        )
     if role == "planner":
-        return "Routine: pre-market markup -> news -> session block -> hard stop -> journal -> review. Convert recurring actions into reminders."
+        return (
+            "Routine: pre-market markup -> news -> session block -> hard stop -> journal -> review. "
+            "Convert recurring actions into reminders."
+        )
     if role == "academy":
-        return "Academy Tutor: Smart Money/SMC is a broad framework; ICT is a family of named models; candlestick patterns are a separate technical language. Keep their terminology and visuals separate."
+        return (
+            "Academy Tutor: Smart Money/SMC is a broad framework; ICT is a family of named models; "
+            "candlestick patterns are separate. Keep their terminology and visuals separate."
+        )
     if role == "product":
-        return "Product Strategist: prioritize persistent navigation, explicit live/cache/offline states, fast in-app actions, strong empty/error states, and a journal -> review -> improvement loop."
+        return (
+            "Product Strategist: prioritize persistent navigation, explicit live/cache/offline states, "
+            "fast in-app actions, strong empty/error states, and a journal -> review -> improvement loop."
+        )
     return (
-        "Master Agent: I will route this question through the correct specialist and use the app context. "
-        "Ask me about your plan, journal, Academy, psychology, reminders or app workflow."
+        "Master Agent is in offline mode. Ask about your plan, journal, Academy, psychology, reminders or app workflow."
     )
 
-def _openai_response(model, system_text, user_text):
+def _responses_response(model, system_text, user_text):
     from openai import OpenAI
     client = OpenAI(api_key=_read_openai_key(), timeout=90)
     response = client.responses.create(
@@ -138,19 +179,97 @@ def _openai_response(model, system_text, user_text):
             {"role": "user", "content": user_text},
         ],
     )
-    text = getattr(response, "output_text", "") or ""
-    return text.strip()
+    return (getattr(response, "output_text", "") or "").strip()
+
+def _agents_response(model, system_text, user_text, role):
+    """
+    Real multi-agent orchestration using the OpenAI Agents SDK.
+
+    A manager agent keeps synthesis control while specialist agents are exposed
+    as tools, so a single user request can consult strategy + psychology +
+    planner + Academy without losing the app-wide context.
+    """
+    from agents import Agent, Runner
+
+    def specialist(name, specialist_key):
+        return Agent(
+            name=name,
+            model=model,
+            instructions=system_text + "\nSPECIALIST ROLE: " + ROLES[specialist_key],
+        )
+
+    specialists = {
+        "form": specialist("Form Coach", "form"),
+        "strategy": specialist("Strategy Coach", "strategy"),
+        "psychology": specialist("Psychology Coach", "psychology"),
+        "planner": specialist("Routine Coach", "planner"),
+        "academy": specialist("Academy Tutor", "academy"),
+        "product": specialist("Product Strategist", "product"),
+    }
+
+    toolset = [
+        specialists["form"].as_tool(
+            tool_name="consult_form_coach",
+            tool_description="Consult the Form Coach to structure or complete plan/journal fields.",
+        ),
+        specialists["strategy"].as_tool(
+            tool_name="consult_strategy_coach",
+            tool_description="Consult the Strategy Coach about setup, structure, liquidity, trigger and risk.",
+        ),
+        specialists["psychology"].as_tool(
+            tool_name="consult_psychology_coach",
+            tool_description="Consult the Psychology Coach about discipline, FOMO, revenge and routines.",
+        ),
+        specialists["planner"].as_tool(
+            tool_name="consult_routine_coach",
+            tool_description="Consult the Routine Coach about schedules, sessions and reminders.",
+        ),
+        specialists["academy"].as_tool(
+            tool_name="consult_academy_tutor",
+            tool_description="Consult the Academy Tutor about exact concepts and terminology.",
+        ),
+        specialists["product"].as_tool(
+            tool_name="consult_product_strategist",
+            tool_description="Consult the Product Strategist about Trader Planner Pro UX/reliability improvements.",
+        ),
+    ]
+
+    manager = Agent(
+        name="Trader Planner Pro Master Agent",
+        model=model,
+        instructions=(
+            system_text
+            + "\nYou are the final synthesis agent. Choose specialist tools as needed, not automatically all at once. "
+              "Use the user's requested role as a routing hint, but you may consult multiple specialists when the "
+              "question crosses domains. Never reveal internal tool routing unless asked. Produce one coherent answer."
+        ),
+        tools=toolset,
+    )
+
+    async def run():
+        result = await Runner.run(
+            manager,
+            input=(
+                f"REQUESTED ROLE: {role}\n\n"
+                f"APP CONTEXT:\n{user_text}"
+            ),
+            max_turns=10,
+        )
+        return str(result.final_output or "").strip()
+
+    return asyncio.run(run())
 
 class AIOrchestrator:
-    """Reliable local-first Master Agent.
+    """Reliable multi-agent AI with cloud, local, and offline recovery.
 
     Provider priority:
-      1. OpenAI Responses API with GPT-5.6 Sol when a user API key is configured.
-      2. GPT-5.6 Luna on a temporary model fallback if Sol is unavailable.
-      3. Local Ollama if installed.
+      1. OpenAI Agents SDK manager + specialist agents.
+      2. OpenAI Responses API fallback.
+      3. Local Ollama.
       4. Built-in offline guidance.
 
-    The UI remains usable in every state and reports the actual provider.
+    A configured API key is required for cloud AI; the app never silently
+    claims that offline guidance is generative cloud AI.
     """
 
     def __init__(self, model=DEFAULT_MODEL):
@@ -168,30 +287,13 @@ class AIOrchestrator:
             "cloud": bool(cloud["enabled"]),
             "ollama": bool(ollama_online),
             "web": True,
+            "agents": bool(cloud["enabled"]),
             "models": ollama_models,
             "model": cloud["model"] if cloud["enabled"] else (ollama_models[0] if ollama_models else self.model),
-            "provider": "OpenAI" if cloud["enabled"] else ("Ollama" if ollama_online else "Offline"),
+            "provider": "OpenAI Multi-Agent" if cloud["enabled"] else ("Ollama" if ollama_online else "Offline"),
             "last_provider": self.last_provider,
             "last_error": self.last_error,
         }
-
-    def _cloud_respond(self, role, user_message, context):
-        role_text = self.roles.get(role, self.roles["orchestrator"])
-        recent = json.dumps(self.history[-8:], ensure_ascii=False)
-        prompt = (
-            f"APP CONTEXT:\n{context}\n\n"
-            f"SPECIALIST ROLE:\n{role_text}\n\n"
-            f"RECENT CHAT:\n{recent}\n\n"
-            f"USER QUESTION:\n{user_message}"
-        )
-        answer = _openai_response(
-            self.model,
-            SYSTEM_BASE + role_text,
-            prompt,
-        )
-        if not answer:
-            raise RuntimeError("OpenAI returned an empty response.")
-        return answer
 
     def respond(self, role, user_message, context="", callback=None):
         role = role if role in self.roles else "orchestrator"
@@ -201,6 +303,10 @@ class AIOrchestrator:
 
         self.history.append({"role": "user", "content": user_message})
         self.history = self.history[-10:]
+        recent = json.dumps(self.history[-8:], ensure_ascii=False)
+        combined_context = (
+            f"{context}\n\nRECENT CHAT:\n{recent}\n\nUSER REQUEST:\n{user_message}"
+        )
 
         def worker():
             answer = None
@@ -209,24 +315,33 @@ class AIOrchestrator:
 
             cloud = cloud_status()
             if cloud["enabled"]:
-                for model in (self.model,) + tuple(m for m in MODEL_FALLBACKS if m != self.model):
-                    try:
-                        answer = self._cloud_respond(role, user_message, context, model=model)
-                        if answer:
-                            self.last_provider = f"OpenAI • {model}"
-                            break
-                    except Exception as exc:
-                        self.last_error = f"OpenAI: {type(exc).__name__}: {exc}"
+                role_text = self.roles.get(role, self.roles["orchestrator"])
+                system_text = SYSTEM_BASE + "\nCURRENT ROUTING ROLE: " + role_text
+                try:
+                    answer = _agents_response(self.model, system_text, combined_context, role)
+                    if answer:
+                        self.last_provider = f"OpenAI Multi-Agent • {self.model}"
+                except Exception as exc:
+                    self.last_error = f"Agents SDK: {type(exc).__name__}: {exc}"
+
+                if not answer:
+                    for model in (self.model,) + tuple(m for m in MODEL_FALLBACKS if m != self.model):
+                        try:
+                            answer = _responses_response(model, system_text, combined_context)
+                            if answer:
+                                self.last_provider = f"OpenAI Responses • {model}"
+                                break
+                        except Exception as exc:
+                            self.last_error = f"OpenAI Responses: {type(exc).__name__}: {exc}"
 
             if not answer:
                 try:
                     online, models = ollama_status()
                     if online and models:
                         preferred = [m for m in MODEL_FALLBACKS if m in models]
-                        model = preferred[0] if preferred else models[0]
-                        recent = json.dumps(self.history[-8:], ensure_ascii=False)
+                        local_model = preferred[0] if preferred else models[0]
                         answer = ollama_chat(
-                            model,
+                            local_model,
                             [
                                 {
                                     "role": "system",
@@ -234,16 +349,12 @@ class AIOrchestrator:
                                 },
                                 {
                                     "role": "user",
-                                    "content": (
-                                        f"APP CONTEXT:\n{context}\n\n"
-                                        f"RECENT CHAT:\n{recent}\n\n"
-                                        f"USER:\n{user_message}"
-                                    ),
+                                    "content": combined_context,
                                 },
                             ],
                         )
                         if answer:
-                            self.last_provider = f"Ollama • {model}"
+                            self.last_provider = f"Ollama • {local_model}"
                 except Exception as exc:
                     self.last_error = f"Ollama: {type(exc).__name__}: {exc}"
 
@@ -258,4 +369,4 @@ class AIOrchestrator:
             if callback:
                 callback(answer)
 
-        threading.Thread(target=worker, name="TraderPlannerAI", daemon=True).start()
+        threading.Thread(target=worker, name="TraderPlannerAIMaster", daemon=True).start()
