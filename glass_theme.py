@@ -8,19 +8,19 @@ def is_windows() -> bool:
 
 
 def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
-    """Enable a real native Windows acrylic/mica backdrop when supported.
-
-    Tk widgets remain the application surface, while the top-level window gets
-    a native compositor backdrop. On unsupported Windows builds the app keeps
-    its normal opaque rendering instead of failing.
-    """
+    """Apply a Windows-native acrylic backdrop plus a light translucent surface."""
     if not is_windows():
         return False
 
     try:
-        # pywinstyles uses the window background as the surface that reveals
-        # the compositor. A black base is the documented acrylic fallback.
-        window.configure(bg="#000000")
+        # Keep a translucent, cool glass-tinted base behind Tk widgets.
+        window.configure(bg="#08111B")
+        try:
+            # Tk's alpha works at the top-level and makes the DWM backdrop
+            # perceptible even when child widgets are opaque.
+            window.attributes("-alpha", 0.965)
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -82,30 +82,26 @@ def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic") -
 
 
 def set_widget_glass(widget, opacity: float = 0.88) -> bool:
-    """Make the widget surface translucent on Windows when possible."""
+    """Apply native translucency to a surface; fall back cleanly on Tk widgets."""
     if not is_windows():
         return False
 
     try:
         import pywinstyles
+        value = max(0.55, min(float(opacity), 0.98))
 
-        background = None
+        # Whole-surface opacity is preferable to color-key transparency for
+        # glassmorphism because it preserves the backdrop and avoids haloing.
         try:
-            background = widget.cget("bg")
+            pywinstyles.set_opacity(widget, value=value)
+            return True
         except Exception:
-            background = None
+            pass
 
-        # Prefer color-key transparency so text/children stay crisp.
-        if background:
-            try:
-                pywinstyles.set_opacity(widget, color=str(background))
-                return True
-            except Exception:
-                pass
-
-        # Fallback to whole-widget opacity.
+        # Some versions expose only the color-key form. Keep it as a fallback.
         try:
-            pywinstyles.set_opacity(widget, value=max(0.2, min(float(opacity), 1.0)))
+            bg = str(widget.cget("bg"))
+            pywinstyles.set_opacity(widget, color=bg)
             return True
         except Exception:
             return False

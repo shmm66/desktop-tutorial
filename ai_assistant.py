@@ -10,8 +10,10 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-5.6-luna"
+DEFAULT_MODEL = "gpt-5.6-sol"
 REASONING_EFFORT = "high"
+MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
+CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
     "orchestrator": "Master Agent: triage the question, use the right specialist, connect the journal, strategy, psychology and Academy context, and produce one actionable answer.",
@@ -28,7 +30,7 @@ def _post_json(url, payload, timeout=25):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/7.8"},
+        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.0"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -162,6 +164,8 @@ class AIOrchestrator:
         self.model = model
         self.roles = ROLES
         self._cloud_agents = None
+        self.last_error = ""
+        self.history = []
 
     def status(self):
         ollama_online, ollama_models = ollama_status()
@@ -170,8 +174,10 @@ class AIOrchestrator:
             "online": cloud["enabled"] or ollama_online,
             "cloud": cloud["enabled"],
             "ollama": ollama_online,
+            "web": True,
             "models": ollama_models,
             "model": cloud["model"] if cloud["enabled"] else (ollama_models[0] if ollama_models else self.model),
+            "last_error": self.last_error,
         }
 
     def _build_cloud_agents(self):
@@ -236,56 +242,72 @@ class AIOrchestrator:
         from agents import Runner
 
         agents_map = self._build_cloud_agents()
-        agent = agents_map.get("orchestrator") if role in {"orchestrator","product"} else agents_map.get(role, agents_map["orchestrator"])
+        agent = agents_map.get("orchestrator") if role in {"orchestrator", "product"} else agents_map.get(role, agents_map["orchestrator"])
+        recent = json.dumps(self.history[-8:], ensure_ascii=False)
         result = asyncio.run(
             Runner.run(
                 agent,
-                f"APP CONTEXT:\n{context}\n\nUSER QUESTION:\n{user_message}",
-                max_turns=6,
+                f"APP CONTEXT:\n{context}\n\nRECENT CHAT:\n{recent}\n\nUSER QUESTION:\n{user_message}",
+                max_turns=8,
             )
         )
         return str(result.final_output or "").strip()
 
     def respond(self, role, user_message, context="", callback=None):
         role = role if role in self.roles else "form"
+        user_message = str(user_message or "").strip()
+        if not user_message:
+            return
+
+        # Keep the last few turns so the agent can answer follow-up questions
+        # instead of treating every message as an unrelated one.
+        self.history.append({"role": "user", "content": user_message})
+        self.history = self.history[-10:]
 
         def worker():
             answer = None
+            self.last_error = ""
             try:
                 if cloud_status()["enabled"]:
                     answer = self._cloud_respond(role, user_message, context)
-            except Exception:
-                answer = None
+            except Exception as exc:
+                self.last_error = f"Cloud Agent: {type(exc).__name__}: {exc}"
 
             if not answer:
                 try:
                     online, models = ollama_status()
-                    model = self.model
                     if online and models:
-                        model = model if model in models else models[0]
+                        preferred = [m for m in MODEL_FALLBACKS if m in models]
+                        model = preferred[0] if preferred else models[0]
+                        recent = json.dumps(self.history[-8:], ensure_ascii=False)
                         answer = ollama_chat(
                             model,
                             [
                                 {
                                     "role": "system",
                                     "content": (
-                                        "You are a practical assistant inside a trading journal. "
-                                        "Use only supplied context. Never guarantee outcomes. "
-                                        f"Your role: {self.roles[role]}"
+                                        "You are the local specialist assistant inside Trader Planner Pro. "
+                                        "Use only the supplied app context. Never guarantee outcomes. "
+                                        f"Specialist role: {self.roles[role]}\n"
+                                        "Recent conversation is supplied as JSON and should be treated as conversation context."
                                     ),
                                 },
                                 {
                                     "role": "user",
-                                    "content": f"APP CONTEXT:\n{context}\n\nUSER:\n{user_message}",
+                                    "content": f"APP CONTEXT:\n{context}\n\nRECENT CHAT:\n{recent}\n\nUSER:\n{user_message}",
                                 },
                             ],
                         )
-                except Exception:
-                    answer = None
+                except Exception as exc:
+                    self.last_error = f"Local AI: {type(exc).__name__}: {exc}"
 
             if not answer:
                 answer = _fallback(role, user_message, context)
+                if not self.last_error:
+                    self.last_error = "No live AI provider configured; using offline assistant."
 
+            self.history.append({"role": "assistant", "content": answer})
+            self.history = self.history[-10:]
             if callback:
                 callback(answer)
 

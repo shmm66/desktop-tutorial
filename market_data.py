@@ -113,7 +113,7 @@ def _write_cache(payload):
         pass
 
 
-def _yahoo_symbol(symbol: str, timeout=3.5):
+def _yahoo_symbol(symbol: str, timeout=2.8):
     for endpoint in YAHOO_ENDPOINTS:
         try:
             data = _request_json(endpoint.format(symbol=urllib.parse.quote(symbol, safe="")), timeout=timeout)
@@ -161,7 +161,7 @@ def _parallel_yahoo(symbols):
 def _crypto_from_binance():
     for endpoint in BINANCE_TICKER_ENDPOINTS:
         try:
-            rows = _request_json(endpoint, timeout=5.0)
+            rows = _request_json(endpoint, timeout=3.0)
             if not isinstance(rows, list):
                 continue
             by_symbol = {str(row.get("symbol", "")).upper(): row for row in rows}
@@ -190,7 +190,7 @@ def _crypto_from_binance():
 
 def _crypto_from_kraken():
     try:
-        data = _request_json(KRAKEN_TICKER_ENDPOINT, timeout=5.0)
+        data = _request_json(KRAKEN_TICKER_ENDPOINT, timeout=3.0)
         result = data.get("result") or {}
         aliases = [
             ("BTC", "XXBTZUSD"), ("ETH", "XETHZUSD"), ("SOL", "SOLUSD"),
@@ -221,7 +221,7 @@ def _crypto_from_kraken():
 def _crypto_from_coinbase():
     def fetch_one(pair):
         try:
-            data = _request_json(f"https://api.exchange.coinbase.com/products/{pair}/ticker", timeout=5.0)
+            data = _request_json(f"https://api.exchange.coinbase.com/products/{pair}/ticker", timeout=3.0)
             price = _safe_float(data.get("price"))
             open_price = _safe_float(data.get("open"))
             if price is None:
@@ -249,7 +249,7 @@ def _crypto_from_coinbase():
 def _crypto_live():
     # Primary ranking by market cap.
     try:
-        rows = _request_json(CRYPTO_ENDPOINT, timeout=5.0)
+        rows = _request_json(CRYPTO_ENDPOINT, timeout=3.0)
         if isinstance(rows, list) and rows:
             result = []
             for row in rows[:10]:
@@ -283,7 +283,7 @@ def _crypto_live():
 
     # Aggregated fallback.
     try:
-        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=5.0)
+        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=3.0)
         result = []
         for row in (rows or []):
             quote = ((row.get("quotes") or {}).get("USD") or {})
@@ -310,7 +310,7 @@ def _crypto_live():
 def _free_fx_rates():
     for endpoint in EXCHANGE_RATE_ENDPOINTS:
         try:
-            data = _request_json(endpoint, timeout=5.0)
+            data = _request_json(endpoint, timeout=3.0)
             rates = data.get("rates") or {}
             if not rates:
                 continue
@@ -328,7 +328,7 @@ def _free_fx_rates():
 
 def _gold_spot():
     try:
-        data = _request_json(GOLD_SPOT_ENDPOINT, timeout=5.0)
+        data = _request_json(GOLD_SPOT_ENDPOINT, timeout=3.0)
         rows = data.get("prices") or []
         if rows:
             row = rows[0]
@@ -344,7 +344,7 @@ def _croncopia_metals():
     result = {}
     for label, slug in CRONCOPIA_METALS.items():
         try:
-            data = _request_json(f"{CRONCOPIA_BASE}/{slug}.json", timeout=4.0)
+            data = _request_json(f"{CRONCOPIA_BASE}/{slug}.json", timeout=2.8)
             price = _safe_float(data.get("price"))
             if price is None:
                 continue
@@ -408,7 +408,7 @@ def _global_indicators():
     result = {}
     for endpoint in (GLOBAL_ENDPOINT, GLOBAL_FALLBACK_ENDPOINT):
         try:
-            data = _request_json(endpoint, timeout=5.0)
+            data = _request_json(endpoint, timeout=3.0)
             global_data = data.get("data") or {}
             pct = global_data.get("market_cap_percentage") or {}
             if pct:
@@ -429,7 +429,7 @@ def _global_indicators():
 def _fear_greed():
     for endpoint in FEAR_GREED_ENDPOINTS:
         try:
-            data = _request_json(endpoint, timeout=5.0)
+            data = _request_json(endpoint, timeout=3.0)
             row = (data.get("data") or [None])[0] or {}
             value = _safe_float(row.get("value"))
             if value is None:
@@ -479,27 +479,50 @@ def cached_market_payload(mode: str):
 def fetch_market(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    # Market quotes and secondary indicators are fetched concurrently so a slow
-    # dominance/VIX endpoint cannot keep the main ticker in a loading state.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        item_future = pool.submit(_forex_live if market == "Forex" else _crypto_live)
-        indicator_futures = {
-            "global": pool.submit(_global_indicators),
-            "fear": pool.submit(_fear_greed),
-            "vix": pool.submit(_market_vix),
-        }
+
+    # Do not let one blocked endpoint keep the desktop in a perpetual spinner.
+    # Quotes get a hard overall deadline; secondary indicators are best-effort.
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="TPMarket")
+    item_future = executor.submit(_forex_live if market == "Forex" else _crypto_live)
+    indicator_futures = {
+        "global": executor.submit(_global_indicators),
+        "fear": executor.submit(_fear_greed),
+        "vix": executor.submit(_market_vix),
+    }
+
+    items, source = [], "unavailable"
+    try:
+        items, source = item_future.result(timeout=7.0)
+    except Exception:
         try:
-            items, source = item_future.result()
+            item_future.cancel()
         except Exception:
-            items, source = [], "unavailable"
-        indicators = {}
-        try: indicators.update(indicator_futures["global"].result())
-        except Exception: pass
-        try: indicators["fear_greed"] = indicator_futures["fear"].result()
-        except Exception: indicators["fear_greed"] = None
-        try: indicators["vix"] = indicator_futures["vix"].result()
-        except Exception: indicators["vix"] = None
-        indicators["market_regime"] = "LIVE" if items else "OFFLINE"
+            pass
+
+    indicators = {}
+    for key, future in indicator_futures.items():
+        try:
+            value = future.result(timeout=1.25)
+            if key == "global" and isinstance(value, dict):
+                indicators.update(value)
+            elif key == "fear":
+                indicators["fear_greed"] = value
+            elif key == "vix":
+                indicators["vix"] = value
+        except Exception:
+            if key == "fear":
+                indicators["fear_greed"] = None
+            elif key == "vix":
+                indicators["vix"] = None
+
+    indicators["market_regime"] = "LIVE" if items else "OFFLINE"
+    try:
+        executor.shutdown(wait=False, cancel_futures=True)
+    except Exception:
+        try:
+            executor.shutdown(wait=False)
+        except Exception:
+            pass
 
     if items:
         payload = {
@@ -515,7 +538,7 @@ def fetch_market(mode: str):
         return payload
 
     cached = _read_cache()
-    if cached.get("market") == market and isinstance(cached.get("items"), list):
+    if cached.get("market") == market and isinstance(cached.get("items"), list) and cached.get("items"):
         return {
             "market": market,
             "updated_at": cached.get("updated_at"),
@@ -526,7 +549,6 @@ def fetch_market(mode: str):
             "message": "Live feed unavailable; showing last saved market snapshot.",
         }
 
-    # Never leave the UI visually hanging on "loading". Return an explicit offline payload.
     return {
         "market": market,
         "updated_at": now,

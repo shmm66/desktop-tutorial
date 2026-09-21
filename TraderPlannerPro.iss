@@ -1,5 +1,5 @@
 #define MyAppName "Trader Planner Pro"
-#define MyAppVersion "7.9.0"
+#define MyAppVersion "8.0.0"
 #define MyAppExeName "TraderPlannerPro.exe"
 
 [Setup]
@@ -15,12 +15,15 @@ ArchitecturesInstallIn64BitMode=x64
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=installer
-OutputBaseFilename=TraderPlannerPro_Setup_v7.9.0
+OutputBaseFilename=TraderPlannerPro_Setup_v8.0.0
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 SetupLogging=yes
 CloseApplications=yes
+CloseApplicationsFilter=TraderPlannerPro.exe
+AppMutex=TraderPlannerProV8
+UsePreviousAppDir=yes
 RestartApplications=no
 
 [Files]

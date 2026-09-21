@@ -55,6 +55,7 @@ def test_academy_content_is_populated():
     assert any(x[0] == "Bullish Engulfing" for x in CANDLE_PLAYBOOK)
     assert any(x[0] == "Bearish Engulfing" for x in CANDLE_PLAYBOOK)
     assert len(GLOSSARY) >= 100
+    assert any(x["term"] == "Fair Value Gap (FVG)" or x["term"] == "FVG" for x in GLOSSARY)
     assert any(x["term"] == "FVG" or x["term"].startswith("Fair Value Gap") for x in GLOSSARY)
     assert any(x["term"] == "BOS" for x in GLOSSARY)
 
@@ -103,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "7.9.0"
+    assert VERSION == "8.0.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -282,9 +283,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "7.9.0"' in iss
+    assert 'MyAppVersion "8.0.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"7.9.0\"" in launcher
+    assert "VERSION = \"8.0.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -293,9 +294,9 @@ def test_v780_news_webview_has_fallback():
     assert "webbrowser.open(url)" in text
 
 
-def test_v79_ai_uses_supported_master_model():
+def test_v800_ai_uses_supported_master_model():
     from ai_assistant import DEFAULT_MODEL, ROLES
-    assert DEFAULT_MODEL == "gpt-5.6-luna"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert "academy" in ROLES
     assert "product" in ROLES
 
@@ -329,3 +330,41 @@ def test_v79_navigation_and_glass_hooks_present():
     assert "command=self._hard_home" in text
     assert "apply_glass(self" in text
     assert "set_widget_glass(top" in text
+
+
+def test_v800_navigation_uses_single_home_renderer():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "self.show(\"home\")" in source
+    assert "self.after_idle(self._hard_home)" in source
+    assert "self.after_idle(self.market_data.refresh_now)" in source
+    assert 'status = "loading"' in source or '["status"] = "loading"' in source
+
+
+def test_v800_ai_uses_flagship_model_and_web_fallback():
+    from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert MODEL_FALLBACKS[0] == "gpt-5.6-sol"
+    assert CHATGPT_WEB_URL.startswith("https://")
+
+
+def test_v800_academy_has_distinct_smc_ict_diagram_dispatch():
+    from academy_diagrams import draw_setup
+    import inspect
+    source = inspect.getsource(draw_setup)
+    assert "_smc_liquidity_bos" in source
+    assert "_smc_ob_fvg" in source
+    assert "_smc_breaker" in source
+    assert "_ict_2022" in source
+    assert "_ict_silver_bullet" in source
+    assert "_ict_unicorn" in source
+
+
+def test_v800_google_gmail_and_statement_modules_exist():
+    from pathlib import Path
+    assert Path("google_oauth.py").is_file()
+    assert Path("statement_report.py").is_file()
+    source = Path("google_oauth.py").read_text(encoding="utf-8")
+    assert "messages().send" in source
+    assert "login_google" in source
+    assert "send_gmail" in source

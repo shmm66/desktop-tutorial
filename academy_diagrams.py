@@ -180,6 +180,85 @@ def _smc_generic(c, palette, model):
     _label(c, 610, 365, "Broad SMC flow: liquidity + structure + zone + retest + invalidation.", text, size=9)
 
 
+def _smc_liquidity_bos(c, palette):
+    text = palette["text"]
+    accent, danger, gold, blue = palette["accent"], palette["danger"], palette["gold"], palette.get("blue", "#63A7FF")
+    # Clear SMC anatomy: equal highs -> sweep -> BOS close -> FVG/OB retest.
+    _candles(c, [
+        (70, 120, 52, 98), (98, 136, 86, 126), (126, 148, 112, 136),
+        (136, 176, 128, 168), (168, 190, 150, 158), (158, 166, 118, 124),
+        (124, 154, 118, 146), (146, 184, 138, 176), (176, 202, 160, 196),
+    ], x0=95, step=100, scale=1.15, base=315)
+    c.create_line(85, 110, 380, 110, fill=gold, dash=(7,5), width=2)
+    _label(c, 90, 93, "EQH / BUY-SIDE LIQUIDITY", gold, anchor="w", size=9)
+    c.create_oval(360, 94, 388, 122, outline=danger, width=3)
+    _label(c, 375, 138, "SWEEP", danger, size=9)
+    c.create_line(490, 155, 490, 235, fill=accent, width=3)
+    _label(c, 505, 198, "BOS CLOSE", accent, anchor="w", size=10)
+    _zone(c, 610, 190, 780, 238, "#16382F", accent, "FVG / OB", accent)
+    _arrow(c, 940, 160, 760, 215, blue, "RETEST")
+    _zone(c, 860, 90, 1060, 132, "#3A2730", danger, "INVALIDATION", danger)
+    _label(c, 590, 355, "SMC: liquidity event → confirmed structure break → reaction area → retest.", text, size=9)
+
+
+def _smc_ob_fvg(c, palette):
+    text = palette["text"]
+    accent, gold, blue, danger = palette["accent"], palette["gold"], palette.get("blue", "#63A7FF"), palette["danger"]
+    _candles(c, [
+        (70, 120, 55, 62), (62, 98, 45, 92), (92, 122, 84, 116),
+        (116, 205, 112, 198), (198, 228, 188, 214), (214, 236, 203, 230),
+        (230, 244, 210, 220), (220, 232, 174, 182), (182, 212, 176, 205),
+    ], x0=105, step=98, scale=1.1, base=315)
+    _zone(c, 350, 170, 460, 225, "#3A2730", danger, "LAST OPPOSING CANDLE = ORDER BLOCK", danger)
+    _zone(c, 500, 132, 655, 182, "#16382F", accent, "3-CANDLE FVG", accent)
+    _arrow(c, 900, 125, 635, 160, blue, "RETRACE")
+    _label(c, 885, 100, "ENTRY AREA", gold, size=10)
+    _label(c, 590, 355, "SMC: displacement creates two distinct objects — OB and the three-candle FVG.", text, size=9)
+
+
+def _smc_breaker(c, palette):
+    text = palette["text"]
+    accent, danger, violet, gold, blue = palette["accent"], palette["danger"], palette.get("violet", "#9B8CFF"), palette["gold"], palette.get("blue", "#63A7FF")
+    _candles(c, [
+        (80, 122, 60, 112), (112, 146, 100, 132), (132, 160, 118, 140),
+        (140, 178, 136, 168), (168, 188, 120, 126), (126, 152, 112, 118),
+        (118, 142, 88, 96), (96, 130, 84, 124),
+    ], x0=120, step=110, scale=1.15, base=315)
+    _zone(c, 330, 165, 530, 225, "#3A2730", danger, "ORIGINAL ORDER BLOCK", danger)
+    c.create_line(330, 195, 530, 195, fill=gold, dash=(7,5), width=2)
+    _arrow(c, 560, 210, 610, 120, danger, "FAIL / CLOSE THROUGH")
+    _zone(c, 650, 165, 860, 225, "#172B45", violet, "BREAKER ZONE = FLIPPED ROLE", violet)
+    _arrow(c, 1010, 120, 825, 195, blue, "RETEST")
+    _label(c, 590, 355, "SMC breaker: a failed OB that flips role after a confirmed break.", text, size=9)
+
+
+def _smc_mss_fvg(c, palette):
+    text = palette["text"]
+    accent, danger, gold, blue = palette["accent"], palette["danger"], palette["gold"], palette.get("blue", "#63A7FF")
+    _line(c, [70, 240, 140, 210, 210, 230, 280, 175, 350, 205, 420, 160], blue, 4)
+    c.create_line(280, 175, 450, 175, fill=gold, dash=(7,5), width=2)
+    _label(c, 300, 155, "KEY SWING", gold, size=9)
+    c.create_oval(410, 145, 438, 173, outline=danger, width=3)
+    _label(c, 424, 195, "MSS / CHoCH", accent, size=9)
+    _arrow(c, 470, 230, 590, 105, accent, "DISPLACEMENT")
+    _zone(c, 610, 105, 790, 155, "#16382F", accent, "FVG", accent)
+    _arrow(c, 930, 110, 790, 132, blue, "RETEST")
+    _label(c, 595, 355, "SMC reversal workflow: context → structural shift → displacement → FVG reaction.", text, size=9)
+
+
+def _smc_liquidity_displacement(c, palette):
+    text = palette["text"]
+    accent, danger, gold, blue = palette["accent"], palette["danger"], palette["gold"], palette.get("blue", "#63A7FF")
+    _zone(c, 70, 100, 250, 145, "#3A2730", danger, "LIQUIDITY POOL", danger)
+    _arrow(c, 260, 125, 390, 280, danger, "SWEEP / RAID")
+    _arrow(c, 405, 280, 565, 105, accent, "DISPLACEMENT")
+    c.create_line(400, 165, 650, 165, fill=gold, dash=(7,5), width=2)
+    _label(c, 525, 147, "STRUCTURE BREAK", gold, size=9)
+    _zone(c, 620, 140, 820, 195, "#16382F", accent, "REACTION ZONE", accent)
+    _arrow(c, 1020, 105, 805, 165, blue, "RETEST")
+    _label(c, 595, 355, "Broad SMC model: liquidity → displacement → reaction zone → retest, with fixed invalidation.", text, size=9)
+
+
 def draw_setup(parent, family, model, palette):
     c = tk.Canvas(parent, height=390, bg=palette["panel3"], highlightthickness=0)
     c.pack(fill="x", padx=8, pady=8)
@@ -204,7 +283,16 @@ def draw_setup(parent, family, model, palette):
         else:
             _ict_2022(c, palette)
     else:
-        _smc_generic(c, palette, m)
+        if "liquidity sweep" in m and "bos" in m:
+            _smc_liquidity_bos(c, palette)
+        elif "order block" in m and "fvg" in m:
+            _smc_ob_fvg(c, palette)
+        elif "breaker" in m:
+            _smc_breaker(c, palette)
+        elif "choch" in m or "mss" in m:
+            _smc_mss_fvg(c, palette)
+        else:
+            _smc_liquidity_displacement(c, palette)
     return c
 
 

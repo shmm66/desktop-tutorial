@@ -4,7 +4,7 @@ import tempfile
 import sys
 
 APP = "Trader Planner Pro"
-VERSION = "7.9.0"
+VERSION = "8.0.0"
 
 def show_splash():
     root = tk.Tk()
