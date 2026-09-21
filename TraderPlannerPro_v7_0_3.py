@@ -20,7 +20,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
-from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key
+from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key, bundled_asset_for_visual
 from academy_diagrams import draw_setup, draw_candlestick
 from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "7.8.0"
+VERSION = "7.9.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -702,11 +702,11 @@ class App(tk.Tk):
 
     def _market_loading_timeout(self):
         self.market_timeout_job = None
-        if self.cur == "home" and self.market_data_payload.get("status") in ("unavailable", None):
+        if self.cur == "home" and self.market_data_payload.get("status") in ("loading", None):
             self.market_data_payload["status"] = "unavailable"
             self.market_data_payload["message"] = self.tr("market_error")
             self._apply_market_data(self.market_data_payload)
-        if self.cur == "home" and self.market_timeout_job is None:
+        if self.cur == "home":
             self.market_timeout_job = self.after(15000, self._market_loading_timeout)
 
     def check_reminders(self):
@@ -982,7 +982,9 @@ class App(tk.Tk):
             try: self.after_cancel(self._nav_job)
             except Exception: pass
             self._nav_job = None
-        self._render_page(key, token)
+        # Render on the next Tk event-loop turn. This prevents a market switch,
+        # menu click, or async callback from destroying a page while it is being built.
+        self._nav_job = self.after_idle(lambda k=key, t=token: self._render_page(k, t))
         return "break"
 
     def _render_page(self, key, token):
@@ -1157,8 +1159,11 @@ class App(tk.Tk):
         except Exception:
             pass
         self.market_data.set_market(market)
+        # Show that market's own cache immediately, then refresh it in the background.
+        self.market_data_payload = cached_market_payload(market)
         save_db()
         self.go_home()
+        self.after(120, self.refresh_market_data)
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
@@ -1376,6 +1381,9 @@ class App(tk.Tk):
             pass
 
     def _apply_market_data(self, payload):
+        payload_market = str(payload.get("market", self.market))
+        if payload_market != self.market:
+            return
         self.market_data_payload = payload
         if self.cur == "home":
             self.ticker_offset = 0
