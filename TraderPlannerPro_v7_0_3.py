@@ -2166,76 +2166,207 @@ class App(tk.Tk):
         if 0<=idx<len(reminders):
             reminders.pop(idx); save_db(); self.show("ai")
 
-    def _academy_visual(self, parent, key, title, subtitle):
+    def _academy_visual(self, parent, key, title, subtitle, visual_kind=None):
         box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
         box.pack(fill="x", padx=10, pady=(4,8))
         image_label = tk.Label(box, bg=C["panel3"])
         image_label.pack(fill="x", padx=8, pady=(8,4))
-        meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,8))
-        source_label = tk.Label(meta, text="", bg=C["panel3"], fg=C["muted"], font=("Segoe UI",10,"bold"),
-                                wraplength=920, justify="right")
+        meta = tk.Frame(box, bg=C["panel3"])
+        meta.pack(fill="x", padx=12, pady=(2,8))
+
+        kind = visual_kind or key
+        source_title, source_url = source_for_visual(kind)
+
+        source_label = tk.Label(
+            meta, text="", bg=C["panel3"], fg=C["muted"],
+            font=("Segoe UI",10,"bold"), wraplength=900, justify="right"
+        )
         source_label.pack(side="right", fill="x", expand=True)
-        source_btn = tk.Button(meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
-                               activebackground=C["gold"], relief="flat", font=("Segoe UI",9,"bold"),
-                               cursor="hand2")
+
+        source_btn = tk.Button(
+            meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
+            activebackground=C["gold"], relief="flat", font=("Segoe UI",9,"bold"),
+            cursor="hand2", command=lambda u=source_url:self.open_webview(u, source_title)
+        )
         source_btn.pack(side="left", padx=(8,0))
+
         try:
-            kind = visual_key_for(title, key, subtitle)
-            cache = ROOT / "EducationVisuals" / f"{safe(kind)}_source"
+            cache = ROOT / "EducationVisuals" / "v7_6" / f"{kind}_source"
             source_path = render_visual(cache, kind, self.ui_text(title), self.ui_text(subtitle))
             from PIL import Image, ImageTk
             im = Image.open(source_path)
-            ratio = min(1.0, 900 / max(1, im.width))
-            shown = im.resize((max(1,int(im.width*ratio)), max(1,int(im.height*ratio))),
-                              Image.Resampling.LANCZOS) if ratio < 1.0 else im.copy()
+            ratio = min(1.0, 1080 / max(1, im.width))
+            shown = im.resize(
+                (max(1, int(im.width*ratio)), max(1, int(im.height*ratio))),
+                Image.Resampling.LANCZOS
+            ) if ratio < 1.0 else im.copy()
             ph = ImageTk.PhotoImage(shown)
             image_label.configure(image=ph)
             image_label.image = ph
-            stitle, surl = source_for_visual(kind)
-            source_label.configure(text=f"{self.tr('original_source')}  •  {stitle}")
-            source_btn.configure(command=lambda u=surl:self.open_webview(u,stitle))
+            source_label.configure(
+                text=f"{self.tr('source_chart')}  •  {source_title}"
+            )
         except Exception:
-            source_label.configure(text=self.tr("market_unavailable") if self.language == "en" else "تصویر اصلی منبع در دسترس نیست")
+            image_label.configure(
+                text=self.tr("no_exact_image"), fg=C["muted"],
+                font=("Segoe UI",10,"bold"), padx=20, pady=40
+            )
+            image_label.image = None
+            source_label.configure(text=f"{self.tr('source_chart')}  •  {source_title}")
+
         return box
 
     def academy(self):
         self.heading(self.tr("academy_title"), self.tr("academy_sub"))
-        note=tk.Label(self.content,text=ACADEMY_NOTE_FA if self.language=="fa" else ACADEMY_NOTE_EN,
-                      bg=C["panel2"],fg=C["muted"],wraplength=1180,justify="right",padx=14,pady=10)
+        note=tk.Label(
+            self.content,
+            text=ACADEMY_NOTE_FA if self.language=="fa" else ACADEMY_NOTE_EN,
+            bg=C["panel2"], fg=C["muted"], wraplength=1180, justify="right",
+            padx=14, pady=10
+        )
         note.pack(fill="x",pady=(0,10))
+
         nb=ttk.Notebook(self.content)
         nb.pack(fill="both",expand=True)
-        tab_smc=tk.Frame(nb,bg=C["bg"]); tab_ict=tk.Frame(nb,bg=C["bg"]); tab_candle=tk.Frame(nb,bg=C["bg"]); tab_gloss=tk.Frame(nb,bg=C["bg"])
-        nb.add(tab_smc,text=self.tr("smc")); nb.add(tab_ict,text=self.tr("ict")); nb.add(tab_candle,text=self.tr("candles")); nb.add(tab_gloss,text=self.tr("glossary"))
+        tab_smc=tk.Frame(nb,bg=C["bg"])
+        tab_ict=tk.Frame(nb,bg=C["bg"])
+        tab_candle=tk.Frame(nb,bg=C["bg"])
+        tab_gloss=tk.Frame(nb,bg=C["bg"])
+        nb.add(tab_smc,text=self.tr("smc"))
+        nb.add(tab_ict,text=self.tr("ict"))
+        nb.add(tab_candle,text=self.tr("candles"))
+        nb.add(tab_gloss,text=self.tr("glossary"))
         self._academy_notebook=nb
-        self._build_strategy_tab(tab_smc,SMART_MONEY_STRATEGIES)
-        self._build_strategy_tab(tab_ict,ICT_STRATEGIES)
+
+        self._build_strategy_tab(tab_smc, SMART_MONEY_STRATEGIES, "smc")
+        self._build_strategy_tab(tab_ict, ICT_STRATEGIES, "ict")
         self._build_candle_tab(tab_candle)
         self._build_glossary_tab(tab_gloss)
 
-    def _build_strategy_tab(self,parent,items):
-        outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8,showhandle=False); outer.pack(fill="both",expand=True,padx=8,pady=8)
-        left=tk.Frame(outer,bg=C["panel"]); right=tk.Frame(outer,bg=C["panel"]); outer.add(left,minsize=330); outer.add(right,minsize=760)
-        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0); lb.pack(fill="both",expand=True,padx=8,pady=8)
-        for item in items: lb.insert("end",item["name_fa"] if self.language=="fa" else item["name_en"])
-        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",16,"bold"),anchor="e",justify="right"); title.pack(fill="x",padx=18,pady=(14,5))
-        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",12),anchor="e",justify="right",wraplength=860); summary.pack(fill="x",padx=18,pady=5)
-        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=3)
-        steps_frame=tk.Frame(right,bg=C["panel"]); steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
-        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",12),height=12); text.pack(side="left",fill="both",expand=True)
-        scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview); scr.pack(side="right",fill="y"); text.configure(yscrollcommand=scr.set)
+    def _build_strategy_tab(self,parent,items,family):
+        outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8,showhandle=False)
+        outer.pack(fill="both",expand=True,padx=8,pady=8)
+
+        left=tk.Frame(outer,bg=C["panel"])
+        right=tk.Frame(outer,bg=C["panel"])
+        outer.add(left,minsize=330)
+        outer.add(right,minsize=820)
+
+        lb=tk.Listbox(
+            left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],
+            selectforeground="#061019",font=("Segoe UI",10,"bold"),
+            activestyle="none",borderwidth=0,highlightthickness=0
+        )
+        lb.pack(fill="both",expand=True,padx=8,pady=8)
+
+        for item in items:
+            lb.insert("end", item["name_fa"] if self.language=="fa" else item["name_en"])
+
+        title=tk.Label(
+            right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold"),
+            anchor="e",justify="right"
+        )
+        title.pack(fill="x",padx=18,pady=(14,5))
+
+        badge_row=tk.Frame(right,bg=C["panel"])
+        badge_row.pack(fill="x",padx=18,pady=(0,5))
+
+        family_text=self.tr("smc_family") if family=="smc" else self.tr("ict_family")
+        family_badge=tk.Label(
+            badge_row,text=family_text,bg=C["soft"],fg=C["accent"],
+            font=("Segoe UI",9,"bold"),padx=10,pady=5
+        )
+        family_badge.pack(side="right")
+
+        visual_name=tk.Label(
+            badge_row,text="",bg=C["panel"],fg=C["muted"],
+            font=("Consolas",8,"bold")
+        )
+        visual_name.pack(side="left",padx=8)
+
+        summary=tk.Label(
+            right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",12),
+            anchor="e",justify="right",wraplength=940
+        )
+        summary.pack(fill="x",padx=18,pady=5)
+
+        visual_holder=tk.Frame(right,bg=C["panel"])
+        visual_holder.pack(fill="x",padx=8,pady=3)
+
+        anatomy_title=tk.Label(
+            right,text=self.tr("setup_anatomy"),bg=C["panel"],fg=C["gold"],
+            font=("Segoe UI",11,"bold")
+        )
+        anatomy_title.pack(anchor="e",padx=18,pady=(6,3))
+
+        anatomy=tk.Frame(right,bg=C["panel"])
+        anatomy.pack(fill="x",padx=18,pady=(0,8))
+
+        steps_frame=tk.Frame(right,bg=C["panel"])
+        steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
+
+        text=tk.Text(
+            steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
+            relief="flat",wrap="word",font=("Segoe UI",12),height=11
+        )
+        text.pack(side="left",fill="both",expand=True)
+        scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview)
+        scr.pack(side="right",fill="y")
+        text.configure(yscrollcommand=scr.set)
+
         def render(_=None):
             sel=lb.curselection()
             if not sel: return
-            item=items[sel[0]]; title.config(text=item["name_fa"] if self.language=="fa" else item["name_en"]); summary.config(text=item["summary_fa"] if self.language=="fa" else item["summary_en"])
-            for w in visual_holder.winfo_children(): w.destroy()
-            self._academy_visual(visual_holder,"strategy",item["name_en"],item["summary_en"])
-            lines=item["steps_fa"] if self.language=="fa" else item["steps_en"]; inv=item["risk_fa"] if self.language=="fa" else item["risk_en"]
-            text.configure(state="normal"); text.delete("1.0","end"); text.insert("end",self.tr("steps")+"\n\n")
-            for i,line in enumerate(lines,1): text.insert("end",f"{i}. {line}\n")
-            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv); text.configure(state="disabled")
+            item=items[sel[0]]
+            name_en=item["name_en"]
+            title.config(text=item["name_fa"] if self.language=="fa" else name_en)
+            summary.config(
+                text=item["summary_fa"] if self.language=="fa" else item["summary_en"]
+            )
+            kind=strategy_visual_key(name_en)
+            visual_name.config(text=kind.upper())
+
+            for w in visual_holder.winfo_children():
+                w.destroy()
+            self._academy_visual(
+                visual_holder,"strategy",name_en,
+                item["summary_en"],visual_kind=kind
+            )
+
+            for w in anatomy.winfo_children():
+                w.destroy()
+            lines=item["steps_fa"] if self.language=="fa" else item["steps_en"]
+            inv=item["risk_fa"] if self.language=="fa" else item["risk_en"]
+
+            for idx,line in enumerate(lines,1):
+                chip=tk.Frame(
+                    anatomy,bg=C["soft"],highlightbackground=C["line"],
+                    highlightthickness=1
+                )
+                chip.pack(side="left",fill="both",expand=True,padx=3)
+                tk.Label(
+                    chip,text=f"{idx:02d}",bg=C["accent"],fg="#061019",
+                    font=("Segoe UI",9,"bold"),padx=7,pady=4
+                ).pack(anchor="w")
+                tk.Label(
+                    chip,text=line,bg=C["soft"],fg=C["text"],
+                    font=("Segoe UI",9,"bold"),wraplength=180,justify="right",
+                    padx=8,pady=8
+                ).pack(fill="both",expand=True)
+
+            text.configure(state="normal")
+            text.delete("1.0","end")
+            text.insert("end",self.tr("steps")+"\n\n")
+            for i,line in enumerate(lines,1):
+                text.insert("end",f"{i}. {line}\n")
+            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv)
+            text.configure(state="disabled")
+
         lb.bind("<<ListboxSelect>>",render)
-        if items: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
+        if items:
+            lb.selection_set(0)
+            lb.event_generate("<<ListboxSelect>>")
+
     def _build_candle_tab(self,parent):
         wrap=tk.Frame(parent,bg=C["panel"]); wrap.pack(fill="both",expand=True,padx=8,pady=8)
         left=tk.Frame(wrap,bg=C["panel"]); left.pack(side="left",fill="both",expand=True,padx=8,pady=8)
