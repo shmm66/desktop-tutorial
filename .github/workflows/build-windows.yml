@@ -76,6 +76,7 @@ jobs:
           --collect-all matplotlib
           --collect-all reportlab
           --hidden-import webview.platforms.edgechromium
+          --hidden-import pywinstyles
           --hidden-import googleapiclient.discovery
           --hidden-import google_auth_oauthlib.flow
           --add-data "education_sources;education_sources"
@@ -122,21 +123,21 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V7.7.0 Release
+      - name: Publish V7.8.0 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v7.7.0
-          name: Trader Planner Pro V7.7.0
+          tag_name: v7.8.0
+          name: Trader Planner Pro V7.8.0
           target_commitish: ${{ github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V7.7.0
+            ## Trader Planner Pro V7.8.0
 
-            Trader Planner Pro V7.7.0 — multi-agent AI, Google Login + Gmail statements, permanent Home navigation, resilient market/news services, visual skins and Academy upgrades.
+            Trader Planner Pro V7.8.0 — native acrylic glass UI, deterministic navigation, semantic SMC/ICT Academy, stronger multi-agent AI, resilient market/news services, Google Login + Gmail statements, and a safer per-user installer.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v7.7.0.exe
+            installer/TraderPlannerPro_Setup_v7.8.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
