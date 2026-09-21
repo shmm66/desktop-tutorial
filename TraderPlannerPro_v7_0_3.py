@@ -910,7 +910,7 @@ class App(tk.Tk):
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
-            ("ai", self.tr("ai_chat"), lambda: self.go("ai")),
+            ("ai", self.tr("ai_chat"), self.open_ai_chat),
             ("news", self.tr("news"), lambda: self.go("news")),
             ("calculators", self.tr("calculators"), lambda: self.go("calculators")),
         ]

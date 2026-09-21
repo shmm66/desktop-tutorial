@@ -12,7 +12,7 @@ AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
 DEFAULT_MODEL = "gpt-5.6-sol"
 REASONING_EFFORT = "high"
-MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
+MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-luna")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
