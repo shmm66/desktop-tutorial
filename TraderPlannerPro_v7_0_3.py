@@ -507,6 +507,9 @@ class App(tk.Tk):
         self.ai_chat_window = None
         self.ai_chat_text = None
         self.ai_chat_input = None
+        self._nav_job = None
+        self._nav_token = 0
+        self.quickbar = None
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -527,7 +530,7 @@ class App(tk.Tk):
         self.show("home")
         self.market_data.start(self.market)
         self.after(700, self.clock)
-        self.after(12000, self._market_loading_timeout)
+        self.after(9000, self._market_loading_timeout)
         self.check_reminders()
 
     def _home_shortcut(self, event=None):
@@ -906,6 +909,18 @@ class App(tk.Tk):
         allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
             key="home"
+        self.cur = key
+        self._nav_token += 1
+        token = self._nav_token
+        if self._nav_job is not None:
+            try: self.after_cancel(self._nav_job)
+            except Exception: pass
+        self._nav_job = self.after_idle(lambda k=key, t=token: self._render_page(k, t))
+
+    def _render_page(self, key, token):
+        self._nav_job = None
+        if token != self._nav_token or not self.winfo_exists():
+            return
         for job_name in ("session_clock_job","ticker_job"):
             job=getattr(self, job_name, None)
             if job is not None:
@@ -913,13 +928,13 @@ class App(tk.Tk):
                 except Exception: pass
                 setattr(self, job_name, None)
         self.session_clock_widgets=[]
-        self.cur=key
         for widget in self.content.winfo_children():
             try: widget.destroy()
             except Exception: pass
         try:
             getattr(self,key)()
             self.translate_widget_tree(self.content)
+            self.content.update_idletasks()
         except Exception as exc:
             self._show_page_error(key,exc)
 
