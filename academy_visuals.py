@@ -185,7 +185,7 @@ GLOSSARY_VISUALS = {
     "liquidity pool": "smc_liquidity", "liquidity sweep": "smc_liquidity", "liquidity raid": "smc_liquidity",
     "equal highs": "smc_liquidity", "equal lows": "smc_liquidity", "session high/low": "smc_liquidity",
     "previous day high": "smc_liquidity", "previous day low": "smc_liquidity", "draw on liquidity": "smc_liquidity",
-    "order block (bullish)": "order_block", "order block (bearish)": "order_block", "mitigation block": "order_block",
+    "order block (bullish)": "order_block", "order block (bearish)": "order_block", "order block": "order_block", "mitigation block": "order_block",
     "breaker block": "breaker", "fair value gap": "fvg", "inverse fair value gap": "fvg", "balanced price range": "fvg",
     "ote": "ict_ote", "fibonacci 62%-79%": "ict_ote", "premium/discount array": "ict_ote",
     "killzone": "timing", "asian killzone": "timing", "london killzone": "timing", "new york killzone": "timing",
