@@ -2357,7 +2357,7 @@ class App(tk.Tk):
         role_combo.pack(side="right",padx=6)
         status=self.ai.status()
         if status.get("cloud"):
-            status_text="CLOUD MASTER AGENT • GPT-5.6-LUNA • HIGH REASONING"
+            status_text="CLOUD MASTER AGENT • GPT-5.6-SOL • HIGH REASONING"
             status_fg=C["accent"]
         elif status.get("ollama"):
             status_text="LOCAL OLLAMA • READY"
