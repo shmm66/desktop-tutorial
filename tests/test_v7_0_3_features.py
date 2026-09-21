@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.0.0"
+    assert VERSION == "8.1.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -284,9 +284,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.0.0"' in iss
+    assert 'MyAppVersion "8.1.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.0.0\"" in launcher
+    assert "VERSION = \"8.1.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -295,9 +295,9 @@ def test_v780_news_webview_has_fallback():
     assert "webbrowser.open(url)" in text
 
 
-def test_v800_ai_uses_supported_master_model():
+def test_v810_ai_uses_configurable_master_model():
     from ai_assistant import DEFAULT_MODEL, ROLES
-    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert DEFAULT_MODEL == "gpt-4.1-mini"
     assert "academy" in ROLES
     assert "product" in ROLES
 
@@ -333,19 +333,19 @@ def test_v79_navigation_and_glass_hooks_present():
     assert "set_widget_glass(top" in text
 
 
-def test_v800_navigation_uses_single_home_renderer():
+def test_v810_navigation_uses_deterministic_home_renderer():
     from pathlib import Path
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert "self.show(\"home\")" in source
-    assert "self.after_idle(self._hard_home)" in source
-    assert "self.after_idle(self.market_data.refresh_now)" in source
+    assert "def _hard_home(self):" in source
+    assert "self.home()" in source
+    assert "self.after(35, self.market_data.refresh_now)" in source
     assert 'status = "loading"' in source or '["status"] = "loading"' in source
 
 
-def test_v800_ai_uses_flagship_model_and_web_fallback():
+def test_v810_ai_has_safe_local_fallbacks_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
     assert DEFAULT_MODEL == "gpt-5.6-sol"
-    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-luna")
+    assert MODEL_FALLBACKS[0] == "qwen3:8b"
     assert "gpt-5.6-terra" not in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
 
@@ -370,3 +370,22 @@ def test_v800_google_gmail_and_statement_modules_exist():
     assert "messages().send" in source
     assert "login_google" in source
     assert "send_gmail" in source
+
+
+def test_v810_offline_ai_agent_is_actionable_without_provider():
+    from ai_assistant import _offline_agent, AIOrchestrator
+    answer = _offline_agent("strategy", "Explain ICT 2022", "Market: Crypto")
+    assert "ICT 2022" in answer
+    assert "FVG" in answer
+    status = AIOrchestrator().status()
+    assert status["mode"] in {"cloud", "local", "offline"}
+    assert "orchestrator" in status["roles"]
+
+
+def test_v810_home_switch_bypasses_router_and_ai_popup_is_direct():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "self.home()" in source
+    assert 'command=self.open_ai_chat' in source
+    assert "SETUP MAP" in source
+    assert "SOURCE VISUAL" in source
