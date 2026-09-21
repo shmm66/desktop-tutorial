@@ -26,7 +26,7 @@ from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
-from news_data import fetch_crypto_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
+from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 from google_oauth import google_status, login_google, logout_google, send_gmail, find_client_file
 from statement_report import create_statement
 
@@ -2247,7 +2247,7 @@ class App(tk.Tk):
         def done(rows):
             try: self.after(0,lambda:self._apply_news(rows))
             except Exception: pass
-        fetch_crypto_news(done)
+        fetch_market_news(done, include_forex=True)
 
     def _apply_news(self,rows):
         self.news_items=rows or []
