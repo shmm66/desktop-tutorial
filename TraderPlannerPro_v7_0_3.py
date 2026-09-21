@@ -1853,6 +1853,17 @@ class App(tk.Tk):
         tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",
                  bg=C["panel"],fg=C["gold"],font=("Segoe UI",9,"bold")).pack(side="left",padx=8)
 
+        skin_box=self.card(self.content); skin_box.pack(fill="x",pady=8)
+        tk.Label(skin_box,text=self.tr("skin"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
+        tk.Label(skin_box,text=self.tr("skin_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
+        skin_labels={}
+        for k,v in SKINS.items():
+            skin_labels[v.get(self.language=="fa" and "label_fa" or "label_en",k)]=k
+        skin_var=tk.StringVar(value=SKINS[self.skin]["label_fa" if self.language=="fa" else "label_en"])
+        skin_combo=ttk.Combobox(skin_box,textvariable=skin_var,state="readonly",values=list(skin_labels.keys()),width=30,justify="center")
+        skin_combo.pack(anchor="e",padx=18,pady=(0,14))
+        self.btn(skin_box,self.tr("save_theme"),lambda:self._save_skin_and_theme(skin_labels,skin_var),True).pack(anchor="e",padx=18,pady=(0,14))
+
         theme_box=self.card(self.content); theme_box.pack(fill="x",pady=8)
         tk.Label(theme_box,text=self.tr("theme"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
         tk.Label(theme_box,text=self.tr("theme_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
@@ -1893,6 +1904,13 @@ class App(tk.Tk):
     def open_calculator(self, market):
         self._calculator_market = "Forex" if market == "Forex" else "Crypto"
         self.show("calculators")
+
+    def _save_skin_and_theme(self,skin_labels,skin_var):
+        self.skin=skin_labels.get(skin_var.get(),"obsidian")
+        DB.setdefault("settings",{})["skin"]=self.skin
+        save_db()
+        self.apply_theme()
+        self.show(self.cur)
 
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
