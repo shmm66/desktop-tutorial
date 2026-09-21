@@ -2089,49 +2089,139 @@ class App(tk.Tk):
 
     def ai(self):
         self.heading(self.tr("ai_title"), self.tr("ai_sub"))
-        self.after(120, self.open_ai_chat)
-        top=self.card(self.content); top.pack(fill="x",pady=6)
-        info=tk.Frame(top,bg=C["panel"]); info.pack(fill="x",padx=14,pady=12)
+
+        hero=self.card(self.content)
+        hero.pack(fill="x",pady=(4,8))
+        left=tk.Frame(hero,bg=C["panel"]); left.pack(side="right",fill="both",expand=True,padx=14,pady=12)
+        tk.Label(left,text=self.tr("ai_page_note"),bg=C["panel"],fg=C["muted"],
+                 font=("Segoe UI",10,"bold"),justify="right",anchor="e",
+                 wraplength=850).pack(fill="x",anchor="e")
+
         role_var=tk.StringVar(value="form")
-        role_labels={"form": "Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach"}
-        tk.Label(info,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
-        role_combo=ttk.Combobox(info,textvariable=role_var,state="readonly",values=list(role_labels.values()),justify="right",width=28)
+        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach"}
+        row=tk.Frame(hero,bg=C["panel"]); row.pack(fill="x",padx=14,pady=(0,12))
+        tk.Label(row,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],
+                 font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
+        role_combo=ttk.Combobox(
+            row,textvariable=role_var,state="readonly",
+            values=list(role_labels.values()),justify="right",width=25
+        )
         role_combo.pack(side="right",padx=6)
-        model_var=tk.StringVar(value=self.ai.model)
-        model_combo=ttk.Combobox(info,textvariable=model_var,state="readonly",values=[self.ai.model],width=22,justify="center")
-        model_combo.pack(side="left",padx=6)
-        status_label=tk.Label(info,text=self.tr("ai_status"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",9,"bold")); status_label.pack(side="left",padx=8)
         status=self.ai.status()
-        status_label.config(text=("LOCAL "+("• READY" if status["online"] else "• BUILT-IN FALLBACK")))
-        if status["models"]:
-            model_combo["values"]=status["models"]; model_var.set(status["models"][0])
-        tk.Label(self.content,text=self.tr("ai_local_note"),bg=C["panel2"],fg=C["muted"],justify="right",wraplength=1150,padx=12,pady=8).pack(fill="x",pady=(0,6))
-        chat=tk.Text(self.content,bg=C["soft"],fg=C["text"],insertbackground=C["text"],wrap="word",relief="flat",font=("Segoe UI",11),height=18)
-        chat.pack(fill="both",expand=True,padx=5,pady=5)
-        input_box=tk.Frame(self.content,bg=C["bg"]); input_box.pack(fill="x",pady=6)
-        prompt=tk.Entry(input_box,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",font=("Segoe UI",11),justify="right")
-        prompt.pack(side="right",fill="x",expand=True,padx=5,ipady=8)
-        def send():
-            msg=prompt.get().strip()
+        tk.Label(row,text=("LOCAL • READY" if status["online"] else "BUILT-IN • READY"),
+                 bg=C["panel3"],fg=C["accent"],font=("Consolas",8,"bold"),
+                 padx=10,pady=5).pack(side="left")
+
+        quick=tk.Frame(self.content,bg=C["bg"])
+        quick.pack(fill="x",pady=(0,7))
+        quick_prompts=[
+            ("ai_quick_forms","Form coach: help me fill today's trading plan and checklist."),
+            ("ai_quick_strategy","Explain the current setup step-by-step and tell me what condition is still missing."),
+            ("ai_quick_psychology","Run a short psychology check before I take a trade."),
+            ("ai_quick_routine","Build a disciplined trading routine for today's sessions."),
+        ]
+
+        shell=self.card(self.content)
+        shell.pack(fill="both",expand=True,pady=4)
+        chat=tk.Text(
+            shell,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
+            wrap="word",relief="flat",font=("Segoe UI",12),padx=16,pady=14
+        )
+        chat.pack(fill="both",expand=True,padx=7,pady=7)
+        chat.insert("1.0",self.tr("ai_page_note")+"\n\n")
+        chat.configure(state="disabled")
+
+        input_row=tk.Frame(self.content,bg=C["bg"])
+        input_row.pack(fill="x",pady=8)
+        prompt=tk.Entry(
+            input_row,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
+            relief="flat",font=("Segoe UI",12),justify="right"
+        )
+        prompt.pack(side="right",fill="x",expand=True,padx=5,ipady=10)
+        send_btn=self.btn(input_row,self.tr("ai_send"),None,True)
+        send_btn.pack(side="left",padx=5)
+
+        def append_chat(speaker,text_value):
+            chat.configure(state="normal")
+            chat.insert("end",f"{speaker}: {text_value}\n\n")
+            chat.configure(state="disabled")
+            chat.see("end")
+
+        def send_message(message=None):
+            msg=(message if message is not None else prompt.get()).strip()
             if not msg: return
             prompt.delete(0,"end")
-            chat.insert("end",f"\nYou: {msg}\nAssistant: ...\n")
+            append_chat("You",msg)
+            append_chat("Assistant","…")
             role=next((k for k,v in role_labels.items() if v==role_var.get()),"form")
-            self.ai.model=model_var.get() or self.ai.model
-            context=f"Current page: {self.cur}\nMarket: {self.market}\nProfile: {active_profile().get('name','')}\nTrades: {len(active_profile()['journals'][self.market])}\nChecklist done: {sum(1 for x in active_profile().get('checklist',[]) if x.get('done'))}"
-            self.ai.respond(role,msg,context,lambda answer:self.after(0,lambda:self._ai_finish(chat,answer)))
-        self.btn(input_box,self.tr("ai_send"),send,True).pack(side="left",padx=5)
-        reminders=self.card(self.content); reminders.pack(fill="x",pady=7)
-        tk.Label(reminders,text=self.tr("reminders"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(anchor="e",padx=12,pady=7)
-        rem_tree=ttk.Treeview(reminders,columns=("time","title","enabled"),show="headings",height=4)
-        rem_tree.heading("time",text=self.tr("reminder_time")); rem_tree.heading("title",text=self.tr("reminder_title")); rem_tree.heading("enabled",text=self.tr("reminder_enabled"))
-        rem_tree.column("time",width=90); rem_tree.column("title",width=500); rem_tree.column("enabled",width=90)
+            context=self._ai_context()
+            self.ai.respond(
+                role,msg,context,
+                lambda answer:self.after(
+                    0,lambda:self._replace_page_ai_waiting(chat,answer)
+                )
+            )
+
+        send_btn.configure(command=send_message)
+        prompt.bind("<Return>",lambda e:send_message())
+        for key, prompt_text in quick_prompts:
+            self.btn(
+                quick,self.tr(key),lambda p=prompt_text:send_message(p)
+            ).pack(side="left",padx=3)
+
+        self.btn(
+            quick,self.tr("ai_clear"),lambda:self._clear_page_ai(chat)
+        ).pack(side="left",padx=3)
+
+        reminders=self.card(self.content)
+        reminders.pack(fill="x",pady=(7,4))
+        tk.Label(
+            reminders,text=self.tr("reminders"),bg=C["panel"],fg=C["gold"],
+            font=("Segoe UI",10,"bold")
+        ).pack(anchor="e",padx=12,pady=7)
+        rem_tree=ttk.Treeview(
+            reminders,columns=("time","title","enabled"),show="headings",height=4
+        )
+        rem_tree.heading("time",text=self.tr("reminder_time"))
+        rem_tree.heading("title",text=self.tr("reminder_title"))
+        rem_tree.heading("enabled",text=self.tr("reminder_enabled"))
+        rem_tree.column("time",width=90)
+        rem_tree.column("title",width=500)
+        rem_tree.column("enabled",width=90)
         rem_tree.pack(fill="x",padx=10,pady=5)
-        for i,r in enumerate(DB.get("settings",{}).get("ai_reminders",[])):
-            rem_tree.insert("","end",iid=str(i),values=(r.get("time",""),r.get("title",""),"✓" if r.get("enabled",True) else ""))
+        for idx,r in enumerate(DB.get("settings",{}).get("ai_reminders",[])):
+            rem_tree.insert(
+                "","end",iid=str(idx),
+                values=(r.get("time",""),r.get("title",""),
+                        "✓" if r.get("enabled",True) else "")
+            )
         controls=tk.Frame(reminders,bg=C["panel"]); controls.pack(fill="x",padx=10,pady=5)
         self.btn(controls,self.tr("add_reminder"),self.add_reminder,True).pack(side="right",padx=3)
-        self.btn(controls,self.tr("delete_reminder"),lambda:self.delete_reminder(rem_tree),).pack(side="right",padx=3)
+        self.btn(controls,self.tr("delete_reminder"),lambda:self.delete_reminder(rem_tree)).pack(side="right",padx=3)
+
+    def _replace_page_ai_waiting(self,chat,answer):
+        try:
+            chat.configure(state="normal")
+            current=chat.get("1.0","end-1c")
+            pos=current.rfind("Assistant: …")
+            if pos>=0:
+                chat.delete(f"1.0+{pos}c",f"1.0+{pos+13}c")
+                chat.insert(f"1.0+{pos}c",f"Assistant: {answer}")
+            else:
+                chat.insert("end",f"Assistant: {answer}\n")
+            chat.configure(state="disabled")
+            chat.see("end")
+        except Exception:
+            pass
+
+    def _clear_page_ai(self,chat):
+        try:
+            chat.configure(state="normal")
+            chat.delete("1.0","end")
+            chat.insert("1.0",self.tr("ai_page_note")+"\n\n")
+            chat.configure(state="disabled")
+        except Exception:
+            pass
 
     def _ai_finish(self,chat,answer):
         try:
