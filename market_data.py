@@ -417,6 +417,30 @@ def _market_vix():
     return {"value": price, "change": change}
 
 
+def cached_market_payload(mode: str):
+    market = "Forex" if str(mode).lower() == "forex" else "Crypto"
+    cached = _read_cache()
+    if cached.get("market") == market and isinstance(cached.get("items"), list) and cached.get("items"):
+        return {
+            "market": market,
+            "updated_at": cached.get("updated_at"),
+            "source": cached.get("source") or "cache",
+            "items": cached.get("items", []),
+            "indicators": cached.get("indicators", {}),
+            "status": "cache",
+            "message": "Loading live feed in background; showing last saved snapshot first.",
+        }
+    return {
+        "market": market,
+        "updated_at": None,
+        "source": "unavailable",
+        "items": [],
+        "indicators": {},
+        "status": "unavailable",
+        "message": "",
+    }
+
+
 def fetch_market(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
