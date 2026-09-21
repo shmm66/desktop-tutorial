@@ -365,6 +365,6 @@ def test_v800_google_gmail_and_statement_modules_exist():
     assert Path("google_oauth.py").is_file()
     assert Path("statement_report.py").is_file()
     source = Path("google_oauth.py").read_text(encoding="utf-8")
-    assert "gmail.send" in source
+    assert "messages().send" in source
     assert "login_google" in source
     assert "send_gmail" in source
