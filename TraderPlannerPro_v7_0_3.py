@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import webbrowser
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -1501,6 +1502,7 @@ class App(tk.Tk):
         self.btn(bar,"＋ ثبت معامله",self.add_trade,True).pack(side="left",padx=3)
         self.btn(bar,"ویرایش",self.edit_trade).pack(side="left",padx=3); self.btn(bar,"حذف",self.delete_trade).pack(side="left",padx=3)
         self.btn(bar,"خروجی CSV",self.export_journal).pack(side="left",padx=3)
+        self.btn(bar,self.tr("email_statement"),self.email_statement,True).pack(side="left",padx=3)
         self.btn(bar,"باز کردن پوشه تصاویر",lambda:self.open_path(SCREENSHOTS / safe(p["id"]))).pack(side="left",padx=3)
         qv=tk.StringVar(); tk.Label(bar,text="جستجو:",bg=C["bg"],fg=C["muted"]).pack(side="right")
         ent=tk.Entry(bar,textvariable=qv,width=30,justify="right",bg=C["soft"],fg=C["text"],relief="flat"); ent.pack(side="right",padx=6)
@@ -1907,6 +1909,112 @@ class App(tk.Tk):
                 self.ai_chat_text.configure(state="disabled")
             except Exception:
                 pass
+
+    def _save_ai_key(self, api_key):
+        try:
+            from ai_assistant import save_openai_key
+            save_openai_key(api_key)
+            messagebox.showinfo(self.tr("ai_cloud"), self.tr("ai_cloud_ready"), parent=self)
+            self.show("settings")
+        except Exception as exc:
+            messagebox.showerror(self.tr("ai_cloud"), str(exc), parent=self)
+
+    def _clear_ai_key(self):
+        try:
+            from ai_assistant import clear_openai_key
+            clear_openai_key()
+            messagebox.showinfo(self.tr("ai_cloud"), self.tr("ai_cloud_missing"), parent=self)
+            self.show("settings")
+        except Exception as exc:
+            messagebox.showerror(self.tr("ai_cloud"), str(exc), parent=self)
+
+    def _open_product_agent_from_settings(self):
+        self.show("ai")
+        self.after(120, lambda: self.open_ai_chat())
+
+    def _pick_google_credentials(self, status_label=None):
+        path = filedialog.askopenfilename(
+            parent=self,
+            title=self.tr("google_pick_credentials"),
+            filetypes=[("JSON files","*.json"),("All files","*.*")]
+        )
+        if not path:
+            return
+        DB.setdefault("settings", {})["google_credentials_path"] = path
+        save_db()
+        self._google_login_ui(status_label)
+
+    def _google_login_ui(self, status_label=None):
+        custom = DB.get("settings", {}).get("google_credentials_path", "")
+        try:
+            state = login_google(custom or None)
+            text = f"{self.tr('google_connected')}: {state.get('email','')}"
+            if status_label is not None and status_label.winfo_exists():
+                status_label.config(text=text, fg=C["accent"])
+            else:
+                messagebox.showinfo(self.tr("google_account"), text, parent=self)
+        except FileNotFoundError:
+            self._pick_google_credentials(status_label)
+        except Exception as exc:
+            messagebox.showerror(self.tr("google_account"), str(exc), parent=self)
+
+    def _google_logout_ui(self, status_label=None):
+        try:
+            logout_google()
+            if status_label is not None and status_label.winfo_exists():
+                status_label.config(text=self.tr("google_credentials"), fg=C["muted"])
+            else:
+                messagebox.showinfo(self.tr("google_account"), self.tr("google_logout"), parent=self)
+        except Exception as exc:
+            messagebox.showerror(self.tr("google_account"), str(exc), parent=self)
+
+    def email_statement(self):
+        rows = active_profile().get("journals", {}).get(self.market, [])
+        state = google_status()
+        if not state.get("connected"):
+            if not messagebox.askyesno(
+                self.tr("google_account"),
+                self.tr("google_login") + "?",
+                parent=self,
+            ):
+                return
+            self._google_login_ui()
+            state = google_status()
+            if not state.get("connected"):
+                return
+        self._set_busy_cursor(True)
+        profile_name = active_profile().get("name", "")
+        def worker():
+            try:
+                out = create_statement(rows, self.market, profile_name, REPORTS)
+                subject = f"{self.tr('email_statement_subject')} • {self.market} • {datetime.now().strftime('%Y-%m-%d')}"
+                body = (
+                    f"Trader Planner Pro\n\n"
+                    f"Profile: {profile_name}\n"
+                    f"Market: {self.market}\n"
+                    f"Trades: {out['stats']['trades']}\n"
+                    f"Win Rate: {out['stats']['win_rate']:.1f}%\n"
+                    f"Net R: {out['stats']['net_r']:.2f}\n"
+                    f"Average R: {out['stats']['avg_r']:.2f}\n"
+                )
+                send_gmail(state.get("email") or "", subject, body, [out["pdf"], out["png"]])
+                self.after(0, lambda: (
+                    self._set_busy_cursor(False),
+                    messagebox.showinfo(self.tr("google_account"), self.tr("email_statement_sent"), parent=self)
+                ))
+            except Exception as exc:
+                self.after(0, lambda: (
+                    self._set_busy_cursor(False),
+                    messagebox.showerror(self.tr("google_account"), f"{self.tr('email_statement_error')}\n{exc}", parent=self)
+                ))
+        threading.Thread(target=worker, name="TraderPlannerStatement", daemon=True).start()
+
+    def _set_busy_cursor(self, busy):
+        try:
+            self.configure(cursor="watch" if busy else "")
+            self.update_idletasks()
+        except Exception:
+            pass
 
     def open_webview(self, url, title="Trader Planner Pro"):
         try:
