@@ -211,7 +211,7 @@ class AIOrchestrator:
             if cloud["enabled"]:
                 for model in (self.model,) + tuple(m for m in MODEL_FALLBACKS if m != self.model):
                     try:
-                        answer = self._cloud_respond(role, user_message, context)
+                        answer = self._cloud_respond(role, user_message, context, model=model)
                         if answer:
                             self.last_provider = f"OpenAI • {model}"
                             break
