@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.0.0"
+VERSION = "8.1.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -507,6 +507,8 @@ class App(tk.Tk):
         self.ai = AIOrchestrator()
         self.ai_history = []
         self.news_items = []
+        self._news_token = 0
+        self._news_timeout_job = None
         self.market_data = MarketDataService(self._market_data_callback, refresh_seconds=60)
         self.theme_mode = DB.get("settings", {}).get("theme", "dark")
         self.theme_auto_start = DB.get("settings", {}).get("theme_auto_start", "08:00")
@@ -528,7 +530,7 @@ class App(tk.Tk):
         self._logo_photo = None
         self.apply_theme(initial=True)
         self.bind_all("<Home>", self._home_shortcut)
-        self.bind_all("<Alt-Home>", lambda e: self._hard_home())
+        self.bind_all("<Alt-Home>", lambda e: self.go_home())
         self.bind_all("<Control-K>", lambda e: self.open_ai_chat())
         self.bind_all("<F2>", lambda e: self.open_ai_chat())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
@@ -548,7 +550,7 @@ class App(tk.Tk):
         widget = getattr(event, "widget", None)
         if isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox)):
             return None
-        self._hard_home()
+        self.go_home()
         return "break"
 
     def _hard_home(self):
@@ -571,16 +573,21 @@ class App(tk.Tk):
             self.session_clock_widgets = []
             self.market = active_profile().get("market", "Crypto")
             self.market_data.set_market(self.market)
+            self.market_data_payload = cached_market_payload(self.market)
             self.cur = "home"
             self.show("home")
-            self.after_idle(self.market_data.refresh_now)
+            self.after(30, self.market_data.refresh_now)
             self.focus_force()
         except Exception as exc:
             self._show_page_error("home", exc)
 
     def go_home(self):
-        """Single source of truth for every Home action."""
-        return self._hard_home()
+        """Single deferred Home action; never destroys the clicked widget in-place."""
+        try:
+            self.after_idle(self._hard_home)
+        except Exception:
+            self._hard_home()
+        return "break"
 
     def close_app(self):
         try:
@@ -1002,6 +1009,9 @@ class App(tk.Tk):
             self.menu_open = True
             self._schedule_menu_hide(1800)
 
+    def go_ai(self):
+        return self.go("ai")
+
     def go(self, key):
         self._cancel_menu_hide()
         if self.menu_open:
@@ -1196,10 +1206,10 @@ class App(tk.Tk):
         except Exception:
             pass
         self.market_data.set_market(market)
+        self.market_data_payload = cached_market_payload(market)
         save_db()
-        # Defer the rebuild one event-loop turn so the button callback never
-        # destroys its own widget hierarchy while Tk is dispatching the click.
-        self.after_idle(self._hard_home)
+        self.after(10, self._hard_home)
+        return "break"
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
@@ -1208,6 +1218,10 @@ class App(tk.Tk):
     def home(self):
         p = active_profile()
         self.market = p.get("market", "Crypto")
+        self.market_data.set_market(self.market)
+        cached = cached_market_payload(self.market)
+        if cached.get("items"):
+            self.market_data_payload = cached
         self.heading(self.tr("dashboard"), self.tr("dashboard_sub"))
 
         ticker_header = tk.Frame(self.content, bg=C["panel2"], highlightbackground=C["line"], highlightthickness=1)
@@ -1233,7 +1247,7 @@ class App(tk.Tk):
         self.indicator_row = tk.Frame(self.content, bg=C["bg"]); self.indicator_row.pack(fill="x", pady=(0,7))
         self.render_market_indicators(self.market_data_payload)
         self.market_data.set_market(self.market)
-        self.market_data.refresh_now()
+        self.after(30, self.market_data.refresh_now)
 
         session_wrap = tk.Frame(self.content, bg=C["bg"]); session_wrap.pack(fill="x", pady=(1,7))
         session_head = tk.Frame(session_wrap, bg=C["bg"]); session_head.pack(fill="x")
@@ -1421,13 +1435,16 @@ class App(tk.Tk):
         self.ticker_job = self.after(45, self._animate_ticker)
 
     def _market_data_callback(self, payload):
-        self.market_data_payload = payload
+        if str(payload.get("market")) != str(self.market):
+            return
         try:
             self.after(0, lambda p=payload: self._apply_market_data(p))
         except Exception:
             pass
 
     def _apply_market_data(self, payload):
+        if str(payload.get("market")) != str(self.market):
+            return
         self.market_data_payload = payload
         if self.cur == "home":
             self.ticker_offset = 0
@@ -1878,76 +1895,7 @@ class App(tk.Tk):
         self.translate_widget_tree(dlg)
 
     def open_ai_chat(self):
-        if self.ai_chat_window is not None:
-            try:
-                if self.ai_chat_window.winfo_exists():
-                    self.ai_chat_window.deiconify()
-                    self.ai_chat_window.lift()
-                    self.ai_chat_window.focus_force()
-                    return
-            except Exception:
-                pass
-
-        dlg=tk.Toplevel(self)
-        self.ai_chat_window=dlg
-        dlg.title("Trader Planner Pro • AI Chat")
-        dlg.geometry("820x700")
-        dlg.minsize(680,560)
-        dlg.configure(bg=C["bg"])
-        dlg.transient(self)
-        dlg.update_idletasks()
-        apply_glass(dlg, dark=self._effective_theme()=="dark", style="acrylic")
-
-        header=tk.Frame(dlg,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        header.pack(fill="x",padx=12,pady=12)
-        tk.Label(header,text=self.tr("ai_title"),bg=C["panel"],fg=C["text"],font=("Segoe UI",17,"bold")).pack(side="right",padx=14,pady=12)
-        status=self.ai.status()
-        status_text=("CLOUD AGENT • READY" if status.get("cloud") else ("LOCAL • READY" if status.get("ollama") else "BUILT-IN • READY"))
-        tk.Label(header,text=status_text,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(side="left",padx=10)
-
-        toolbar=tk.Frame(dlg,bg=C["bg"]); toolbar.pack(fill="x",padx=12)
-        role_var=tk.StringVar(value="orchestrator")
-        role_labels={"orchestrator":"Trader Planner Master Agent","form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
-        ttk.Combobox(toolbar,textvariable=role_var,state="readonly",values=list(role_labels.values()),
-                     width=25,justify="right").pack(side="right",padx=4)
-        self.btn(toolbar,"AI Web",lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • AI Web")).pack(side="left",padx=4)
-        self.btn(toolbar,"Get AI Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="left",padx=4)
-        self.btn(toolbar,self.tr("ai_clear"),lambda:self._clear_ai_chat(),).pack(side="left",padx=4)
-
-        card=self.card(dlg); card.pack(fill="both",expand=True,padx=12,pady=8)
-        chat=tk.Text(card,bg=C["soft"],fg=C["text"],insertbackground=C["text"],wrap="word",relief="flat",
-                     font=("Segoe UI",11),padx=14,pady=12)
-        chat.pack(fill="both",expand=True,padx=6,pady=6)
-        self.ai_chat_text=chat
-        chat.insert("1.0",self.tr("ai_welcome")+"\n\n")
-        chat.configure(state="disabled")
-
-        bottom=tk.Frame(dlg,bg=C["bg"]); bottom.pack(fill="x",padx=12,pady=(0,12))
-        prompt=tk.Entry(bottom,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",
-                        font=("Segoe UI",11),justify="right")
-        prompt.pack(side="right",fill="x",expand=True,padx=5,ipady=10)
-        self.ai_chat_input=prompt
-
-        def send(_=None):
-            msg=prompt.get().strip()
-            if not msg: return
-            prompt.delete(0,"end")
-            role=next((k for k,v in role_labels.items() if v==role_var.get()),"form")
-            context=self._ai_context()
-            self._append_ai("You",msg)
-            self._append_ai("Assistant","…")
-            self.ai.respond(role,msg,context,lambda answer:self.after(0,lambda:self._replace_ai_waiting(answer)))
-
-        send_btn=self.btn(bottom,self.tr("ai_send"),send,True); send_btn.pack(side="left",padx=5)
-        self.btn(bottom,self.tr("ai_close"),dlg.destroy).pack(side="left",padx=5)
-        prompt.bind("<Return>",send)
-
-        def on_close():
-            self.ai_chat_window=None
-            self.ai_chat_text=None
-            self.ai_chat_input=None
-            dlg.destroy()
-        dlg.protocol("WM_DELETE_WINDOW",on_close)
+        return self.go("ai")
 
     def _ai_context(self):
         p=active_profile()
