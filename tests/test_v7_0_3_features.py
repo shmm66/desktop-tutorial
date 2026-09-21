@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.0.0"
+    assert VERSION == "8.1.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -284,9 +284,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.0.0"' in iss
+    assert 'MyAppVersion "8.1.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.0.0\"" in launcher
+    assert "VERSION = \"8.1.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -328,7 +328,7 @@ def test_v79_navigation_and_glass_hooks_present():
     from pathlib import Path
     text = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def _hard_home(self):" in text
-    assert "command=self._hard_home" in text
+    assert "command=self.go_home" in text
     assert "apply_glass(self" in text
     assert "set_widget_glass(top" in text
 
@@ -338,7 +338,7 @@ def test_v800_navigation_uses_single_home_renderer():
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "self.show(\"home\")" in source
     assert "self.after_idle(self._hard_home)" in source
-    assert "self.after_idle(self.market_data.refresh_now)" in source
+    assert "self.after(30, self.market_data.refresh_now)" in source
     assert 'status = "loading"' in source or '["status"] = "loading"' in source
 
 
@@ -370,3 +370,55 @@ def test_v800_google_gmail_and_statement_modules_exist():
     assert "messages().send" in source
     assert "login_google" in source
     assert "send_gmail" in source
+
+
+def test_v810_navigation_is_deferred_and_market_is_generation_safe():
+    from pathlib import Path
+    from market_data import MarketDataService
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert 'self.after_idle(self._hard_home)' in source
+    assert 'self.market_data_payload = cached_market_payload(market)' in source
+    assert 'if str(payload.get("market")) != str(self.market):' in source
+    service = MarketDataService()
+    start = service.generation()
+    service.set_market("Forex")
+    assert service.generation() == start + 1
+
+
+def test_v810_academy_source_function_is_not_escaped():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert 'def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):\\n' not in source
+    assert 'def academy(self):' in source
+
+
+def test_v810_exact_family_visual_maps():
+    from academy_visuals import strategy_visual_key, glossary_visual_key
+    expected = {
+        "ICT 2022 Model": "ict_2022",
+        "ICT Silver Bullet": "ict_silver_bullet",
+        "ICT Unicorn Model": "unicorn",
+        "Power of Three (AMD)": "ict_amd",
+        "Judas Swing / Killzone Reversal": "ict_judas",
+        "ICT OTE / Premium-Discount Framework": "ict_ote",
+        "SMT Divergence": "smt",
+        "Liquidity Sweep + BOS": "smc_liquidity",
+        "Order Block + FVG Retest": "order_block",
+        "Breaker Block Reclaim": "breaker",
+    }
+    for name, key in expected.items():
+        assert strategy_visual_key(name) == key
+    assert glossary_visual_key("Silver Bullet", "ICT") == "ict_silver_bullet"
+    assert glossary_visual_key("OTE", "ICT") == "ict_ote"
+    assert glossary_visual_key("Breaker Block", "SMC") == "breaker"
+    assert glossary_visual_key("Bullish Engulfing", "Candlestick") == "bullish_engulfing"
+
+
+def test_v810_real_glass_and_safe_installer():
+    from pathlib import Path
+    glass = Path("glass_theme.py").read_text(encoding="utf-8")
+    iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
+    assert 'wintypes.DWORD(38)' in glass
+    assert 'pywinstyles.apply_style(window, native_style)' in glass
+    assert 'MyAppVersion "8.1.0"' in iss
+    assert 'PrivilegesRequired=lowest' in iss
