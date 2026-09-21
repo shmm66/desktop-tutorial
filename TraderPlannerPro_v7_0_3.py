@@ -2329,8 +2329,8 @@ class App(tk.Tk):
                  font=("Segoe UI",10,"bold"),justify="right",anchor="e",
                  wraplength=850).pack(fill="x",anchor="e")
 
-        role_var=tk.StringVar(value="form")
-        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
+        role_var=tk.StringVar(value="orchestrator")
+        role_labels={"orchestrator":"Trader Planner Master Agent","form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
         row=tk.Frame(hero,bg=C["panel"]); row.pack(fill="x",padx=14,pady=(0,12))
         tk.Label(row,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],
                  font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
