@@ -54,3 +54,14 @@ def apply_glass_to_toplevel(window, dark=True):
     except Exception:
         return False
     return True
+
+
+def set_widget_glass(widget, opacity=0.86):
+    try:
+        import pywinstyles
+        if sys.platform.startswith("win"):
+            pywinstyles.set_opacity(widget, float(opacity))
+            return True
+    except Exception:
+        pass
+    return False
