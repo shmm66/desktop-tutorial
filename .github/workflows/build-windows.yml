@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test/build dependencies
-        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai openai-agents
       - name: Syntax check
         run: |
           python -m py_compile TraderPlannerPro_v7_0_3.py
@@ -40,6 +40,7 @@ jobs:
           python -m py_compile academy_diagrams.py
           python -m py_compile google_oauth.py
           python -m py_compile statement_report.py
+          python -m py_compile google_oauth.py
       - name: Run tests
         run: python -m pytest -q
 
@@ -52,7 +53,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build dependencies
-        run: python -m pip install --upgrade pip pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+        run: python -m pip install --upgrade pip pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai openai-agents
       - name: Prepare exact education image assets
         run: python prepare_education_assets.py
       - name: Build Windows icon
@@ -94,6 +95,13 @@ jobs:
           $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
           if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
           if ((Get-Item $exe).Length -lt 1000000) { throw "EXE is unexpectedly small." }
+      - name: Packaged self-test
+        shell: powershell
+        run: |
+          $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList @('--self-test') -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Packaged self-test failed with exit code $($p.ExitCode)" }
+
       - name: Launch EXE smoke test
         shell: powershell
         run: |
@@ -120,6 +128,8 @@ jobs:
           if ($install.ExitCode -ne 0) { throw "Installer failed with exit code $($install.ExitCode)" }
           $installedExe = Join-Path $installDir 'TraderPlannerPro.exe'
           if (-not (Test-Path $installedExe)) { throw "Installed EXE not found." }
+          $self = Start-Process -FilePath $installedExe -ArgumentList @('--self-test') -Wait -PassThru
+          if ($self.ExitCode -ne 0) { throw "Installed EXE self-test failed with exit code $($self.ExitCode)" }
           $p = Start-Process -FilePath $installedExe -PassThru
           Start-Sleep -Seconds 8
           if ($p.HasExited) { throw "Installed EXE exited during startup." }
@@ -130,21 +140,21 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V8.0.0 Release
+      - name: Publish V8.1.0 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v8.0.0
-          name: Trader Planner Pro V8.0.0
+          tag_name: v8.1.0
+          name: Trader Planner Pro V8.1.0
           target_commitish: ${{ github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V8.0.0
+            ## Trader Planner Pro V8.1.0
 
-            Trader Planner Pro V8.0.0 — native acrylic glass UI, deterministic navigation, semantic SMC/ICT Academy, stronger multi-agent AI, resilient market/news services, Google Login + Gmail statements, and a safer per-user installer.
+            Trader Planner Pro V8.1.0 — native acrylic glass UI, deterministic navigation, semantic SMC/ICT Academy, stronger multi-agent AI, resilient market/news services, Google Login + Gmail statements, and a safer per-user installer.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v8.0.0.exe
+            installer/TraderPlannerPro_Setup_v8.1.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
