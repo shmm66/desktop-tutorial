@@ -154,7 +154,7 @@ I18N = {
         "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
         "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
-        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  AI Chat","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
+        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  AI Chat","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","ai_open_chat":"باز کردن چت هوش مصنوعی","ai_clear":"پاک کردن گفتگو","ai_close":"بستن","ai_welcome":"سلام. من دستیار Trader Planner Pro هستم. درباره فرم‌ها، استراتژی ثبت‌شده، روانشناسی و نظم معاملاتی سؤال بپرس.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
     },
     "en": {
         "home":"⌂  Home","daily":"◫  Daily Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
@@ -189,7 +189,7 @@ I18N = {
         "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
         "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
-        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Chat","news":"📰  Market News","calculators":"🧮  Calculators","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
+        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Chat","news":"📰  Market News","calculators":"🧮  Calculators","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","ai_open_chat":"Open AI Chat","ai_clear":"Clear Chat","ai_close":"Close","ai_welcome":"Hi. I am the Trader Planner Pro assistant. Ask about forms, documented strategies, psychology or your trading routine.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
     }
 }
 
@@ -969,7 +969,7 @@ class App(tk.Tk):
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
         if self.cur != "home":
-            ai_btn = tk.Button(left_tools, text="🤖 AI", command=lambda:self.show("ai"),
+            ai_btn = tk.Button(left_tools, text=self.tr("ai"), command=self.open_ai_chat,
                                bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                                relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
             ai_btn.pack(side="left", padx=(0,5))
@@ -1706,6 +1706,124 @@ class App(tk.Tk):
         self.btn(footer,self.tr("cancel"),dlg.destroy).pack(side="right",padx=4)
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
         self.translate_widget_tree(dlg)
+
+    def open_ai_chat(self):
+        if self.ai_chat_window is not None:
+            try:
+                if self.ai_chat_window.winfo_exists():
+                    self.ai_chat_window.deiconify()
+                    self.ai_chat_window.lift()
+                    self.ai_chat_window.focus_force()
+                    return
+            except Exception:
+                pass
+
+        dlg=tk.Toplevel(self)
+        self.ai_chat_window=dlg
+        dlg.title("Trader Planner Pro • AI Chat")
+        dlg.geometry("820x700")
+        dlg.minsize(680,560)
+        dlg.configure(bg=C["bg"])
+        dlg.transient(self)
+
+        header=tk.Frame(dlg,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
+        header.pack(fill="x",padx=12,pady=12)
+        tk.Label(header,text=self.tr("ai_title"),bg=C["panel"],fg=C["text"],font=("Segoe UI",17,"bold")).pack(side="right",padx=14,pady=12)
+        status=self.ai.status()
+        status_text="LOCAL • READY" if status["online"] and status["models"] else "BUILT-IN • READY"
+        tk.Label(header,text=status_text,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(side="left",padx=10)
+
+        toolbar=tk.Frame(dlg,bg=C["bg"]); toolbar.pack(fill="x",padx=12)
+        role_var=tk.StringVar(value="form")
+        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach"}
+        ttk.Combobox(toolbar,textvariable=role_var,state="readonly",values=list(role_labels.values()),
+                     width=25,justify="right").pack(side="right",padx=4)
+        self.btn(toolbar,self.tr("ai_clear"),lambda:self._clear_ai_chat(),).pack(side="left",padx=4)
+
+        card=self.card(dlg); card.pack(fill="both",expand=True,padx=12,pady=8)
+        chat=tk.Text(card,bg=C["soft"],fg=C["text"],insertbackground=C["text"],wrap="word",relief="flat",
+                     font=("Segoe UI",11),padx=14,pady=12)
+        chat.pack(fill="both",expand=True,padx=6,pady=6)
+        self.ai_chat_text=chat
+        chat.insert("1.0",self.tr("ai_welcome")+"\n\n")
+        chat.configure(state="disabled")
+
+        bottom=tk.Frame(dlg,bg=C["bg"]); bottom.pack(fill="x",padx=12,pady=(0,12))
+        prompt=tk.Entry(bottom,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",
+                        font=("Segoe UI",11),justify="right")
+        prompt.pack(side="right",fill="x",expand=True,padx=5,ipady=10)
+        self.ai_chat_input=prompt
+
+        def send(_=None):
+            msg=prompt.get().strip()
+            if not msg: return
+            prompt.delete(0,"end")
+            role=next((k for k,v in role_labels.items() if v==role_var.get()),"form")
+            context=self._ai_context()
+            self._append_ai("You",msg)
+            self._append_ai("Assistant","…")
+            self.ai.respond(role,msg,context,lambda answer:self.after(0,lambda:self._replace_ai_waiting(answer)))
+
+        send_btn=self.btn(bottom,self.tr("ai_send"),send,True); send_btn.pack(side="left",padx=5)
+        self.btn(bottom,self.tr("ai_close"),dlg.destroy).pack(side="left",padx=5)
+        prompt.bind("<Return>",send)
+
+        def on_close():
+            self.ai_chat_window=None
+            self.ai_chat_text=None
+            self.ai_chat_input=None
+            dlg.destroy()
+        dlg.protocol("WM_DELETE_WINDOW",on_close)
+
+    def _ai_context(self):
+        p=active_profile()
+        recent=p.get("journals",{}).get(self.market,[])
+        checklist=p.get("checklist",[])
+        return (
+            f"Current page: {self.cur}\n"
+            f"Market: {self.market}\n"
+            f"Profile: {p.get('name','')}\n"
+            f"Trading plan: {json.dumps(p.get('plan_draft',{}),ensure_ascii=False)}\n"
+            f"Recent trades: {json.dumps(recent[-5:],ensure_ascii=False)}\n"
+            f"Checklist completed: {sum(1 for x in checklist if x.get('done'))}/{len(checklist)}\n"
+            f"Market payload: {json.dumps(self.market_data_payload,ensure_ascii=False)}"
+        )
+
+    def _append_ai(self,speaker,text):
+        if not self.ai_chat_text: return
+        try:
+            self.ai_chat_text.configure(state="normal")
+            self.ai_chat_text.insert("end",f"{speaker}: {text}\n\n")
+            self.ai_chat_text.configure(state="disabled")
+            self.ai_chat_text.see("end")
+        except Exception:
+            pass
+
+    def _replace_ai_waiting(self,answer):
+        if not self.ai_chat_text: return
+        try:
+            self.ai_chat_text.configure(state="normal")
+            current=self.ai_chat_text.get("1.0","end-1c")
+            pos=current.rfind("Assistant: …")
+            if pos>=0:
+                self.ai_chat_text.delete(f"1.0+{pos}c",f"1.0+{pos+13}c")
+                self.ai_chat_text.insert(f"1.0+{pos}c",f"Assistant: {answer}")
+            else:
+                self.ai_chat_text.insert("end",f"Assistant: {answer}\n")
+            self.ai_chat_text.configure(state="disabled")
+            self.ai_chat_text.see("end")
+        except Exception:
+            self._append_ai("Assistant",str(answer))
+
+    def _clear_ai_chat(self):
+        if self.ai_chat_text:
+            try:
+                self.ai_chat_text.configure(state="normal")
+                self.ai_chat_text.delete("1.0","end")
+                self.ai_chat_text.insert("1.0",self.tr("ai_welcome")+"\n\n")
+                self.ai_chat_text.configure(state="disabled")
+            except Exception:
+                pass
 
     def open_webview(self, url, title="Trader Planner Pro"):
         try:
