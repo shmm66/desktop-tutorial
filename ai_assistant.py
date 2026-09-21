@@ -30,7 +30,7 @@ def _post_json(url, payload, timeout=25):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/7.8"},
+        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.0"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:
