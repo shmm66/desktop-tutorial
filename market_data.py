@@ -50,6 +50,7 @@ YAHOO_ENDPOINTS = [
     "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=5m",
     "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=5m",
 ]
+YAHOO_ENDPOINT = YAHOO_ENDPOINTS[0]
 FEAR_GREED_ENDPOINTS = [
     "https://api.alternative.me/fng/?limit=1",
 ]
