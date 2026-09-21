@@ -48,6 +48,14 @@ def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
     except Exception:
         pass
 
+    # Whole-window alpha is intentional: Tk child widgets are opaque surfaces,
+    # so lowering the top-level alpha lets the native DWM backdrop show through
+    # every card and creates the actual glass effect rather than a flat theme.
+    try:
+        window.attributes("-alpha", 0.93 if dark else 0.96)
+    except Exception:
+        pass
+
     # pywinstyles provides a robust Windows implementation when available.
     try:
         import pywinstyles
