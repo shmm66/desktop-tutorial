@@ -1924,14 +1924,32 @@ class App(tk.Tk):
         header.pack(fill="x",padx=12,pady=12)
         tk.Label(header,text=self.tr("ai_title"),bg=C["panel"],fg=C["text"],font=("Segoe UI",17,"bold")).pack(side="right",padx=14,pady=12)
         status=self.ai.status()
-        status_text=("CLOUD AGENT • READY" if status.get("cloud") else ("LOCAL • READY" if status.get("ollama") else "BUILT-IN • READY"))
-        tk.Label(header,text=status_text,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(side="left",padx=10)
+        mode=status.get("mode","offline")
+        model=status.get("model","offline-agent")
+        status_text=(
+            f"CLOUD MULTI-AGENT • {model}" if mode=="cloud"
+            else (f"LOCAL AGENT • {model}" if mode=="local" else "OFFLINE AGENT • READY")
+        )
+        status_fg=C["accent"] if mode=="cloud" else (C["cyan"] if mode=="local" else C["gold"])
+        tk.Label(header,text=status_text,bg=C["panel3"],fg=status_fg,font=("Consolas",9,"bold"),padx=10,pady=6).pack(side="left",padx=10)
 
         toolbar=tk.Frame(dlg,bg=C["bg"]); toolbar.pack(fill="x",padx=12)
         role_var=tk.StringVar(value="orchestrator")
         role_labels={"orchestrator":"Trader Planner Master Agent","form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
         ttk.Combobox(toolbar,textvariable=role_var,state="readonly",values=list(role_labels.values()),
                      width=25,justify="right").pack(side="right",padx=4)
+        def run_product_review():
+            self._append_ai("Product Agent", "…")
+            review_prompt = (
+                "Review the current Trader Planner Pro product UX from the supplied context. "
+                "Return 5 concrete design/reliability improvements, ordered by implementation dependency, "
+                "covering navigation, market data states, AI UX, Academy information architecture and desktop polish."
+            )
+            self.ai.respond(
+                "product", review_prompt, self._ai_context(),
+                lambda answer:self.after(0,lambda:self._replace_ai_waiting(answer))
+            )
+        self.btn(toolbar,self.tr("agent_upgrade_ideas"),run_product_review,True).pack(side="left",padx=4)
         self.btn(toolbar,"AI Web",lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • AI Web")).pack(side="left",padx=4)
         self.btn(toolbar,"Get AI Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="left",padx=4)
         self.btn(toolbar,self.tr("ai_clear"),lambda:self._clear_ai_chat(),).pack(side="left",padx=4)
@@ -2200,8 +2218,17 @@ class App(tk.Tk):
         tk.Label(ai_box,text=self.tr("ai_agent_roles"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
         tk.Label(ai_box,text=self.tr("ai_cloud_note"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),wraplength=1080,justify="right").pack(anchor="e",padx=18,pady=(0,10))
         ai_status=self.ai.status()
-        status_text=self.tr("ai_cloud_ready") if ai_status.get("cloud") else self.tr("ai_cloud_missing")
-        tk.Label(ai_box,text=status_text,bg=C["panel3"],fg=C["accent"] if ai_status.get("cloud") else C["gold"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(anchor="e",padx=18,pady=4)
+        ai_mode=ai_status.get("mode","offline")
+        if ai_mode=="cloud":
+            status_text=f"CLOUD MULTI-AGENT • {ai_status.get('model','')}"
+            status_fg=C["accent"]
+        elif ai_mode=="local":
+            status_text=f"LOCAL AGENT • {ai_status.get('model','')}"
+            status_fg=C["cyan"]
+        else:
+            status_text="OFFLINE AGENT • READY • NO API KEY REQUIRED"
+            status_fg=C["gold"]
+        tk.Label(ai_box,text=status_text,bg=C["panel3"],fg=status_fg,font=("Consolas",9,"bold"),padx=10,pady=6).pack(anchor="e",padx=18,pady=4)
         ai_row=tk.Frame(ai_box,bg=C["panel"]); ai_row.pack(fill="x",padx=18,pady=8)
         ai_key=tk.StringVar()
         ai_entry=tk.Entry(ai_row,textvariable=ai_key,show="•",bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",width=52,justify="left")
