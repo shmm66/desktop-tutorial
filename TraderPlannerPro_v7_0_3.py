@@ -2333,7 +2333,18 @@ class App(tk.Tk):
             bg=C["panel2"], fg=C["muted"], wraplength=1180, justify="right",
             padx=14, pady=10
         )
-        note.pack(fill="x",pady=(0,10))
+        note.pack(fill="x",pady=(0,7))
+
+        legend=tk.Frame(self.content,bg=C["bg"])
+        legend.pack(fill="x",pady=(0,7))
+        smc_badge=tk.Label(legend,text=self.tr("smc_family"),bg=C["soft"],fg=C["accent"],
+                           font=("Segoe UI",9,"bold"),padx=10,pady=5)
+        smc_badge.pack(side="right",padx=3)
+        ict_badge=tk.Label(legend,text=self.tr("ict_family"),bg=C["soft"],fg=C["violet"],
+                           font=("Segoe UI",9,"bold"),padx=10,pady=5)
+        ict_badge.pack(side="right",padx=3)
+        tk.Label(legend,text=self.tr("family"),bg=C["bg"],fg=C["muted"],
+                 font=("Segoe UI",9,"bold"),padx=8).pack(side="right")
 
         nb=ttk.Notebook(self.content)
         nb.pack(fill="both",expand=True)
