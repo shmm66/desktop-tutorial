@@ -853,6 +853,8 @@ class App(tk.Tk):
         top = tk.Frame(self, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1, bd=0)
         self.topbar = top
         top.pack(fill="x", padx=14, pady=(12, 7), ipady=5)
+        try: set_widget_glass(top, 0.78)
+        except Exception: pass
         self.menu_button = tk.Button(top, text="☰", command=self.toggle_menu, bg=C["panel2"], fg=C["text"],
                                      activebackground=C["accent"], activeforeground="#061019", relief="flat",
                                      font=("Segoe UI Symbol", 15, "bold"), width=3, cursor="hand2",
@@ -900,6 +902,8 @@ class App(tk.Tk):
 
         self.quickbar = tk.Frame(self, bg=C["bg"], highlightbackground=C["line"], highlightthickness=1)
         self.quickbar.pack(fill="x", padx=14, pady=(0,7), ipady=4)
+        try: set_widget_glass(self.quickbar, 0.74)
+        except Exception: pass
         self._quick_nav_buttons = {}
         nav_specs = [
             ("home", self.tr("nav_home"), self._hard_home),
