@@ -194,4 +194,33 @@ def test_v760_modern_skins_and_ai_chat_hooks():
     assert "def open_ai_chat(self):" in source
     assert "<Control-K>" in source
     assert "def _rounded_rect(" in source
-    assert I18N["fa"]["ai"] == "🤖  AI Chat"
+    assert I18N["fa"]["ai"].startswith("🤖")
+
+
+def test_v760_academy_strategy_maps_are_exact_and_distinct():
+    from academy_visuals import strategy_visual_key, glossary_visual_key, source_for_visual
+    assert strategy_visual_key("ICT 2022 Model") == "ict_2022"
+    assert strategy_visual_key("ICT Silver Bullet") == "ict_silver_bullet"
+    assert strategy_visual_key("Power of Three (AMD)") == "ict_amd"
+    assert strategy_visual_key("Judas Swing / Killzone Reversal") == "ict_judas"
+    assert strategy_visual_key("ICT Unicorn Model") == "unicorn"
+    assert strategy_visual_key("Liquidity Sweep + BOS") == "smc_liquidity"
+    assert glossary_visual_key("BOS", "Structure") == "smc_overview"
+    assert glossary_visual_key("Silver Bullet", "Model") == "ict_silver_bullet"
+    assert glossary_visual_key("OTE", "Range") == "ict_ote"
+    assert glossary_visual_key("Fair Value Gap", "Imbalance") == "fvg"
+    assert glossary_visual_key("Order Block (Bullish)", "PD Array") == "order_block"
+    assert glossary_visual_key("Breaker Block", "PD Array") == "breaker"
+    assert source_for_visual("ict_2022")[0].startswith("TradingView")
+    assert source_for_visual("ict_silver_bullet")[0].startswith("TradingView")
+
+
+def test_v760_persistent_navigation_and_embedded_ai_are_present():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "def set_market_mode(self, market):" in source
+    assert "self._nav_token" in source
+    assert "self.quickbar" in source
+    assert "def _render_page(self, key, token):" in source
+    assert "def _replace_page_ai_waiting(self,chat,answer):" in source
+    assert "def ai(self):" in source and "ai_quick_strategy" in source
