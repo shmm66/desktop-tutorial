@@ -14,6 +14,7 @@ DEFAULT_MODEL = "gpt-5.6-luna"
 REASONING_EFFORT = "high"
 
 ROLES = {
+    "orchestrator": "Master Agent: triage the question, use the right specialist, connect the journal, strategy, psychology and Academy context, and produce one actionable answer.",
     "form": "Form Coach: fill forms step-by-step, detect missing fields and convert context into concise journal/checklist entries.",
     "strategy": "Strategy Coach: explain only documented strategy definitions, separate context/setup/trigger/invalidation/target, and never invent a rule.",
     "psychology": "Trading Psychology Coach: help with FOMO, revenge trading, discipline, preparation and post-trade review without judging the person.",
@@ -97,6 +98,12 @@ def cloud_status():
 
 def _fallback(role, user_message, context):
     lower = f"{user_message} {context}".lower()
+    if role == "orchestrator":
+        return (
+            "Master Agent\\n"
+            "I will break the request into context, setup, trigger, invalidation, target, risk and next action. "
+            "I will keep SMC, ICT and candlestick terminology separate and only use supplied live-data context."
+        )
     if role == "form":
         return (
             "Form Coach\n"
