@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/7.8.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/7.9.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
@@ -38,7 +38,7 @@ CRYPTO_ENDPOINT = (
     "vs_currency=usd&order=market_cap_desc&per_page=10&page=1&"
     "sparkline=false&price_change_percentage=24h"
 )
-CRYPTO_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=25"
+CRYPTO_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=25"\nCOINCAP_ENDPOINT = "https://api.coincap.io/v2/assets?ids=bitcoin,ethereum,tether,binance-coin,xrp,usd-coin,solana,tron,dogecoin,cardano"
 KRAKEN_TICKER_ENDPOINT = "https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,SOLUSD,XRPUSD,ADAUSD,DOGEUSD,BNBUSD"
 BINANCE_TICKER_ENDPOINTS = [
     "https://data-api.binance.vision/api/v3/ticker/24hr",
@@ -91,132 +91,95 @@ def _safe_float(value):
         return None
 
 
+def _seed_path():
+    root = Path(getattr(__import__("sys"), "_MEIPASS", Path(__file__).resolve().parent))
+    return root / "market_seed.json"
+
+
 def _read_cache():
     try:
         with _cache_lock:
             payload = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
-        return payload if isinstance(payload, dict) else {}
+        if not isinstance(payload, dict):
+            return {}
+        # V7.8 migration: a single-market cache becomes a per-market cache.
+        if isinstance(payload.get("markets"), dict):
+            return payload
+        market = payload.get("market")
+        if market:
+            return {"markets": {market: payload}}
+        return {}
     except (OSError, ValueError, TypeError):
         return {}
 
 
+def _cache_for_market(mode: str):
+    market = "Forex" if str(mode).lower() == "forex" else "Crypto"
+    data = _read_cache()
+    item = (data.get("markets") or {}).get(market)
+    return item if isinstance(item, dict) else {}
+
+
 def _write_cache(payload):
+    market = "Forex" if str(payload.get("market")).lower() == "forex" else "Crypto"
     try:
         CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        current = _read_cache()
+        markets = current.setdefault("markets", {})
+        markets[market] = payload
         tmp = CACHE_PATH.with_suffix(".tmp")
         with _cache_lock:
-            tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
             tmp.replace(CACHE_PATH)
     except OSError:
         pass
 
 
-def _yahoo_symbol(symbol: str, timeout=3.5):
-    for endpoint in YAHOO_ENDPOINTS:
-        try:
-            data = _request_json(endpoint.format(symbol=urllib.parse.quote(symbol, safe="")), timeout=timeout)
-            result = (data.get("chart", {}).get("result") or [None])[0]
-            if not result:
-                continue
-            meta = result.get("meta") or {}
-            price = _safe_float(meta.get("regularMarketPrice"))
-            previous = _safe_float(meta.get("previousClose"))
-            if price is None:
-                closes = (((result.get("indicators") or {}).get("quote") or [{}])[0]).get("close") or []
-                values = [_safe_float(v) for v in closes]
-                values = [v for v in values if v is not None]
-                price = values[-1] if values else None
-            if price is None:
-                continue
-            change = None if previous in (None, 0) else (price - previous) / previous * 100.0
-            return price, change
-        except Exception:
-            continue
-    return None
+def _read_seed(mode):
+    market = "Forex" if str(mode).lower() == "forex" else "Crypto"
+    try:
+        raw = json.loads(_seed_path().read_text(encoding="utf-8"))
+        payload = (raw.get("markets") or {}).get(market) if isinstance(raw, dict) else None
+        if isinstance(payload, dict) and payload.get("items"):
+            payload = dict(payload)
+            payload["market"] = market
+            payload["status"] = "snapshot"
+            payload["source"] = payload.get("source") or "Build snapshot"
+            payload["message"] = "Build snapshot available; waiting for live feed."
+            return payload
+    except (OSError, ValueError, TypeError):
+        pass
+    return {}
 
 
-def _parallel_yahoo(symbols):
-    result = []
-    if not symbols:
-        return result
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(12, len(symbols))) as pool:
-        futures = {pool.submit(_yahoo_symbol, yahoo): label for label, yahoo in symbols}
-        for future in concurrent.futures.as_completed(futures):
-            label = futures[future]
-            try:
-                value = future.result()
-            except Exception:
-                value = None
-            if not value:
-                continue
-            price, change = value
-            result.append({"symbol": label, "name": label, "price": price, "change": change})
-    order = {label: i for i, (label, _) in enumerate(symbols)}
-    result.sort(key=lambda x: order.get(x["symbol"], 999))
-    return result
-
-
-def _crypto_from_binance():
-    for endpoint in BINANCE_TICKER_ENDPOINTS:
-        try:
-            rows = _request_json(endpoint, timeout=5.0)
-            if not isinstance(rows, list):
-                continue
-            by_symbol = {str(row.get("symbol", "")).upper(): row for row in rows}
-            result = []
-            for label, symbol in BINANCE_CRYPTO:
-                row = by_symbol.get(symbol)
-                if not row:
-                    # USDT/USD or USDC/USD may not be listed on every public endpoint.
-                    continue
-                price = _safe_float(row.get("lastPrice"))
-                change = _safe_float(row.get("priceChangePercent"))
-                if price is None:
-                    continue
-                result.append({
-                    "symbol": label,
-                    "name": label,
-                    "price": price,
-                    "change": change,
-                })
-            if len(result) >= 5:
-                return result, "Binance public market data"
-        except Exception:
-            continue
+def _crypto_from_coincap():
+    try:
+        data = _request_json(COINCAP_ENDPOINT, timeout=5.0)
+        rows = data.get("data") or []
+        result = []
+        symbol_map = {
+            "bitcoin":"BTC","ethereum":"ETH","tether":"USDT","binance-coin":"BNB",
+            "xrp":"XRP","usd-coin":"USDC","solana":"SOL","tron":"TRX",
+            "dogecoin":"DOGE","cardano":"ADA",
+        }
+        for row in rows:
+            rid = str(row.get("id",""))
+            label = symbol_map.get(rid)
+            price = _safe_float(row.get("priceUsd"))
+            change = _safe_float(row.get("changePercent24Hr"))
+            if label and price is not None:
+                result.append({"symbol":label,"name":label,"price":price,"change":change})
+        if len(result) >= 5:
+            order = ["BTC","ETH","USDT","BNB","XRP","USDC","SOL","TRX","DOGE","ADA"]
+            result.sort(key=lambda x: order.index(x["symbol"]) if x["symbol"] in order else 999)
+            return result, "CoinCap public market data"
+    except Exception:
+        pass
     return [], "unavailable"
 
 
-def _crypto_from_kraken():
-    try:
-        data = _request_json(KRAKEN_TICKER_ENDPOINT, timeout=5.0)
-        result = data.get("result") or {}
-        aliases = [
-            ("BTC", "XXBTZUSD"), ("ETH", "XETHZUSD"), ("SOL", "SOLUSD"),
-            ("XRP", "XXRPZUSD"), ("ADA", "ADAUSD"), ("DOGE", "DOGEUSD")
-        ]
-        rows=[]
-        for label,key in aliases:
-            row = result.get(key)
-            if not row:
-                # Kraken may return compact aliases.
-                row = next((v for k,v in result.items() if str(k).upper().replace("X","").replace("Z","") == key.replace("X","").replace("Z","")), None)
-            if not row:
-                continue
-            last = (row.get("c") or [None])[0]
-            open_price = (row.get("o") or [None])[0]
-            price = _safe_float(last)
-            op = _safe_float(open_price)
-            if price is None:
-                continue
-            change = None if op in (None,0) else (price-op)/op*100.0
-            rows.append({"symbol":label,"name":label,"price":price,"change":change})
-        return rows, "Kraken public market data" if len(rows)>=3 else "unavailable"
-    except Exception:
-        return [], "unavailable"
-
-
 def _crypto_live():
-    # Primary ranking by market cap.
+    # Aggregated ranking first, then exchange/public fallbacks.
     try:
         rows = _request_json(CRYPTO_ENDPOINT, timeout=5.0)
         if isinstance(rows, list) and rows:
@@ -236,17 +199,11 @@ def _crypto_live():
     except Exception:
         pass
 
-    # Fast exchange fallback. Binance documents public ticker endpoints as unauthenticated market data. 
-    result, source = _crypto_from_binance()
-    if result:
-        return result, source
+    for loader in (_crypto_from_binance, _crypto_from_kraken, _crypto_from_coincap):
+        result, source = loader()
+        if result:
+            return result, source
 
-    # Exchange fallback.
-    result, source = _crypto_from_kraken()
-    if result:
-        return result, source
-
-    # Aggregated fallback.
     try:
         rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=5.0)
         result = []
@@ -272,155 +229,10 @@ def _crypto_live():
     return result, "Yahoo Finance" if result else "unavailable"
 
 
-def _free_fx_rates():
-    for endpoint in EXCHANGE_RATE_ENDPOINTS:
-        try:
-            data = _request_json(endpoint, timeout=5.0)
-            rates = data.get("rates") or {}
-            if not rates:
-                continue
-            normalized = {}
-            for key, value in rates.items():
-                number = _safe_float(value)
-                if number is not None:
-                    normalized[str(key).upper()] = number
-            if normalized:
-                return normalized
-        except Exception:
-            continue
-    return {}
-
-
-def _gold_spot():
-    try:
-        data = _request_json(GOLD_SPOT_ENDPOINT, timeout=5.0)
-        rows = data.get("prices") or []
-        if rows:
-            row = rows[0]
-            value = _safe_float(row.get("price"))
-            if value is not None:
-                return value, None
-    except Exception:
-        pass
-    return None
-
-
-def _croncopia_metals():
-    result = {}
-    for label, slug in CRONCOPIA_METALS.items():
-        try:
-            data = _request_json(f"{CRONCOPIA_BASE}/{slug}.json", timeout=4.0)
-            price = _safe_float(data.get("price"))
-            if price is None:
-                continue
-            # Normalize the published unit to the common dashboard display unit.
-            unit = str(data.get("unit") or "").lower()
-            if label == "COPPER" and "per t" in unit:
-                price = price / 2204.62262185
-            result[label] = price
-        except Exception:
-            continue
-    return result
-
-
-def _forex_free_fallback():
-    rates = _free_fx_rates()
-    if not rates:
-        return []
-    result = []
-    for label, code in (
-        ("EUR/USD", "EUR"), ("GBP/USD", "GBP"), ("USD/JPY", "JPY"),
-        ("USD/CHF", "CHF"), ("AUD/USD", "AUD"), ("USD/CAD", "CAD"),
-        ("GOLD", "XAU"), ("SILVER", "XAG"),
-    ):
-        value = rates.get(code)
-        if value is None:
-            continue
-        # USD base rates: USD/XXX is direct; XXX/USD is the reciprocal.
-        if label in ("EUR/USD", "GBP/USD", "AUD/USD"):
-            price = 1.0 / value if value else None
-        else:
-            price = value
-        if price is not None:
-            result.append({"symbol": label, "name": label, "price": price, "change": None})
-    gold = _gold_spot()
-    if gold:
-        for row in result:
-            if row["symbol"] == "GOLD":
-                row["price"] = gold[0]
-    return result
-
-
-def _forex_live():
-    # Preferred source: live Yahoo chart quotes. If blocked/unavailable,
-    # supplement with a no-key FX reference feed so the dashboard still shows
-    # usable market context instead of a permanent loading state.
-    result = _parallel_yahoo(FOREX_SYMBOLS)
-    if len(result) >= 5:
-        return result, "Yahoo Finance"
-    fallback = _forex_free_fallback()
-    by_label = {row["symbol"]: row for row in result}
-    for row in fallback:
-        by_label.setdefault(row["symbol"], row)
-    metal_prices = _croncopia_metals()
-    for label, price in metal_prices.items():
-        by_label.setdefault(label, {"symbol": label, "name": label, "price": price, "change": None})
-    merged = [by_label[label] for label, _ in FOREX_SYMBOLS if label in by_label]
-    return merged, ("Yahoo Finance + no-key FX/metals fallback" if merged else "unavailable")
-
-
-def _global_indicators():
-    result = {}
-    for endpoint in (GLOBAL_ENDPOINT, GLOBAL_FALLBACK_ENDPOINT):
-        try:
-            data = _request_json(endpoint, timeout=5.0)
-            global_data = data.get("data") or {}
-            pct = global_data.get("market_cap_percentage") or {}
-            if pct:
-                result["btc_dominance"] = _safe_float(pct.get("btc"))
-                result["usdt_dominance"] = _safe_float(pct.get("usdt"))
-                result["total_market_cap"] = _safe_float((global_data.get("total_market_cap") or {}).get("usd"))
-                if any(value is not None for value in result.values()):
-                    return result
-            # CoinPaprika global shape fallback.
-            mcap = global_data.get("market_cap_usd") or global_data.get("market_cap") or {}
-            total = _safe_float(global_data.get("market_cap_usd") or mcap.get("usd") if isinstance(mcap, dict) else mcap)
-            result["total_market_cap"] = total
-        except Exception:
-            continue
-    return result
-
-
-def _fear_greed():
-    for endpoint in FEAR_GREED_ENDPOINTS:
-        try:
-            data = _request_json(endpoint, timeout=5.0)
-            row = (data.get("data") or [None])[0] or {}
-            value = _safe_float(row.get("value"))
-            if value is None:
-                continue
-            return {
-                "value": int(value),
-                "label": str(row.get("value_classification") or ""),
-                "timestamp": row.get("timestamp"),
-            }
-        except Exception:
-            continue
-    return None
-
-
-def _market_vix():
-    value = _yahoo_symbol(VIX_SYMBOL)
-    if not value:
-        return None
-    price, change = value
-    return {"value": price, "change": change}
-
-
 def cached_market_payload(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
-    cached = _read_cache()
-    if cached.get("market") == market and isinstance(cached.get("items"), list) and cached.get("items"):
+    cached = _cache_for_market(market)
+    if isinstance(cached.get("items"), list) and cached.get("items"):
         return {
             "market": market,
             "updated_at": cached.get("updated_at"),
@@ -428,8 +240,11 @@ def cached_market_payload(mode: str):
             "items": cached.get("items", []),
             "indicators": cached.get("indicators", {}),
             "status": "cache",
-            "message": "Loading live feed in background; showing last saved snapshot first.",
+            "message": "Showing the last saved snapshot while the live feed refreshes.",
         }
+    seed = _read_seed(market)
+    if seed:
+        return seed
     return {
         "market": market,
         "updated_at": None,
@@ -437,15 +252,13 @@ def cached_market_payload(mode: str):
         "items": [],
         "indicators": {},
         "status": "unavailable",
-        "message": "",
+        "message": "Waiting for a live market feed.",
     }
 
 
 def fetch_market(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    # Market quotes and secondary indicators are fetched concurrently so a slow
-    # dominance/VIX endpoint cannot keep the main ticker in a loading state.
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         item_future = pool.submit(_forex_live if market == "Forex" else _crypto_live)
         indicator_futures = {
@@ -479,8 +292,8 @@ def fetch_market(mode: str):
         _write_cache(payload)
         return payload
 
-    cached = _read_cache()
-    if cached.get("market") == market and isinstance(cached.get("items"), list):
+    cached = _cache_for_market(market)
+    if isinstance(cached.get("items"), list) and cached.get("items"):
         return {
             "market": market,
             "updated_at": cached.get("updated_at"),
@@ -491,7 +304,12 @@ def fetch_market(mode: str):
             "message": "Live feed unavailable; showing last saved market snapshot.",
         }
 
-    # Never leave the UI visually hanging on "loading". Return an explicit offline payload.
+    seed = _read_seed(market)
+    if seed:
+        seed["indicators"] = indicators or seed.get("indicators", {})
+        seed["updated_at"] = seed.get("updated_at") or now
+        return seed
+
     return {
         "market": market,
         "updated_at": now,
@@ -508,10 +326,9 @@ class MarketDataService:
         self.callback = callback
         self.refresh_seconds = max(30, int(refresh_seconds))
         self._market = "Crypto"
+        self._generation = 0
         self._running = False
         self._executor = None
-        self._future = None
-        self._refresh_lock = threading.Lock()
 
     def start(self, market: str):
         self.set_market(market)
@@ -520,46 +337,50 @@ class MarketDataService:
             return
         self._running = True
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        self._future = self._executor.submit(self._worker)
+        self._executor.submit(self._worker)
 
     def set_market(self, market: str):
-        self._market = "Forex" if market == "Forex" else "Crypto"
+        new_market = "Forex" if market == "Forex" else "Crypto"
+        if new_market != self._market:
+            self._generation += 1
+        self._market = new_market
 
     def refresh_now(self):
-        if not self._refresh_lock.acquire(blocking=False):
-            return
-
         market = self._market
+        generation = self._generation
 
         def run():
             try:
                 payload = fetch_market(market)
-                if self.callback:
-                    self.callback(payload)
-            finally:
-                self._refresh_lock.release()
+                if self.callback and self._running is not False:
+                    # Drop stale responses after a Crypto ↔ Forex switch.
+                    if market == self._market and generation == self._generation:
+                        self.callback(payload)
+            except Exception:
+                pass
 
         threading.Thread(target=run, name="TraderPlannerMarketRefresh", daemon=True).start()
 
     def stop(self):
         self._running = False
+        self._generation += 1
         if self._executor:
             try:
                 self._executor.shutdown(wait=False, cancel_futures=True)
             except Exception:
                 pass
             self._executor = None
-            self._future = None
 
     def _worker(self):
         while self._running:
             market = self._market
-            payload = fetch_market(market)
-            if self.callback:
-                try:
+            generation = self._generation
+            try:
+                payload = fetch_market(market)
+                if self.callback and market == self._market and generation == self._generation:
                     self.callback(payload)
-                except Exception:
-                    pass
+            except Exception:
+                pass
             for _ in range(self.refresh_seconds):
                 if not self._running:
                     break
