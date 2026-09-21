@@ -34,7 +34,7 @@ FEEDS = [
     ("Google News • Crypto", GOOGLE_CRYPTO_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/8.0"
+USER_AGENT = "TraderPlannerPro/8.1.0"
 NEWS_CACHE = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 
@@ -59,19 +59,50 @@ def _parse_stamp(value):
             return raw
 
 
-def fetch_rss(url, source="News", limit=12):
-    request = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-            "Cache-Control": "no-cache",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=5) as response:
-        data = response.read()
+def _download_feed_bytes(url):
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+        "Cache-Control": "no-cache",
+    }
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=4.5) as response:
+            return response.read()
+    except Exception:
+        # Some desktop networks block feed hosts with browser-like TLS or 403
+        # rules. A text proxy gives the parser one additional non-auth path.
+        proxy = "https://r.jina.ai/http://" + url.split("://", 1)[-1]
+        proxy_request = urllib.request.Request(proxy, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(proxy_request, timeout=6.0) as response:
+            return response.read()
 
-    root = ET.fromstring(data)
+
+def fetch_rss(url, source="News", limit=12):
+    data = _download_feed_bytes(url)
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError:
+        # Jina can return an HTML/Markdown representation for a feed. Extract
+        # the most useful linked headlines rather than returning an empty page.
+        text_blob = data.decode("utf-8", "ignore")
+        links = re.findall(r"\[([^\]]{8,180})\]\((https?://[^)]+)\)", text_blob)
+        rows = []
+        seen = set()
+        for title, link in links:
+            clean_title = _clean(title)
+            if clean_title and link not in seen and not link.lower().endswith((".jpg",".png",".webp")):
+                seen.add(link)
+                rows.append({
+                    "source": source,
+                    "title": clean_title,
+                    "link": link,
+                    "published": "",
+                })
+            if len(rows) >= limit:
+                break
+        return rows
+
     items = []
 
     # RSS 2.0
@@ -121,7 +152,7 @@ def fetch_all_news(limit=24, include_forex=False):
         for source, url in feeds
     }
     # Never wait indefinitely for a broken RSS endpoint.
-    done, _ = concurrent.futures.wait(jobs, timeout=6.5)
+    done, _ = concurrent.futures.wait(jobs, timeout=9.0)
     for job in done:
         try:
             results.extend(job.result(timeout=0.1))
