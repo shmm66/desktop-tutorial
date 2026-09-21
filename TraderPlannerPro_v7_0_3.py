@@ -1193,7 +1193,7 @@ class App(tk.Tk):
             pass
         self.market_data.set_market(market)
         save_db()
-        self.go_home()
+        self._hard_home()
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
