@@ -377,6 +377,9 @@ def test_v810_ai_provider_and_recovery_chain():
     assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-luna")
     assert "orchestrator" in ROLES
+    ai_source = Path("ai_assistant.py").read_text(encoding="utf-8")
+    assert "from agents import Agent, Runner" in ai_source
+    assert ".as_tool(" in ai_source
     state = cloud_status()
     assert "enabled" in state and "model" in state
 
