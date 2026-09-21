@@ -117,21 +117,21 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V7.6.0 Release
+      - name: Publish V7.6.1 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v7.6.0
-          name: Trader Planner Pro V7.6.0
+          tag_name: v7.6.1
+          name: Trader Planner Pro V7.6.1
           target_commitish: ${{ github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V7.6.0
+            ## Trader Planner Pro V7.6.1
 
             Trader Planner Pro reliability + UX release: fixed Home navigation/rendering, resilient multi-source market data, source-aware news center, persistent AI chat, modern visual skins, calendar views, calculators and Academy refinements.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v7.6.0.exe
+            installer/TraderPlannerPro_Setup_v7.6.1.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
