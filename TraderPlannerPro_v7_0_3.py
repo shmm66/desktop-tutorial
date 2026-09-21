@@ -2472,50 +2472,98 @@ class App(tk.Tk):
         kind = visual_kind or key
         source_title, source_url = source_for_visual(kind)
 
-        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,4))
-        if family=="smc":
-            family_text=self.tr("smc_family"); family_fg=C["accent"]
-        elif family=="ict":
-            family_text=self.tr("ict_family"); family_fg=C["violet"]
+        if family == "smc":
+            family_text, family_fg = self.tr("smc_family"), C["accent"]
+        elif family == "ict":
+            family_text, family_fg = self.tr("ict_family"), C["violet"]
         else:
-            family_text=self.tr("candles"); family_fg=C["gold"]
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,
-                 font=("Segoe UI",8,"bold"),padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
-                 font=("Segoe UI",11,"bold")).pack(side="right",padx=8)
+            family_text, family_fg = self.tr("candles"), C["gold"]
 
-        diagram_holder=tk.Frame(box,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=8,pady=(2,4))
+        header = tk.Frame(box, bg=C["panel3"])
+        header.pack(fill="x", padx=12, pady=(10,4))
+        tk.Label(header, text=family_text, bg=C["soft"], fg=family_fg,
+                 font=("Segoe UI",9,"bold"), padx=9, pady=4).pack(side="right")
+        tk.Label(header, text=self.ui_text(title), bg=C["panel3"], fg=C["text"],
+                 font=("Segoe UI",12,"bold")).pack(side="right", padx=8)
+
+        tk.Label(box, text=self.ui_text(subtitle), bg=C["panel3"], fg=C["muted"],
+                 font=("Segoe UI",9), justify="right", anchor="e",
+                 wraplength=1120).pack(fill="x", padx=14, pady=(0,6))
+
+        columns = tk.Frame(box, bg=C["panel3"])
+        columns.pack(fill="both", expand=True, padx=8, pady=(0,6))
+        source_frame = tk.Frame(columns, bg=C["panel2"], highlightbackground=C["line"], highlightthickness=1)
+        map_frame = tk.Frame(columns, bg=C["panel2"], highlightbackground=C["line"], highlightthickness=1)
+        source_frame.pack(side="left", fill="both", expand=True, padx=(0,4))
+        map_frame.pack(side="left", fill="both", expand=True, padx=(4,0))
+
+        tk.Label(source_frame, text="SOURCE VISUAL • ORIGINAL ASSET", bg=C["panel2"], fg=C["cyan"],
+                 font=("Consolas",8,"bold")).pack(anchor="w", padx=10, pady=(8,2))
+        source_holder = tk.Frame(source_frame, bg=C["panel2"])
+        source_holder.pack(fill="both", expand=True, padx=8, pady=4)
+
+        asset = None
         try:
-            if family in ("smc","ict"):
-                draw_setup(diagram_holder,family,self.ui_text(title),C)
-            elif family=="candles":
-                draw_candlestick(diagram_holder,self.ui_text(title),C)
+            asset = bundled_asset_for_visual(kind)
+        except Exception:
+            pass
+
+        if asset:
+            try:
+                from PIL import Image, ImageTk
+                image = Image.open(asset).convert("RGB")
+                max_w, max_h = 560, 330
+                ratio = min(max_w / max(image.width, 1), max_h / max(image.height, 1), 1.0)
+                size = (max(1, int(image.width * ratio)), max(1, int(image.height * ratio)))
+                image = image.resize(size, Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(image)
+                label = tk.Label(source_holder, image=photo, bg=C["panel2"], bd=0)
+                label.image = photo
+                label.pack(expand=True)
+            except Exception:
+                asset = None
+
+        if not asset:
+            tk.Label(source_holder, text=self.tr("no_exact_image"), bg=C["panel2"], fg=C["muted"],
+                     font=("Segoe UI",10,"bold"), justify="center", wraplength=460,
+                     padx=24, pady=50).pack(fill="both", expand=True)
+
+        tk.Label(map_frame, text="SEMANTIC SETUP MAP • APP INTERPRETATION", bg=C["panel2"], fg=C["gold"],
+                 font=("Consolas",8,"bold")).pack(anchor="w", padx=10, pady=(8,2))
+        diagram_holder = tk.Frame(map_frame, bg=C["panel2"])
+        diagram_holder.pack(fill="both", expand=True, padx=4, pady=2)
+        try:
+            if family in ("smc", "ict"):
+                draw_setup(diagram_holder, family, self.ui_text(title), C)
+            elif family == "candles":
+                draw_candlestick(diagram_holder, self.ui_text(title), C)
             else:
-                k=str(kind)
-                if k.startswith("ict_") or k in {"unicorn","breaker"}:
-                    draw_setup(diagram_holder,"ict",self.ui_text(title),C)
+                k = str(kind)
+                if k.startswith("ict_") or k in {"unicorn","breaker","smt","timing"}:
+                    draw_setup(diagram_holder, "ict", self.ui_text(title), C)
                 elif k in {"smc_overview","smc_liquidity","order_block","fvg","technical","structure","liquidity"}:
-                    draw_setup(diagram_holder,"smc",self.ui_text(title),C)
+                    draw_setup(diagram_holder, "smc", self.ui_text(title), C)
                 else:
-                    draw_candlestick(diagram_holder,self.ui_text(title),C)
+                    draw_candlestick(diagram_holder, self.ui_text(title), C)
         except Exception as exc:
-            tk.Label(diagram_holder,text=f"{self.tr('no_exact_image')}\n{exc}",
-                     bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
-                     padx=20,pady=30,justify="center",wraplength=900).pack(fill="x")
+            tk.Label(diagram_holder, text=f"{self.tr('no_exact_image')}\n{exc}",
+                     bg=C["panel2"], fg=C["muted"], font=("Segoe UI",9,"bold"),
+                     padx=20, pady=30, justify="center", wraplength=500).pack(fill="x")
 
-        meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,10))
-        source_label = tk.Label(meta,text=f"{self.tr('source_chart')}  •  {source_title}",
-                                bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
-                                wraplength=930,justify="right")
-        source_label.pack(side="right",fill="x",expand=True)
-        source_btn=tk.Button(meta,text=self.tr("open_source"),bg=C["soft"],fg=C["text"],
-                             activebackground=C["gold"],relief="flat",font=("Segoe UI",9,"bold"),
-                             cursor="hand2",command=lambda u=source_url:self.open_webview(u,source_title))
-        source_btn.pack(side="left",padx=(8,0))
-        try: set_widget_glass(source_btn,0.94)
-        except Exception: pass
+        meta = tk.Frame(box, bg=C["panel3"])
+        meta.pack(fill="x", padx=12, pady=(2,10))
+        tk.Label(meta, text=f"{self.tr('source_chart')}  •  {source_title}",
+                 bg=C["panel3"], fg=C["muted"], font=("Segoe UI",9,"bold"),
+                 wraplength=900, justify="right").pack(side="right", fill="x", expand=True)
+        source_btn = tk.Button(meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
+                               activebackground=C["gold"], relief="flat", font=("Segoe UI",9,"bold"),
+                               cursor="hand2", command=lambda u=source_url: self.open_webview(u, source_title))
+        source_btn.pack(side="left", padx=(8,0))
+        try:
+            set_widget_glass(source_btn,0.94)
+        except Exception:
+            pass
         return box
-
     def academy(self):
         self.heading(self.tr("academy_title"), self.tr("academy_sub"))
         note=tk.Label(
