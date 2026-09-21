@@ -82,6 +82,12 @@ def apply_glass(window, dark=True, style="acrylic"):
     except Exception:
         pass
 
+    # Give the DWM backdrop visible room to breathe. The acrylic blur remains
+    # underneath the Tk surface while this alpha softens the surface itself.
+    try:
+        window.attributes("-alpha", 0.965 if dark else 0.985)
+    except Exception:
+        pass
     return _win_dwm_backdrop(window, dark=dark) or applied
 
 
