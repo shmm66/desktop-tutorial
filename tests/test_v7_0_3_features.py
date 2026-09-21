@@ -286,7 +286,7 @@ def test_v780_installer_and_launcher_metadata():
     launcher = Path("launcher.py").read_text(encoding="utf-8")
     assert 'MyAppVersion "8.1.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.0.0\"" in launcher
+    assert "VERSION = \"8.1.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
