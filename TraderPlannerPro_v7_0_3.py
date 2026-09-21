@@ -2252,35 +2252,64 @@ class App(tk.Tk):
         self.refresh_news()
 
     def refresh_news(self):
-        if not hasattr(self,"news_tree"): return
-        for item in self.news_tree.get_children(): self.news_tree.delete(item)
-        self.news_status.config(text="● "+self.tr("market_loading"),fg=C["gold"])
-        self.news_tree.insert("","end",iid="loading",values=("…","…",self.tr("market_loading")))
-        def done(rows):
-            try: self.after(0,lambda:self._apply_news(rows))
+        if not hasattr(self, "news_tree"):
+            return
+        self._news_token += 1
+        token = self._news_token
+        if self._news_timeout_job:
+            try: self.after_cancel(self._news_timeout_job)
             except Exception: pass
-        fetch_market_news(done, include_forex=True)
+            self._news_timeout_job = None
+        for item in self.news_tree.get_children():
+            self.news_tree.delete(item)
+        self.news_status.config(text="● " + self.tr("market_loading"), fg=C["gold"])
 
-    def _apply_news(self,rows):
+        fallback=[
+            ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
+            ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
+            ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
+            ("CryptoSlate","Open CryptoSlate news terminal","https://cryptoslate.com/news-terminal/"),
+            ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
+        ]
+        self.news_items=[{"source":src,"published":"SOURCE","title":title,"link":url}
+                         for src,title,url in fallback]
+        for i,row in enumerate(self.news_items):
+            self.news_tree.insert("", "end", iid=f"source-{i}",
+                                  values=(row["source"],"SOURCE",row["title"]))
+
+        def done(rows):
+            if token != self._news_token:
+                return
+            try:
+                self.after(0, lambda r=rows,t=token: self._apply_news(r,t))
+            except Exception:
+                pass
+        fetch_market_news(done, include_forex=True)
+        self._news_timeout_job=self.after(10000,lambda t=token:self._news_timeout(t))
+
+    def _news_timeout(self, token):
+        self._news_timeout_job=None
+        if token != self._news_token or not hasattr(self,"news_tree"):
+            return
+        self.news_status.config(text="● "+self.tr("news_fallback"),fg=C["gold"])
+
+    def _apply_news(self, rows, token=None):
+        if token is not None and token != self._news_token:
+            return
         self.news_items=rows or []
         if not hasattr(self,"news_tree"): return
         for item in self.news_tree.get_children(): self.news_tree.delete(item)
         if self.news_items:
-            self.news_status.config(text=f"● {len(self.news_items)} headlines",fg=C["accent"])
+            self.news_status.config(text=f"● {len(self.news_items)} live headlines",fg=C["accent"])
             for i,row in enumerate(self.news_items):
-                self.news_tree.insert("","end",iid=str(i),values=(row.get("source","News"),row.get("published",""),row.get("title","")))
+                self.news_tree.insert("","end",iid=str(i),
+                                      values=(row.get("source","News"),row.get("published",""),row.get("title","")))
         else:
-            self.news_status.config(text="● "+self.tr("market_unavailable"),fg=C["danger"])
-            fallback=[
-                ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
-                ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
-                ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
-                ("CryptoSlate","Open CryptoSlate news terminal","https://cryptoslate.com/news-terminal/"),
-                ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
-            ]
-            for i,(source,title,url) in enumerate(fallback):
-                self.news_tree.insert("","end",iid=f"fallback-{i}",values=(source,"LIVE",title))
-            self.news_items=[{"source":s,"published":"LIVE","title":t,"link":u} for s,t,u in fallback]
+            self.news_status.config(text="● "+self.tr("news_fallback"),fg=C["gold"])
+            for i,(src,title,url) in enumerate(fallback):
+                self.news_tree.insert("","end",iid=f"fallback-{i}",values=(src,"SOURCE",title))
+            self.news_items=[{"source":src,"published":"SOURCE","title":title,"link":url}
+                             for src,title,url in fallback]
 
     def open_selected_news(self,_=None):
         if not hasattr(self,"news_tree"): return
