@@ -1,0 +1,9 @@
+name: Probe Ubuntu Runner
+on:
+  push:
+    branches: [ "fix/v8-0-0-glass-academy-stable-desk" ]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "ubuntu runner probe"
