@@ -2726,6 +2726,9 @@ class App(tk.Tk):
         q=tk.StringVar(); entry=tk.Entry(bar,textvariable=q,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="right",font=("Segoe UI",10)); entry.pack(side="right",fill="x",expand=True,padx=8,pady=10)
         tk.Label(bar,text=self.tr("search_term"),bg=C["panel"],fg=C["muted"]).pack(side="right")
         cat=tk.StringVar(value="ALL"); cats=["ALL"]+sorted({x["category"] for x in GLOSSARY}); combo=ttk.Combobox(bar,textvariable=cat,values=cats,state="readonly",width=24,justify="right"); combo.pack(side="left",padx=8,pady=8)
+        family_var=tk.StringVar(value="ALL")
+        family_combo=ttk.Combobox(bar,textvariable=family_var,values=["ALL","SMC","ICT","CANDLE"],state="readonly",width=14,justify="center")
+        family_combo.pack(side="left",padx=8,pady=8)
         body=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8); body.pack(fill="both",expand=True,padx=8,pady=(0,8))
         left=tk.Frame(body,bg=C["panel"]); right=tk.Frame(body,bg=C["panel"]); body.add(left,minsize=380); body.add(right,minsize=760)
         tree=ttk.Treeview(left,columns=("term","category"),show="headings",selectmode="browse"); tree.heading("term",text="Term"); tree.heading("category",text="Category"); tree.column("term",width=260); tree.column("category",width=120); tree.pack(fill="both",expand=True,padx=8,pady=8)
@@ -2734,13 +2737,16 @@ class App(tk.Tk):
         meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
         usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",11),wraplength=860,justify="right",anchor="e"); usage.pack(fill="both",expand=True,padx=18,pady=7)
         def refresh(*_):
-            term=q.get().strip().lower(); selected_cat=cat.get()
+            term=q.get().strip().lower(); selected_cat=cat.get(); selected_family=family_var.get()
             for x in tree.get_children(): tree.delete(x)
             matched=[]
             for i,item in enumerate(GLOSSARY):
                 blob=" ".join([item["term"],item["fa"],item["en"],item["category"],item["meaning_fa"],item["meaning_en"],item["usage_fa"],item["usage_en"]]).lower()
                 if term and term not in blob: continue
                 if selected_cat!="ALL" and item["category"]!=selected_cat: continue
+                kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
+                family = "ICT" if kind.startswith("ict_") or kind in {"unicorn","breaker","smt"} else ("CANDLE" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "SMC")
+                if selected_family!="ALL" and family!=selected_family: continue
                 matched.append(i); tree.insert("", "end",iid=str(i),values=(item["term"],item["category"]))
             if matched: tree.selection_set(str(matched[0])); render()
         def render(_=None):
@@ -2754,7 +2760,7 @@ class App(tk.Tk):
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
             meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
             usage.config(text=self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"]))
-        tree.bind("<<TreeviewSelect>>",render); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh); refresh()
+        tree.bind("<<TreeviewSelect>>",render); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh); family_combo.bind("<<ComboboxSelected>>",refresh); refresh()
         tk.Label(parent,text=f"{len(GLOSSARY)} terms",bg=C["bg"],fg=C["muted"],font=("Segoe UI",8)).pack(anchor="e",padx=10,pady=(0,6))
     def open_path(self,path):
         path=Path(path); path.mkdir(parents=True,exist_ok=True)
