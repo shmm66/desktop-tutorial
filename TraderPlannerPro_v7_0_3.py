@@ -539,7 +539,7 @@ class App(tk.Tk):
                 self.menu_open = False
         except Exception:
             pass
-        self.after_idle(lambda: self.show("home"))
+        self.show("home")
 
     def close_app(self):
         try:
@@ -1047,7 +1047,7 @@ class App(tk.Tk):
     def change_market(self):
         p=active_profile(); p["market"]="Forex" if p.get("market")=="Crypto" else "Crypto"
         self.market=p["market"]; self.market_btn.config(text=self.market); self.market_data.set_market(self.market); p["updated_at"]=datetime.now().isoformat(timespec="seconds")
-        save_db(); self.show(self.cur)
+        save_db(); self.go_home()
 
     def home(self):
         p = active_profile()
