@@ -68,7 +68,7 @@ def fetch_rss(url, source="News", limit=12):
             "Cache-Control": "no-cache",
         },
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
+    with urllib.request.urlopen(request, timeout=5) as response:
         data = response.read()
 
     root = ET.fromstring(data)
@@ -113,13 +113,27 @@ def fetch_rss(url, source="News", limit=12):
 def fetch_all_news(limit=24, include_forex=False):
     results = []
     feeds = list(FEEDS) + (FOREX_FEEDS if include_forex else [])
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(feeds)) as pool:
-        jobs = {pool.submit(fetch_rss, url, source, max(8, limit)): source for source, url in feeds}
-        for job in concurrent.futures.as_completed(jobs):
-            try:
-                results.extend(job.result())
-            except Exception:
-                continue
+    executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(6, max(1, len(feeds))), thread_name_prefix="TPNews"
+    )
+    jobs = {
+        executor.submit(fetch_rss, url, source, max(8, limit)): source
+        for source, url in feeds
+    }
+    # Never wait indefinitely for a broken RSS endpoint.
+    done, _ = concurrent.futures.wait(jobs, timeout=6.5)
+    for job in done:
+        try:
+            results.extend(job.result(timeout=0.1))
+        except Exception:
+            continue
+    try:
+        executor.shutdown(wait=False, cancel_futures=True)
+    except Exception:
+        try:
+            executor.shutdown(wait=False)
+        except Exception:
+            pass
 
     unique = {}
     for row in results:
