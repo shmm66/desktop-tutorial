@@ -1157,6 +1157,7 @@ class App(tk.Tk):
         except Exception:
             pass
         self.market_data.set_market(market)
+        self.market_data_payload = cached_market_payload(market)
         save_db()
         self.go_home()
 
