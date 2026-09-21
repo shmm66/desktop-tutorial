@@ -547,6 +547,7 @@ class App(tk.Tk):
         return "break"
 
     def go_home(self):
+        """Hard-reset navigation to Home and invalidate stale renders."""
         try:
             self.focus_force()
         except Exception:
@@ -558,7 +559,16 @@ class App(tk.Tk):
                 self.menu_open = False
         except Exception:
             pass
-        self.show("home")
+        if getattr(self, "_nav_job", None) is not None:
+            try:
+                self.after_cancel(self._nav_job)
+            except Exception:
+                pass
+            self._nav_job = None
+        self._nav_token += 1
+        token = self._nav_token
+        self.cur = "home"
+        self._nav_job = self.after_idle(lambda: self._render_page("home", token))
 
     def close_app(self):
         try:
