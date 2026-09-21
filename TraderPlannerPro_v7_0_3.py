@@ -1076,6 +1076,8 @@ class App(tk.Tk):
         tk.Label(indicator_head, text=f"{self.market} • {self.market_data_payload.get('source','—')}", bg=C["bg"], fg=C["muted"], font=("Segoe UI", 8)).pack(side="left")
         self.indicator_row = tk.Frame(self.content, bg=C["bg"]); self.indicator_row.pack(fill="x", pady=(0,7))
         self.render_market_indicators(self.market_data_payload)
+        self.market_data.set_market(self.market)
+        self.market_data.refresh_now()
 
         session_wrap = tk.Frame(self.content, bg=C["bg"]); session_wrap.pack(fill="x", pady=(1,7))
         session_head = tk.Frame(session_wrap, bg=C["bg"]); session_head.pack(fill="x")
