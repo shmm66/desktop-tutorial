@@ -892,23 +892,56 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        if self.session_clock_job is not None:
-            try: self.after_cancel(self.session_clock_job)
-            except Exception: pass
-            self.session_clock_job = None
-        if self.ticker_job is not None:
-            try: self.after_cancel(self.ticker_job)
-            except Exception: pass
-            self.ticker_job = None
-        self.session_clock_widgets = []
-        self.cur = key
+        allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
+        if key not in allowed:
+            key="home"
+        for job_name in ("session_clock_job","ticker_job"):
+            job=getattr(self, job_name, None)
+            if job is not None:
+                try: self.after_cancel(job)
+                except Exception: pass
+                setattr(self, job_name, None)
+        self.session_clock_widgets=[]
+        self.cur=key
         for widget in self.content.winfo_children():
-            widget.destroy()
-        getattr(self, key)()
+            try: widget.destroy()
+            except Exception: pass
         try:
+            getattr(self,key)()
             self.translate_widget_tree(self.content)
+        except Exception as exc:
+            self._show_page_error(key,exc)
+
+    def _show_page_error(self,key,exc):
+        try:
+            ROOT.mkdir(parents=True,exist_ok=True)
+            with (ROOT/"ui_errors.log").open("a",encoding="utf-8") as log:
+                log.write(f"{datetime.now().isoformat(timespec='seconds')} | page={key} | {type(exc).__name__}: {exc}\n")
         except Exception:
             pass
+        for widget in self.content.winfo_children():
+            try: widget.destroy()
+            except Exception: pass
+        box=self.card(self.content); box.pack(fill="both",expand=True,padx=30,pady=30)
+        tk.Label(box,text="Trader Planner Pro",bg=C["panel"],fg=C["accent"],font=("Segoe UI",22,"bold")).pack(pady=(60,10))
+        tk.Label(box,text=f"{key.upper()} • SAFE RECOVERY",bg=C["panel"],fg=C["gold"],font=("Consolas",11,"bold")).pack(pady=4)
+        tk.Label(box,text="The page hit a UI error and was recovered safely.",bg=C["panel"],fg=C["text"],font=("Segoe UI",12)).pack(pady=8)
+        tk.Label(box,text=str(exc),bg=C["soft"],fg=C["danger"],font=("Consolas",9),wraplength=1050,justify="center").pack(fill="x",padx=30,pady=20,ipady=12)
+        self.btn(box,self.tr("home"),self.go_home,True).pack(pady=10)
+
+    def _rounded_rect(self,canvas,x1,y1,x2,y2,radius=12,fill="",outline="",width=1):
+        r=max(1,int(radius))
+        canvas.create_arc(x1,y1,x1+2*r,y1+2*r,start=90,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_arc(x2-2*r,y1,x2,y1+2*r,start=0,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_arc(x1,y2-2*r,x1+2*r,y2,start=180,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_arc(x2-2*r,y2-2*r,x2,y2,start=270,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_rectangle(x1+r,y1,x2-r,y2,fill=fill,outline="")
+        canvas.create_rectangle(x1,y1+r,x2,y2-r,fill=fill,outline="")
+        if outline:
+            canvas.create_line(x1+r,y1,x2-r,y1,fill=outline,width=width)
+            canvas.create_line(x1+r,y2,x2-r,y2,fill=outline,width=width)
+            canvas.create_line(x1,y1+r,x1,y2-r,fill=outline,width=width)
+            canvas.create_line(x2,y1+r,x2,y2-r,fill=outline,width=width)
 
     def clock(self):
         now = datetime.now()
