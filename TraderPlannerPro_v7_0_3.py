@@ -666,12 +666,12 @@ class App(tk.Tk):
                 button.configure(bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"])
             except Exception:
                 pass
-        for widget_name in ("menu_button", "market_btn", "global_home_btn"):
+        for widget_name in ("menu_button", "market_btn", "global_home_btn", "global_ai_btn"):
             widget = getattr(self, widget_name, None)
             if widget:
                 try:
                     widget.configure(bg=C["panel2"] if widget_name == "menu_button" else C["soft"], fg=C["text"],
-                                      activebackground=C["accent"] if widget_name in ("menu_button","global_home_btn") else C["gold"],
+                                      activebackground=C["accent"] if widget_name in ("menu_button","global_home_btn","global_ai_btn") else C["gold"],
                                       activeforeground="#061019")
                 except Exception:
                     pass
@@ -783,6 +783,8 @@ class App(tk.Tk):
             self.market_btn.config(text=self.market)
         if hasattr(self, "global_home_btn"):
             self.global_home_btn.config(text=self.tr("nav_home"))
+        if hasattr(self, "global_ai_btn"):
+            self.global_ai_btn.config(text=self.tr("ai_chat"))
         if hasattr(self, "_quick_nav_buttons"):
             labels={
                 "home":self.tr("nav_home"),
@@ -846,6 +848,12 @@ class App(tk.Tk):
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
         )
         self.global_home_btn.pack(side="left", padx=4)
+        self.global_ai_btn = tk.Button(
+            status, text=self.tr("ai_chat"), command=self.open_ai_chat,
+            bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
+            relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
+        )
+        self.global_ai_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
 
         self.quickbar = tk.Frame(self, bg=C["bg"], highlightbackground=C["line"], highlightthickness=1)
