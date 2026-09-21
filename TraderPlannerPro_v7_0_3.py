@@ -2306,6 +2306,13 @@ class App(tk.Tk):
                                       values=(row.get("source","News"),row.get("published",""),row.get("title","")))
         else:
             self.news_status.config(text="● "+self.tr("news_fallback"),fg=C["gold"])
+            fallback=[
+                ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
+                ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
+                ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
+                ("CryptoSlate","Open CryptoSlate news terminal","https://cryptoslate.com/news-terminal/"),
+                ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
+            ]
             for i,(src,title,url) in enumerate(fallback):
                 self.news_tree.insert("","end",iid=f"fallback-{i}",values=(src,"SOURCE",title))
             self.news_items=[{"source":src,"published":"SOURCE","title":title,"link":url}
