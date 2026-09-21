@@ -172,6 +172,8 @@ STRATEGY_VISUALS = {
     "ict unicorn model": "unicorn",
     "power of three (amd)": "ict_amd",
     "judas swing / killzone reversal": "ict_judas",
+    "ict ote / premium-discount framework": "ict_ote",
+    "smt divergence": "smt",
 }
 
 # Exact concept maps. These are intentionally specific so a glossary term does not
