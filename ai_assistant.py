@@ -184,10 +184,16 @@ class AIOrchestrator:
         try:
             from agents import ModelSettings
             from openai.types.shared import Reasoning
-            model_settings = ModelSettings(
-                reasoning=Reasoning(effort=REASONING_EFFORT),
-                verbosity="low",
-            )
+            try:
+                model_settings = ModelSettings(
+                    reasoning=Reasoning(mode="pro", effort=REASONING_EFFORT, context="all_turns"),
+                    verbosity="low",
+                )
+            except TypeError:
+                model_settings = ModelSettings(
+                    reasoning=Reasoning(effort="high"),
+                    verbosity="low",
+                )
         except Exception:
             model_settings = None
 
