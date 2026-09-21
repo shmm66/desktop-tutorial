@@ -643,7 +643,7 @@ class App(tk.Tk):
 
     def apply_theme(self, initial=False):
         effective = self._effective_theme()
-        skin = self.skin if self.skin in SKINS else "obsidian"
+        skin = self.skin if self.skin in SKINS else "glass"
         palette = dict(THEMES[effective])
         palette.update(SKINS[skin][effective])
         C.update(palette)
