@@ -20,7 +20,10 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
-from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key
+from academy_visuals import (
+    render_visual, visual_key_for, source_for_visual, strategy_visual_key,
+    pattern_visual_key, glossary_visual_key, bundled_asset_for_visual,
+)
 from academy_diagrams import draw_setup, draw_candlestick
 from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
@@ -31,7 +34,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "7.8.0"
+VERSION = "7.9.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -511,9 +514,11 @@ class App(tk.Tk):
         self.ai_chat_window = None
         self.ai_chat_text = None
         self.ai_chat_input = None
+        self._academy_photos = []
         self._nav_job = None
         self._nav_token = 0
         self.quickbar = None
+        self._last_nav_error = ""
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -547,18 +552,29 @@ class App(tk.Tk):
         return "break"
 
     def go_home(self):
+        """Hard-reset navigation so Home cannot be lost behind a pending render."""
         try:
             self.focus_force()
         except Exception:
             pass
+        self._cancel_menu_hide()
         try:
-            self._cancel_menu_hide()
             if self.menu_open:
                 self.menu.place_configure(x=-304)
-                self.menu_open = False
         except Exception:
             pass
-        self.show("home")
+        self.menu_open = False
+
+        self.cur = "home"
+        self._nav_token += 1
+        token = self._nav_token
+        if self._nav_job is not None:
+            try:
+                self.after_cancel(self._nav_job)
+            except Exception:
+                pass
+        self._nav_job = self.after_idle(lambda t=token: self._render_page("home", t))
+        return "break"
 
     def close_app(self):
         try:
@@ -971,40 +987,52 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
+        allowed = {"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
-            key="home"
+            key = "home"
         self._cancel_menu_hide()
         self.cur = key
         self._nav_token += 1
         token = self._nav_token
         if self._nav_job is not None:
-            try: self.after_cancel(self._nav_job)
-            except Exception: pass
-            self._nav_job = None
-        self._render_page(key, token)
+            try:
+                self.after_cancel(self._nav_job)
+            except Exception:
+                pass
+        # Queue the render so button commands finish before old page widgets
+        # are destroyed. This fixes Home/Crypto/Forex race conditions.
+        self._nav_job = self.after_idle(lambda k=key, t=token: self._render_page(k, t))
         return "break"
 
     def _render_page(self, key, token):
         self._nav_job = None
         if token != self._nav_token or not self.winfo_exists():
             return
-        for job_name in ("session_clock_job","ticker_job"):
-            job=getattr(self, job_name, None)
+        for job_name in ("session_clock_job", "ticker_job"):
+            job = getattr(self, job_name, None)
             if job is not None:
-                try: self.after_cancel(job)
-                except Exception: pass
+                try:
+                    self.after_cancel(job)
+                except Exception:
+                    pass
                 setattr(self, job_name, None)
-        self.session_clock_widgets=[]
+
+        self.session_clock_widgets = []
+        self._academy_photos = []
         for widget in self.content.winfo_children():
-            try: widget.destroy()
-            except Exception: pass
+            try:
+                widget.destroy()
+            except Exception:
+                pass
+
         try:
-            getattr(self,key)()
+            getattr(self, key)()
             self.translate_widget_tree(self.content)
             self.content.update_idletasks()
+            self._last_nav_error = ""
         except Exception as exc:
-            self._show_page_error(key,exc)
+            self._last_nav_error = f"{type(exc).__name__}: {exc}"
+            self._show_page_error(key, exc)
 
     def _show_page_error(self,key,exc):
         try:
@@ -1147,6 +1175,7 @@ class App(tk.Tk):
             self.market=active_profile()["market"]; self.refresh_profile_selector(); self.show("home")
 
     def set_market_mode(self, market):
+        """Switch market mode without tearing down the application shell."""
         market = "Forex" if str(market) == "Forex" else "Crypto"
         p = active_profile()
         p["market"] = market
@@ -1158,7 +1187,16 @@ class App(tk.Tk):
             pass
         self.market_data.set_market(market)
         save_db()
-        self.go_home()
+
+        self.cur = "home"
+        self._nav_token += 1
+        token = self._nav_token
+        if self._nav_job is not None:
+            try:
+                self.after_cancel(self._nav_job)
+            except Exception:
+                pass
+        self._nav_job = self.after_idle(lambda t=token: self._render_page("home", t))
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
@@ -1242,7 +1280,7 @@ class App(tk.Tk):
         self.market_data.refresh_now()
 
     def render_market_indicators(self, payload=None):
-        if not hasattr(self, "indicator_row"):
+        if not hasattr(self, "indicator_row") or not self.indicator_row.winfo_exists():
             return
         payload = payload or self.market_data_payload
         for w in self.indicator_row.winfo_children():
