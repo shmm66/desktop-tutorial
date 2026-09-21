@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-5.6-sol"
+DEFAULT_MODEL = "gpt-5.6-luna"
 REASONING_EFFORT = "high"
 
 ROLES = {
@@ -201,7 +201,7 @@ class AIOrchestrator:
             specialists[key] = Agent(**kwargs)
 
         triage_kwargs = {
-            "name":"Trader Planner Orchestrator",
+            "name":"Trader Planner Master Agent",
             "model":self.model,
             "instructions":(
                 common
@@ -227,7 +227,7 @@ class AIOrchestrator:
         from agents import Runner
 
         agents_map = self._build_cloud_agents()
-        agent = agents_map.get(role) or agents_map["orchestrator"]
+        agent = agents_map.get("orchestrator") if role in {"orchestrator","product"} else agents_map.get(role, agents_map["orchestrator"])
         result = asyncio.run(
             Runner.run(
                 agent,
