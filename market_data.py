@@ -46,6 +46,9 @@ BINANCE_TICKER_ENDPOINTS = [
 ]
 GLOBAL_ENDPOINT = "https://api.coingecko.com/api/v3/global"
 GLOBAL_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/global"
+CRONCOPIA_METALS = {"GOLD":"gold","SILVER":"silver","COPPER":"copper"}
+CRONCOPIA_BASE = "https://croncopia.com/api/metals"
+
 EXCHANGE_RATE_ENDPOINTS = [
     "https://api.exchangerate.fun/latest?base=USD",
     "https://api.exchangerate.fun/latest?base=USD&symbols=EUR,GBP,JPY,CHF,AUD,CAD,XAU,XAG",
@@ -266,6 +269,24 @@ def _gold_spot():
     return None
 
 
+def _croncopia_metals():
+    result = {}
+    for label, slug in CRONCOPIA_METALS.items():
+        try:
+            data = _request_json(f"{CRONCOPIA_BASE}/{slug}.json", timeout=4.0)
+            price = _safe_float(data.get("price"))
+            if price is None:
+                continue
+            # Normalize the published unit to the common dashboard display unit.
+            unit = str(data.get("unit") or "").lower()
+            if label == "COPPER" and "per t" in unit:
+                price = price / 2204.62262185
+            result[label] = price
+        except Exception:
+            continue
+    return result
+
+
 def _forex_free_fallback():
     rates = _free_fx_rates()
     if not rates:
@@ -305,8 +326,11 @@ def _forex_live():
     by_label = {row["symbol"]: row for row in result}
     for row in fallback:
         by_label.setdefault(row["symbol"], row)
+    metal_prices = _croncopia_metals()
+    for label, price in metal_prices.items():
+        by_label.setdefault(label, {"symbol": label, "name": label, "price": price, "change": None})
     merged = [by_label[label] for label, _ in FOREX_SYMBOLS if label in by_label]
-    return merged, ("Yahoo Finance + ExchangeRate.fun" if merged else "unavailable")
+    return merged, ("Yahoo Finance + no-key FX/metals fallback" if merged else "unavailable")
 
 
 def _global_indicators():
