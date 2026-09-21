@@ -287,11 +287,13 @@ class AIOrchestrator:
                                 },
                             ],
                         )
+                        self._last_provider = "ollama"
                 except Exception:
                     answer = None
 
             if not answer:
                 answer = _fallback(role, user_message, context)
+                self._last_provider = "builtin"
 
             if callback:
                 callback(answer)
