@@ -23,7 +23,7 @@ from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYB
 from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key
 from academy_diagrams import draw_setup, draw_candlestick
 from glass_theme import apply_glass, set_widget_glass
-from market_data import MarketDataService
+from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
 from news_data import fetch_crypto_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
@@ -496,8 +496,7 @@ class App(tk.Tk):
         self.theme_auto_job = None
         self.reminder_job = None
         self.market_timeout_job = None
-        self.market_data_payload = {"market": self.market, "updated_at": None, "source": "unavailable", "items": [],
-                                    "indicators": {}, "status": "unavailable", "message": ""}
+        self.market_data_payload = cached_market_payload(self.market)
         self.ticker_offset = 0
         self.ticker_job = None
         self.ai = AIOrchestrator()
