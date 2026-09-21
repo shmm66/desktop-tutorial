@@ -2622,7 +2622,7 @@ class App(tk.Tk):
                 w.destroy()
             self._academy_visual(
                 visual_holder,"strategy",name_en,
-                item["summary_en"],visual_kind=kind
+                item["summary_en"],visual_kind=kind,family=family
             )
 
             for w in anatomy.winfo_children():
