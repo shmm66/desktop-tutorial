@@ -1907,7 +1907,7 @@ class App(tk.Tk):
         header.pack(fill="x",padx=12,pady=12)
         tk.Label(header,text=self.tr("ai_title"),bg=C["panel"],fg=C["text"],font=("Segoe UI",17,"bold")).pack(side="right",padx=14,pady=12)
         status=self.ai.status()
-        status_text=("CLOUD AGENT • READY" if status.get("cloud") else ("LOCAL • READY" if status.get("ollama") else "BUILT-IN • READY"))
+        status_text=("MULTI-AGENT • READY" if status.get("cloud") else ("LOCAL • READY" if status.get("ollama") else "OFFLINE FALLBACK • READY"))
         tk.Label(header,text=status_text,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(side="left",padx=10)
 
         toolbar=tk.Frame(dlg,bg=C["bg"]); toolbar.pack(fill="x",padx=12)
