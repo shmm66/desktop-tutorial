@@ -44,14 +44,14 @@ SMART_MONEY_STRATEGIES = [
         "risk_en": "CHoCH/MSS identifies a structural change, not a guaranteed reversal."
     },
     {
-        "name_fa": "5) Premium/Discount + OTE + Liquidity",
-        "name_en": "5) Premium/Discount + OTE + Liquidity",
-        "summary_fa": "از Dealing Range برای تشخیص Premium/Discount استفاده می‌شود و ناحیه OTE در کنار نقدینگی و ساختار به‌عنوان کانتکست ورود بررسی می‌شود.",
-        "summary_en": "Use a dealing range to frame premium/discount, then combine the OTE area with liquidity and structure for context.",
-        "steps_fa": ["Dealing Range معتبر را انتخاب کن.", "Equilibrium را به‌عنوان 50٪ مشخص کن.", "برای لانگ، Discount و برای شورت، Premium را بررسی کن.", "OTE را در کنار OB/FVG و نقدینگی مشخص کن.", "فقط با تریگر ساختاری وارد شو."],
-        "steps_en": ["Choose a valid dealing range.", "Mark equilibrium at 50%.", "Use discount context for longs and premium context for shorts.", "Map OTE with an OB/FVG and liquidity.", "Enter only after a structural trigger."],
-        "risk_fa": "Premium/Discount به‌تنهایی سیگنال نیست.",
-        "risk_en": "Premium/discount alone is not an entry signal."
+        "name_fa": "5) Liquidity + Displacement + Retest",
+        "name_en": "5) Liquidity + Displacement + Retest",
+        "summary_fa": "یک مدل عمومی SMC برای اتصال نقدینگی به جابه‌جایی قیمت و بازگشت به ناحیه ایجادشده؛ بدون استفاده از نام‌گذاری اختصاصی مدل‌های ICT.",
+        "summary_en": "A broad SMC workflow linking a liquidity event to displacement and a retest of the resulting reaction area, without borrowing a named ICT model.",
+        "steps_fa": ["استخر نقدینگی و swing مهم را علامت بزن.", "واکنش و Sweep/raid نقدینگی را ثبت کن.", "Displacement و شکست ساختار را با کلوز تأیید کن.", "OB/FVG یا ناحیه واکنش ایجادشده را مشخص کن.", "بازگشت قیمت را فقط با حفظ ساختار و ابطال روشن ارزیابی کن."],
+        "steps_en": ["Mark the liquidity pool and important swing.", "Record the liquidity sweep/raid and reaction.", "Confirm displacement and the structural break with a close.", "Mark the resulting OB/FVG or reaction area.", "Evaluate the retest only with structure intact and a clear invalidation."],
+        "risk_fa": "SMC یک چتر مفهومی است؛ این مدل را با قوانین ثابت و قابل بک‌تست تعریف کن و آن را با مدل نام‌گذاری‌شده ICT یکی نکن.",
+        "risk_en": "SMC is a broad framework; keep this workflow testable and do not relabel it as a named ICT model."
     },
 ]
 

@@ -166,7 +166,7 @@ STRATEGY_VISUALS = {
     "order block + fvg retest": "order_block",
     "breaker block reclaim": "breaker",
     "choch/mss + fvg reversal": "smc_liquidity",
-    "premium/discount + ote + liquidity": "ict_ote",
+    "liquidity + displacement + retest": "smc_liquidity",
     "ict 2022 model": "ict_2022",
     "ict silver bullet": "ict_silver_bullet",
     "ict unicorn model": "unicorn",

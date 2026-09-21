@@ -21,6 +21,8 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key
+from academy_diagrams import draw_setup, draw_candlestick
+from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
@@ -29,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "7.7.0"
+VERSION = "7.8.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -530,6 +532,8 @@ class App(tk.Tk):
         self.bind("<Motion>", self._shell_motion, add="+")
         self.build_shell()
         self.apply_language()
+        self.update_idletasks()
+        apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic")
         self.show("home")
         self.market_data.start(self.market)
         self.after(700, self.clock)
@@ -613,6 +617,10 @@ class App(tk.Tk):
         if not initial and hasattr(self, "content"):
             self.content.configure(bg=C["bg"])
             self._refresh_shell_theme()
+        try:
+            apply_glass(self, dark=effective=="dark", style="acrylic")
+        except Exception:
+            pass
         if self.theme_mode == "auto":
             if self.theme_auto_job:
                 try: self.after_cancel(self.theme_auto_job)
@@ -967,13 +975,16 @@ class App(tk.Tk):
         allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
             key="home"
+        self._cancel_menu_hide()
         self.cur = key
         self._nav_token += 1
         token = self._nav_token
         if self._nav_job is not None:
             try: self.after_cancel(self._nav_job)
             except Exception: pass
-        self._nav_job = self.after_idle(lambda k=key, t=token: self._render_page(k, t))
+            self._nav_job = None
+        self._render_page(key, token)
+        return "break"
 
     def _render_page(self, key, token):
         self._nav_job = None
@@ -1062,6 +1073,10 @@ class App(tk.Tk):
 
     def card(self, parent, padx=1):
         frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
+        try:
+            set_widget_glass(frame, 0.86)
+        except Exception:
+            pass
         return frame
 
     def btn(self, parent, text, cmd, primary=False, **kw):
@@ -1071,6 +1086,10 @@ class App(tk.Tk):
                          borderwidth=0,font=("Segoe UI",10,"bold"),padx=13,pady=9,cursor="hand2",**kw)
         button.bind("<Enter>",lambda e:button.configure(bg=C["gold"] if not primary else C["cyan"]))
         button.bind("<Leave>",lambda e:button.configure(bg=base))
+        try:
+            set_widget_glass(button, 0.94)
+        except Exception:
+            pass
         return button
 
     def profile_panel(self, parent):
@@ -1140,8 +1159,7 @@ class App(tk.Tk):
             pass
         self.market_data.set_market(market)
         save_db()
-        self._nav_token += 1
-        self.show("home")
+        self.go_home()
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
@@ -2271,7 +2289,7 @@ class App(tk.Tk):
                  wraplength=850).pack(fill="x",anchor="e")
 
         role_var=tk.StringVar(value="form")
-        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach"}
+        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
         row=tk.Frame(hero,bg=C["panel"]); row.pack(fill="x",padx=14,pady=(0,12))
         tk.Label(row,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],
                  font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
@@ -2281,9 +2299,19 @@ class App(tk.Tk):
         )
         role_combo.pack(side="right",padx=6)
         status=self.ai.status()
-        tk.Label(row,text=("LOCAL • READY" if status["online"] else "BUILT-IN • READY"),
-                 bg=C["panel3"],fg=C["accent"],font=("Consolas",8,"bold"),
-                 padx=10,pady=5).pack(side="left")
+        if status.get("cloud"):
+            status_text="CLOUD AGENT • GPT-5.6-SOL • HIGH REASONING"
+            status_fg=C["accent"]
+        elif status.get("ollama"):
+            status_text="LOCAL OLLAMA • READY"
+            status_fg=C["cyan"]
+        else:
+            status_text="BUILT-IN FALLBACK • CONNECT AI IN SETTINGS"
+            status_fg=C["gold"]
+        tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
+                 font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
+        if not status.get("cloud") and not status.get("ollama"):
+            self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
 
         quick=tk.Frame(self.content,bg=C["bg"])
         quick.pack(fill="x",pady=(0,7))
@@ -2429,54 +2457,54 @@ class App(tk.Tk):
         if 0<=idx<len(reminders):
             reminders.pop(idx); save_db(); self.show("ai")
 
-    def _academy_visual(self, parent, key, title, subtitle, visual_kind=None):
+    def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
         box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
         box.pack(fill="x", padx=10, pady=(4,8))
-        image_label = tk.Label(box, bg=C["panel3"])
-        image_label.pack(fill="x", padx=8, pady=(8,4))
-        meta = tk.Frame(box, bg=C["panel3"])
-        meta.pack(fill="x", padx=12, pady=(2,8))
-
         kind = visual_kind or key
         source_title, source_url = source_for_visual(kind)
 
-        source_label = tk.Label(
-            meta, text="", bg=C["panel3"], fg=C["muted"],
-            font=("Segoe UI",10,"bold"), wraplength=900, justify="right"
-        )
-        source_label.pack(side="right", fill="x", expand=True)
+        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,4))
+        if family=="smc":
+            family_text=self.tr("smc_family"); family_fg=C["accent"]
+        elif family=="ict":
+            family_text=self.tr("ict_family"); family_fg=C["violet"]
+        else:
+            family_text=self.tr("candles"); family_fg=C["gold"]
+        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,
+                 font=("Segoe UI",8,"bold"),padx=9,pady=4).pack(side="right")
+        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
+                 font=("Segoe UI",11,"bold")).pack(side="right",padx=8)
 
-        source_btn = tk.Button(
-            meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
-            activebackground=C["gold"], relief="flat", font=("Segoe UI",9,"bold"),
-            cursor="hand2", command=lambda u=source_url:self.open_webview(u, source_title)
-        )
-        source_btn.pack(side="left", padx=(8,0))
-
+        diagram_holder=tk.Frame(box,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=8,pady=(2,4))
         try:
-            cache = ROOT / "EducationVisuals" / "v7_6" / f"{kind}_source"
-            source_path = render_visual(cache, kind, self.ui_text(title), self.ui_text(subtitle))
-            from PIL import Image, ImageTk
-            im = Image.open(source_path)
-            ratio = min(1.0, 1080 / max(1, im.width))
-            shown = im.resize(
-                (max(1, int(im.width*ratio)), max(1, int(im.height*ratio))),
-                Image.Resampling.LANCZOS
-            ) if ratio < 1.0 else im.copy()
-            ph = ImageTk.PhotoImage(shown)
-            image_label.configure(image=ph)
-            image_label.image = ph
-            source_label.configure(
-                text=f"{self.tr('source_chart')}  •  {source_title}"
-            )
-        except Exception:
-            image_label.configure(
-                text=self.tr("no_exact_image"), fg=C["muted"],
-                font=("Segoe UI",10,"bold"), padx=20, pady=40
-            )
-            image_label.image = None
-            source_label.configure(text=f"{self.tr('source_chart')}  •  {source_title}")
+            if family in ("smc","ict"):
+                draw_setup(diagram_holder,family,self.ui_text(title),C)
+            elif family=="candles":
+                draw_candlestick(diagram_holder,self.ui_text(title),C)
+            else:
+                k=str(kind)
+                if k.startswith("ict_") or k in {"unicorn","breaker"}:
+                    draw_setup(diagram_holder,"ict",self.ui_text(title),C)
+                elif k in {"smc_overview","smc_liquidity","order_block","fvg","technical","structure","liquidity"}:
+                    draw_setup(diagram_holder,"smc",self.ui_text(title),C)
+                else:
+                    draw_candlestick(diagram_holder,self.ui_text(title),C)
+        except Exception as exc:
+            tk.Label(diagram_holder,text=f"{self.tr('no_exact_image')}\n{exc}",
+                     bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
+                     padx=20,pady=30,justify="center",wraplength=900).pack(fill="x")
 
+        meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,10))
+        source_label = tk.Label(meta,text=f"{self.tr('source_chart')}  •  {source_title}",
+                                bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
+                                wraplength=930,justify="right")
+        source_label.pack(side="right",fill="x",expand=True)
+        source_btn=tk.Button(meta,text=self.tr("open_source"),bg=C["soft"],fg=C["text"],
+                             activebackground=C["gold"],relief="flat",font=("Segoe UI",9,"bold"),
+                             cursor="hand2",command=lambda u=source_url:self.open_webview(u,source_title))
+        source_btn.pack(side="left",padx=(8,0))
+        try: set_widget_glass(source_btn,0.94)
+        except Exception: pass
         return box
 
     def academy(self):
@@ -2488,6 +2516,17 @@ class App(tk.Tk):
             padx=14, pady=10
         )
         note.pack(fill="x",pady=(0,7))
+
+        family_map=self.card(self.content)
+        family_map.pack(fill="x",pady=(0,7))
+        tk.Label(family_map,text="SMC ≠ ICT",bg=C["panel"],fg=C["gold"],
+                 font=("Segoe UI",12,"bold")).pack(anchor="e",padx=14,pady=(10,3))
+        tk.Label(
+            family_map,
+            text=self.ui_text("SMC: ساختار بازار، نقدینگی، BOS/CHoCH، Order Block، FVG و ناحیه‌ها  •  ICT: مدل‌ها و اصطلاحات نام‌گذاری‌شده مانند 2022 Model، Silver Bullet، Judas Swing، AMD، OTE و Unicorn"),
+            bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold"),
+            wraplength=1180,justify="right"
+        ).pack(fill="x",padx=14,pady=(0,10))
 
         legend=tk.Frame(self.content,bg=C["bg"])
         legend.pack(fill="x",pady=(0,7))
@@ -2604,7 +2643,7 @@ class App(tk.Tk):
                 w.destroy()
             self._academy_visual(
                 visual_holder,"strategy",name_en,
-                item["summary_en"],visual_kind=kind
+                item["summary_en"],visual_kind=kind,family=family
             )
 
             for w in anatomy.winfo_children():
@@ -2675,7 +2714,7 @@ class App(tk.Tk):
             self._academy_visual(
                 visual_holder,"candlestick",name,
                 en_desc.get(name,"Candlestick pattern reference."),
-                visual_kind=pattern_visual_key(name)
+                visual_kind=pattern_visual_key(name),family="candles"
             )
             desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick pattern reference.')}")
         lb.bind("<<ListboxSelect>>",render)
@@ -2708,7 +2747,8 @@ class App(tk.Tk):
             item=GLOSSARY[int(sel[0])]
             kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
             for w in visual_holder.winfo_children(): w.destroy()
-            self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"])
+            family = "ict" if kind.startswith("ict_") or kind in {"unicorn","breaker"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
+            self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"],family=family)
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
             meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
             usage.config(text=self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"]))

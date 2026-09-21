@@ -103,7 +103,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "7.7.0"
+    assert VERSION == "7.8.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -259,3 +259,35 @@ def test_v770_home_market_mode_navigation_is_hardwired():
     assert 'self.show("home")' in source
     assert "def set_market_mode(self, market):" in source
     assert "self.market_data.set_market(market)" in source
+
+def test_v780_glass_and_academy_semantics():
+    from glass_theme import apply_glass, set_widget_glass
+    from academy_diagrams import draw_setup, draw_candlestick
+    from academy_visuals import strategy_visual_key
+    assert callable(apply_glass)
+    assert callable(set_widget_glass)
+    assert callable(draw_setup)
+    assert callable(draw_candlestick)
+    assert strategy_visual_key("5) Liquidity + Displacement + Retest") == "smc_liquidity"
+
+
+def test_v780_smart_money_is_not_ict_premium_ote_model():
+    from academy_content import SMART_MONEY_STRATEGIES
+    names = {item["name_en"] for item in SMART_MONEY_STRATEGIES}
+    assert "5) Liquidity + Displacement + Retest" in names
+    assert "5) Premium/Discount + OTE + Liquidity" not in names
+
+
+def test_v780_installer_and_launcher_metadata():
+    from pathlib import Path
+    iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
+    launcher = Path("launcher.py").read_text(encoding="utf-8")
+    assert 'MyAppVersion "7.8.0"' in iss
+    assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
+    assert "VERSION = \"7.8.0\"" in launcher
+
+
+def test_v780_news_webview_has_fallback():
+    from pathlib import Path
+    text = Path("webview_runner.py").read_text(encoding="utf-8")
+    assert "webbrowser.open(url)" in text

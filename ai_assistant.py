@@ -11,6 +11,7 @@ ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
 DEFAULT_MODEL = "gpt-5.6-sol"
+REASONING_EFFORT = "high"
 
 ROLES = {
     "form": "Form Coach: fill forms step-by-step, detect missing fields and convert context into concise journal/checklist entries.",
@@ -175,28 +176,45 @@ class AIOrchestrator:
             "You are inside Trader Planner Pro, a trading journal/academy desktop app. "
             "Never promise returns or invent market data. "
             "Use the supplied app context. Be precise. "
-            "Keep Smart Money and ICT terminology distinct. "
+            "Keep broad Smart Money/SMC concepts distinct from named ICT models. "
             "Candlestick patterns must not be relabeled as ICT setups. "
         )
+        try:
+            from agents import ModelSettings
+            from openai.types.shared import Reasoning
+            model_settings = ModelSettings(
+                reasoning=Reasoning(effort=REASONING_EFFORT),
+                verbosity="low",
+            )
+        except Exception:
+            model_settings = None
+
         specialists = {}
         for key, instruction in ROLES.items():
-            specialists[key] = Agent(
-                name=key.replace("_", " ").title() + " Agent",
-                model=self.model,
-                instructions=common + instruction,
-            )
+            kwargs = {
+                "name": key.replace("_", " ").title() + " Agent",
+                "model": self.model,
+                "instructions": common + instruction,
+            }
+            if model_settings is not None:
+                kwargs["model_settings"] = model_settings
+            specialists[key] = Agent(**kwargs)
 
-        triage = Agent(
-            name="Trader Planner Orchestrator",
-            model=self.model,
-            instructions=(
+        triage_kwargs = {
+            "name":"Trader Planner Orchestrator",
+            "model":self.model,
+            "instructions":(
                 common
                 + "Route the request to the most appropriate specialist. "
                   "You may hand off form, strategy, psychology, planner, academy, or product requests. "
+                  "For product requests, propose concrete improvements and explain why they help workflow. "
                   "Return one clear, practical answer with no made-up facts."
             ),
-            handoffs=list(specialists.values()),
-        )
+            "handoffs":list(specialists.values()),
+        }
+        if model_settings is not None:
+            triage_kwargs["model_settings"] = model_settings
+        triage = Agent(**triage_kwargs)
         specialists["orchestrator"] = triage
         self._cloud_agents = specialists
         return specialists
