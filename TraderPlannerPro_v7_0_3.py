@@ -885,7 +885,7 @@ class App(tk.Tk):
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
         self.market_btn.pack(side="left", padx=4)
         self.global_home_btn = tk.Button(
-            status, text=self.tr("nav_home"), command=self.go_home,
+            status, text=self.tr("nav_home"), command=self._hard_home,
             bg=C["accent"], fg="#061019", activebackground=C["gold"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
         )
@@ -902,7 +902,7 @@ class App(tk.Tk):
         self.quickbar.pack(fill="x", padx=14, pady=(0,7), ipady=4)
         self._quick_nav_buttons = {}
         nav_specs = [
-            ("home", self.tr("nav_home"), self.go_home),
+            ("home", self.tr("nav_home"), self._hard_home),
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
@@ -2336,7 +2336,7 @@ class App(tk.Tk):
         role_combo.pack(side="right",padx=6)
         status=self.ai.status()
         if status.get("cloud"):
-            status_text="CLOUD AGENT • GPT-5.6-SOL • HIGH REASONING"
+            status_text="CLOUD MASTER AGENT • GPT-5.6-LUNA • HIGH REASONING"
             status_fg=C["accent"]
         elif status.get("ollama"):
             status_text="LOCAL OLLAMA • READY"
