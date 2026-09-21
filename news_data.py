@@ -18,8 +18,11 @@ GOOGLE_CRYPTO_RSS = (
     "q=(bitcoin+OR+ethereum+OR+crypto+OR+blockchain)+when:1d&hl=en-US&gl=US&ceid=US:en"
 )
 FOREX_FACTORY = "https://www.forexfactory.com/calendar"
+FOREX_FACTORY_FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
 COINDESK_HOME = "https://www.coindesk.com/"
 CRYPTO_NEWS_HOME = "https://cryptoslate.com/news-terminal/"
+
+FOREX_FEEDS = [("Forex Factory", FOREX_FACTORY_FEED)]
 
 FEEDS = [
     ("CoinDesk", COINDESK_RSS),
@@ -104,10 +107,11 @@ def fetch_rss(url, source="News", limit=12):
     return items[:limit]
 
 
-def fetch_all_news(limit=24):
+def fetch_all_news(limit=24, include_forex=False):
     results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(FEEDS)) as pool:
-        jobs = {pool.submit(fetch_rss, url, source, max(8, limit)): source for source, url in FEEDS}
+    feeds = list(FEEDS) + (FOREX_FEEDS if include_forex else [])
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(feeds)) as pool:
+        jobs = {pool.submit(fetch_rss, url, source, max(8, limit)): source for source, url in feeds}
         for job in concurrent.futures.as_completed(jobs):
             try:
                 results.extend(job.result())
@@ -125,12 +129,16 @@ def fetch_all_news(limit=24):
     return rows[:limit]
 
 
-def fetch_crypto_news(callback):
+def fetch_market_news(callback, include_forex=False):
     def worker():
         try:
-            rows = fetch_all_news(limit=24)
+            rows = fetch_all_news(limit=28, include_forex=include_forex)
         except Exception:
             rows = []
         callback(rows)
 
     threading.Thread(target=worker, name="TraderPlannerNews", daemon=True).start()
+
+
+def fetch_crypto_news(callback):
+    fetch_market_news(callback, include_forex=False)
