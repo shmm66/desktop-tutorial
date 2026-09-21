@@ -236,13 +236,21 @@ class AIOrchestrator:
 
         agents_map = self._build_cloud_agents()
         agent = agents_map.get(role) or agents_map["orchestrator"]
+        run_kwargs = {
+            "max_turns": 8,
+            "auto_previous_response_id": self._previous_response_id is None,
+        }
+        if self._previous_response_id:
+            run_kwargs["previous_response_id"] = self._previous_response_id
         result = asyncio.run(
             Runner.run(
                 agent,
                 f"APP CONTEXT:\n{context}\n\nUSER QUESTION:\n{user_message}",
-                max_turns=6,
+                **run_kwargs,
             )
         )
+        self._previous_response_id = getattr(result, "last_response_id", None) or self._previous_response_id
+        self._last_provider = "openai-agents"
         return str(result.final_output or "").strip()
 
     def respond(self, role, user_message, context="", callback=None):
