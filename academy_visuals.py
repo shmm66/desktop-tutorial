@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 import sys
 
-USER_AGENT = "TraderPlannerPro/7.6.1 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/7.8.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 # Each visual key has one specific source page and one exact source image.
 # The app never draws tags on these source images. It only resizes them for display.
@@ -233,7 +233,10 @@ PATTERN_VISUALS = {
 
 
 def strategy_visual_key(name: str) -> str:
-    return STRATEGY_VISUALS.get(str(name).strip().lower(), "smc_overview")
+    value = str(name).strip().lower()
+    if value[:2].isdigit() and ")" in value:
+        value = value.split(")", 1)[1].strip()
+    return STRATEGY_VISUALS.get(value, "smc_overview")
 
 
 def pattern_visual_key(name: str) -> str:
