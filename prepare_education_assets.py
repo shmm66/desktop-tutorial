@@ -7,7 +7,7 @@ from academy_visuals import REMOTE_IMAGES, remote_extension
 
 ROOT = Path(__file__).resolve().parent
 TARGET = ROOT / "education_sources"  # exact source assets, downloaded during CI
-USER_AGENT = "TraderPlannerPro/7.6.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/7.6.1 (+https://github.com/shmm66/desktop-tutorial)"
 
 
 def main():
