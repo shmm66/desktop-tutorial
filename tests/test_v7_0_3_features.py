@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.0.0"
+    assert VERSION == "8.1.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -284,9 +284,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.0.0"' in iss
+    assert 'MyAppVersion "8.1.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.0.0\"" in launcher
+    assert "VERSION = \"8.1.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -370,3 +370,52 @@ def test_v800_google_gmail_and_statement_modules_exist():
     assert "messages().send" in source
     assert "login_google" in source
     assert "send_gmail" in source
+
+
+def test_v810_ai_provider_and_recovery_chain():
+    from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, ROLES, cloud_status
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-luna")
+    assert "orchestrator" in ROLES
+    ai_source = Path("ai_assistant.py").read_text(encoding="utf-8")
+    assert "from agents import Agent, Runner" in ai_source
+    assert ".as_tool(" in ai_source
+    state = cloud_status()
+    assert "enabled" in state and "model" in state
+
+def test_v810_academy_primary_semantic_mapping_is_distinct():
+    from academy_visuals import strategy_visual_key, pattern_visual_key
+    assert strategy_visual_key("1) ICT 2022 Model") == "ict_2022"
+    assert strategy_visual_key("1) Liquidity Sweep + BOS") == "smc_liquidity"
+    assert pattern_visual_key("Bullish Engulfing") == "bullish_engulfing"
+    assert pattern_visual_key("Bearish Engulfing") == "bearish_engulfing"
+
+def test_v810_installer_is_upgrade_safe():
+    from pathlib import Path
+    iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
+    assert 'MyAppVersion "8.1.0"' in iss
+    assert "ArchitecturesAllowed=x64compatible" in iss
+    assert "ArchitecturesInstallIn64BitMode" not in iss
+    assert "AppMutex=" not in iss
+    assert "UsePreviousAppDir=no" in iss
+
+def test_v810_packaged_self_test_hook_exists():
+    from pathlib import Path
+    source = Path("launcher.py").read_text(encoding="utf-8")
+    assert 'VERSION = "8.1.0"' in source
+    assert "--self-test" in source
+    assert "run_self_test" in source
+
+def test_v810_news_has_timeout_fallback():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "def _news_timeout(self):" in source
+    assert "self.news_timeout_job" in source
+    assert "def open_external(self, url):" in source
+
+def test_v810_glass_surface_uses_native_acrylic():
+    from pathlib import Path
+    source = Path("glass_theme.py").read_text(encoding="utf-8")
+    assert "BACKDROP_ACRYLIC = 3" in source
+    assert "DwmExtendFrameIntoClientArea" in source
+    assert "apply_style(window, "acrylic")" in source

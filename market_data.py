@@ -243,7 +243,7 @@ def _crypto_from_coinbase():
             rows.append({"symbol": label, "name": label, "price": price, "change": change})
     order = {label: i for i, (label, _) in enumerate(COINBASE_PRODUCTS)}
     rows.sort(key=lambda x: order.get(x["symbol"], 999))
-    return rows, "Coinbase Exchange public market data" if len(rows) >= 4 else "unavailable"
+    return rows, "Coinbase Exchange public market data" if len(rows) >= 2 else "unavailable"
 
 
 def _crypto_live():
@@ -262,7 +262,7 @@ def _crypto_live():
                     "price": price,
                     "change": _safe_float(row.get("price_change_percentage_24h")),
                 })
-            if len(result) >= 5:
+            if len(result) >= 3:
                 return result, "CoinGecko"
     except Exception:
         pass
@@ -391,7 +391,7 @@ def _forex_live():
     # supplement with a no-key FX reference feed so the dashboard still shows
     # usable market context instead of a permanent loading state.
     result = _parallel_yahoo(FOREX_SYMBOLS)
-    if len(result) >= 5:
+    if len(result) >= 3:
         return result, "Yahoo Finance"
     fallback = _forex_free_fallback()
     by_label = {row["symbol"]: row for row in result}
