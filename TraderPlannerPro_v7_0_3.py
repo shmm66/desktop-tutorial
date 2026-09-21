@@ -1377,6 +1377,8 @@ class App(tk.Tk):
             pass
 
     def _apply_market_data(self, payload):
+        if str(payload.get("market", self.market)) != str(self.market):
+            return
         self.market_data_payload = payload
         if self.cur == "home":
             self.ticker_offset = 0
