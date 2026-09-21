@@ -2458,57 +2458,7 @@ class App(tk.Tk):
         if 0<=idx<len(reminders):
             reminders.pop(idx); save_db(); self.show("ai")
 
-    def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
-        box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
-        box.pack(fill="x", padx=10, pady=(4,8))
-        kind = visual_kind or key
-        source_title, source_url = source_for_visual(kind)
-
-        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,4))
-        if family=="smc":
-            family_text=self.tr("smc_family"); family_fg=C["accent"]
-        elif family=="ict":
-            family_text=self.tr("ict_family"); family_fg=C["violet"]
-        else:
-            family_text=self.tr("candles"); family_fg=C["gold"]
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,
-                 font=("Segoe UI",8,"bold"),padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
-                 font=("Segoe UI",11,"bold")).pack(side="right",padx=8)
-
-        diagram_holder=tk.Frame(box,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=8,pady=(2,4))
-        try:
-            if family in ("smc","ict"):
-                draw_setup(diagram_holder,family,self.ui_text(title),C)
-            elif family=="candles":
-                draw_candlestick(diagram_holder,self.ui_text(title),C)
-            else:
-                k=str(kind)
-                if k.startswith("ict_") or k in {"unicorn","breaker"}:
-                    draw_setup(diagram_holder,"ict",self.ui_text(title),C)
-                elif k in {"smc_overview","smc_liquidity","order_block","fvg","technical","structure","liquidity"}:
-                    draw_setup(diagram_holder,"smc",self.ui_text(title),C)
-                else:
-                    draw_candlestick(diagram_holder,self.ui_text(title),C)
-        except Exception as exc:
-            tk.Label(diagram_holder,text=f"{self.tr('no_exact_image')}\n{exc}",
-                     bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
-                     padx=20,pady=30,justify="center",wraplength=900).pack(fill="x")
-
-        meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,10))
-        source_label = tk.Label(meta,text=f"{self.tr('source_chart')}  •  {source_title}",
-                                bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
-                                wraplength=930,justify="right")
-        source_label.pack(side="right",fill="x",expand=True)
-        source_btn=tk.Button(meta,text=self.tr("open_source"),bg=C["soft"],fg=C["text"],
-                             activebackground=C["gold"],relief="flat",font=("Segoe UI",9,"bold"),
-                             cursor="hand2",command=lambda u=source_url:self.open_webview(u,source_title))
-        source_btn.pack(side="left",padx=(8,0))
-        try: set_widget_glass(source_btn,0.94)
-        except Exception: pass
-        return box
-
-    def academy(self):
+    def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):\n        """Render source-correct Academy visuals: exact source image + semantic setup anatomy."""\n        box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)\n        box.pack(fill="x", padx=10, pady=(4, 8))\n        kind = visual_kind or key\n        source_title, source_url = source_for_visual(kind)\n        family_key = "ict" if family == "ict" else ("smc" if family == "smc" else "candles")\n        family_text = {"smc": self.tr("smc_family"), "ict": self.tr("ict_family"), "candles": self.tr("candles")}[family_key]\n        family_fg = {"smc": C["accent"], "ict": C["violet"], "candles": C["gold"]}[family_key]\n\n        header = tk.Frame(box, bg=C["panel3"]); header.pack(fill="x", padx=12, pady=(10, 5))\n        tk.Label(header, text=family_text, bg=C["soft"], fg=family_fg, font=("Segoe UI", 8, "bold"), padx=9, pady=4).pack(side="right")\n        tk.Label(header, text=self.ui_text(title), bg=C["panel3"], fg=C["text"], font=("Segoe UI", 12, "bold")).pack(side="right", padx=8)\n\n        source_card = tk.Frame(box, bg=C["panel"]); source_card.pack(fill="x", padx=10, pady=(0, 6))\n        source_head = tk.Frame(source_card, bg=C["panel"]); source_head.pack(fill="x", padx=12, pady=(9, 5))\n        tk.Label(source_head, text="SOURCE VISUAL", bg=C["panel"], fg=C["cyan"], font=("Consolas", 9, "bold")).pack(side="left")\n        tk.Label(source_head, text=self.tr("original_source"), bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9, "bold")).pack(side="right")\n\n        image_holder = tk.Frame(source_card, bg="#080D14"); image_holder.pack(fill="x", padx=10, pady=(0, 10))\n        image_label = tk.Label(image_holder, bg="#080D14", text=self.tr("market_loading"), fg=C["muted"], font=("Segoe UI", 9, "bold"))\n        image_label.pack(fill="x", ipady=35)\n        self._academy_image_refs = getattr(self, "_academy_image_refs", {})\n        image_ref_key = f"{id(image_label)}:{kind}"\n\n        def load_source_image():\n            try:\n                from PIL import Image, ImageTk\n                path = bundled_asset_for_visual(kind)\n                if path is None:\n                    cache_path = ROOT / "cache" / "academy_visuals" / kind\n                    path = render_visual(cache_path, kind, title=self.ui_text(title), subtitle=subtitle)\n                image = Image.open(path).convert("RGB")\n                max_w, max_h = 1120, 430\n                ratio = min(max_w / max(image.width, 1), max_h / max(image.height, 1), 1.0)\n                size = (max(1, int(image.width * ratio)), max(1, int(image.height * ratio)))\n                image = image.resize(size, Image.LANCZOS)\n                photo = ImageTk.PhotoImage(image)\n                self._academy_image_refs[image_ref_key] = photo\n                def apply_image():\n                    if image_label.winfo_exists(): image_label.configure(image=photo, text="")\n                self.after(0, apply_image)\n            except Exception as exc:\n                def show_error():\n                    if image_label.winfo_exists():\n                        image_label.configure(image="", text=self.tr("no_exact_image") + f"\n{exc}", wraplength=980, justify="center")\n                self.after(0, show_error)\n        threading.Thread(target=load_source_image, name="AcademyVisual", daemon=True).start()\n\n        source_meta = tk.Frame(source_card, bg=C["panel"]); source_meta.pack(fill="x", padx=12, pady=(0, 10))\n        tk.Label(source_meta, text=f"{self.tr("source_chart")} • {source_title}", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 8, "bold"), wraplength=900, justify="right").pack(side="right", fill="x", expand=True)\n        self.btn(source_meta, self.tr("open_source"), lambda u=source_url: self.open_webview(u, source_title)).pack(side="left", padx=(8, 0))\n\n        semantic_card = tk.Frame(box, bg=C["panel3"]); semantic_card.pack(fill="x", padx=10, pady=(0, 8))\n        tk.Label(semantic_card, text="SETUP ANATOMY", bg=C["panel3"], fg=family_fg, font=("Consolas", 9, "bold")).pack(anchor="w", padx=12, pady=(6, 3))\n        tk.Label(semantic_card, text=self.ui_text(subtitle), bg=C["panel3"], fg=C["muted"], font=("Segoe UI", 9), wraplength=1050, justify="right").pack(fill="x", padx=12, pady=(0, 4))\n        diagram_holder = tk.Frame(semantic_card, bg=C["panel3"]); diagram_holder.pack(fill="x", padx=4, pady=(0, 6))\n        try:\n            if family_key in ("smc", "ict"): draw_setup(diagram_holder, family_key, self.ui_text(title), C)\n            else: draw_candlestick(diagram_holder, self.ui_text(title), C)\n        except Exception as exc:\n            tk.Label(diagram_holder, text=f"{self.tr("no_exact_image")}\n{exc}", bg=C["panel3"], fg=C["muted"], font=("Segoe UI", 9, "bold"), padx=20, pady=25, justify="center", wraplength=900).pack(fill="x")\n        return box\n\n    def academy(self):
         self.heading(self.tr("academy_title"), self.tr("academy_sub"))
         note=tk.Label(
             self.content,
