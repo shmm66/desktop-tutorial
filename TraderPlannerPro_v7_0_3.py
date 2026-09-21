@@ -2309,17 +2309,21 @@ class App(tk.Tk):
         role_combo.pack(side="right",padx=6)
         status=self.ai.status()
         if status.get("cloud"):
-            status_text="CLOUD AGENT • GPT-5.6-SOL • HIGH REASONING"
+            status_text="OPENAI AGENTS • ONLINE"
             status_fg=C["accent"]
         elif status.get("ollama"):
-            status_text="LOCAL OLLAMA • READY"
+            status_text="LOCAL OLLAMA • ONLINE"
             status_fg=C["cyan"]
         else:
-            status_text="BUILT-IN FALLBACK • CONNECT AI IN SETTINGS"
+            status_text="BUILT-IN TRADER AGENT • ONLINE"
             status_fg=C["gold"]
         tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
-        if not status.get("cloud") and not status.get("ollama"):
+        if status.get("error"):
+            tk.Label(row,text=self.ui_text(status["error"]),bg=C["panel3"],fg=C["danger"],
+                     font=("Segoe UI",8),wraplength=520).pack(side="left",padx=8)
+        self.btn(row,"↗ "+self.tr("ai_chat"),self.open_ai_chat,True).pack(side="left",padx=6)
+        if not status.get("cloud"):
             self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
 
         quick=tk.Frame(self.content,bg=C["bg"])
@@ -2810,7 +2814,7 @@ class App(tk.Tk):
             item=GLOSSARY[int(sel[0])]
             kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
             for w in visual_holder.winfo_children(): w.destroy()
-            family = "ict" if kind.startswith("ict_") or kind in {"unicorn","breaker"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
+            family = "ict" if kind.startswith("ict_") or kind in {"unicorn","breaker","smt","timing"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
             self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"],family=family)
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
             meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
