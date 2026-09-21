@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/7.8.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/7.9.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
@@ -40,6 +40,7 @@ CRYPTO_ENDPOINT = (
 )
 CRYPTO_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=25"
 KRAKEN_TICKER_ENDPOINT = "https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,SOLUSD,XRPUSD,ADAUSD,DOGEUSD,BNBUSD"
+COINBASE_PRODUCTS = [("BTC","BTC-USD"),("ETH","ETH-USD"),("SOL","SOL-USD"),("XRP","XRP-USD"),("ADA","ADA-USD"),("DOGE","DOGE-USD"),("BNB","BNB-USD")]
 BINANCE_TICKER_ENDPOINTS = [
     "https://data-api.binance.vision/api/v3/ticker/24hr",
     "https://api.binance.com/api/v3/ticker/24hr",
@@ -51,6 +52,7 @@ CRONCOPIA_METALS = {"GOLD":"gold","SILVER":"silver","COPPER":"copper"}
 CRONCOPIA_BASE = "https://croncopia.com/api/metals"
 
 EXCHANGE_RATE_ENDPOINTS = [
+    "https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD",
     "https://open.er-api.com/v6/latest/USD",
     "https://api.exchangerate.fun/latest?base=USD",
     "https://api.exchangerate.fun/latest?base=USD&symbols=EUR,GBP,JPY,CHF,AUD,CAD,XAU,XAG",
@@ -215,6 +217,35 @@ def _crypto_from_kraken():
         return [], "unavailable"
 
 
+
+def _crypto_from_coinbase():
+    def fetch_one(pair):
+        try:
+            data = _request_json(f"https://api.exchange.coinbase.com/products/{pair}/ticker", timeout=5.0)
+            price = _safe_float(data.get("price"))
+            open_price = _safe_float(data.get("open"))
+            if price is None:
+                return None
+            change = None if open_price in (None, 0) else (price - open_price) / open_price * 100.0
+            return price, change
+        except Exception:
+            return None
+
+    rows = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(COINBASE_PRODUCTS)) as pool:
+        futures = {pool.submit(fetch_one, pair): label for label, pair in COINBASE_PRODUCTS}
+        for future in concurrent.futures.as_completed(futures):
+            value = future.result()
+            if not value:
+                continue
+            price, change = value
+            label = futures[future]
+            rows.append({"symbol": label, "name": label, "price": price, "change": change})
+    order = {label: i for i, (label, _) in enumerate(COINBASE_PRODUCTS)}
+    rows.sort(key=lambda x: order.get(x["symbol"], 999))
+    return rows, "Coinbase Exchange public market data" if len(rows) >= 4 else "unavailable"
+
+
 def _crypto_live():
     # Primary ranking by market cap.
     try:
@@ -243,6 +274,10 @@ def _crypto_live():
 
     # Exchange fallback.
     result, source = _crypto_from_kraken()
+    if result:
+        return result, source
+
+    result, source = _crypto_from_coinbase()
     if result:
         return result, source
 
