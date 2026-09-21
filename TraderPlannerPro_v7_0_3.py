@@ -817,6 +817,25 @@ class App(tk.Tk):
         self.market_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
 
+        self.quickbar = tk.Frame(self, bg=C["bg"], highlightbackground=C["line"], highlightthickness=1)
+        self.quickbar.pack(fill="x", padx=14, pady=(0,7), ipady=4)
+        self._quick_nav_buttons = {}
+        nav_specs = [
+            ("home", self.tr("nav_home"), self.go_home),
+            ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
+            ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
+            ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
+            ("ai", self.tr("ai_chat"), lambda: self.go("ai")),
+            ("news", self.tr("news"), lambda: self.go("news")),
+            ("calculators", self.tr("calculators"), lambda: self.go("calculators")),
+        ]
+        for key, label, cmd in nav_specs:
+            b = tk.Button(self.quickbar, text=label, command=cmd, bg=C["panel2"], fg=C["text"],
+                          activebackground=C["accent"], activeforeground="#061019", relief="flat",
+                          font=("Segoe UI", 9, "bold"), padx=13, pady=7, cursor="hand2")
+            b.pack(side="left", padx=3)
+            self._quick_nav_buttons[key] = b
+
         self.content = tk.Frame(self, bg=C["bg"])
         self.content.pack(fill="both", expand=True, padx=14)
 
@@ -829,7 +848,7 @@ class App(tk.Tk):
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","settings"):
-            cmd = self.open_ai_chat if key=="ai" else (lambda k=key:self.go(k))
+            cmd = lambda k=key: self.go(k)
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
@@ -1069,6 +1088,21 @@ class App(tk.Tk):
             DB["profiles"]=[x for x in DB["profiles"] if x["id"]!=p["id"]]
             DB["active_profile_id"]=DB["profiles"][0]["id"]; save_db()
             self.market=active_profile()["market"]; self.refresh_profile_selector(); self.show("home")
+
+    def set_market_mode(self, market):
+        market = "Forex" if str(market) == "Forex" else "Crypto"
+        p = active_profile()
+        p["market"] = market
+        p["updated_at"] = datetime.now().isoformat(timespec="seconds")
+        self.market = market
+        try:
+            self.market_btn.config(text=market)
+        except Exception:
+            pass
+        self.market_data.set_market(market)
+        save_db()
+        self._nav_token += 1
+        self.show("home")
 
     def change_market(self):
         p=active_profile(); p["market"]="Forex" if p.get("market")=="Crypto" else "Crypto"
