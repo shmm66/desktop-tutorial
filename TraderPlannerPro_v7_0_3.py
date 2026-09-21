@@ -587,18 +587,8 @@ class App(tk.Tk):
             self._show_page_error("home", exc)
 
     def go_home(self):
-        try:
-            self.focus_force()
-        except Exception:
-            pass
-        try:
-            self._cancel_menu_hide()
-            if self.menu_open:
-                self.menu.place_configure(x=-304)
-                self.menu_open = False
-        except Exception:
-            pass
-        self.show("home")
+        """Single source of truth for every Home action."""
+        return self._hard_home()
 
     def close_app(self):
         try:
