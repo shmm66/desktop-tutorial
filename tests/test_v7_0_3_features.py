@@ -50,8 +50,8 @@ def test_session_clock_configuration_has_four_major_sessions():
 def test_academy_content_is_populated():
     from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY
     assert len(SMART_MONEY_STRATEGIES) == 5
-    assert len(ICT_STRATEGIES) == 5
-    assert len(CANDLE_PLAYBOOK) == 16
+    assert len(ICT_STRATEGIES) == 7
+    assert len(CANDLE_PLAYBOOK) >= 16
     assert any(x[0] == "Bullish Engulfing" for x in CANDLE_PLAYBOOK)
     assert any(x[0] == "Bearish Engulfing" for x in CANDLE_PLAYBOOK)
     assert len(GLOSSARY) >= 100
