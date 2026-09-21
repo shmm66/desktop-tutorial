@@ -1968,24 +1968,33 @@ class App(tk.Tk):
 
     def news(self):
         self.heading(self.tr("news_title"), self.tr("news_sub"))
-        toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=5)
+        toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=(2,6))
         self.btn(toolbar,self.tr("open_forex_factory"),lambda:self.open_webview(FOREX_FACTORY,"Forex Factory — Economic Calendar"),True).pack(side="right",padx=3)
-        self.btn(toolbar,self.tr("open_coindesk"),lambda:self.open_webview(COINDESK_HOME,"CoinDesk — Crypto News")).pack(side="right",padx=3)
+        self.btn(toolbar,self.tr("open_coindesk"),lambda:self.open_webview(CRYPTO_NEWS_HOME,"CryptoSlate — News Terminal")).pack(side="right",padx=3)
+        self.btn(toolbar,"Cointelegraph",lambda:self.open_webview("https://cointelegraph.com/","Cointelegraph")).pack(side="right",padx=3)
         self.btn(toolbar,self.tr("refresh_news"),self.refresh_news).pack(side="left",padx=3)
-        self.news_tree=ttk.Treeview(self.content,columns=("time","title"),show="headings",selectmode="browse")
-        self.news_tree.heading("time",text=self.ui_text("Date")); self.news_tree.heading("title",text=self.ui_text("Title"))
-        self.news_tree.column("time",width=180,anchor="center"); self.news_tree.column("title",anchor="w")
-        self.news_tree.pack(fill="both",expand=True,pady=8)
+        self.news_status=tk.Label(toolbar,text="● "+self.tr("market_loading"),bg=C["bg"],fg=C["gold"],font=("Consolas",8,"bold"))
+        self.news_status.pack(side="left",padx=10)
+
+        shell=self.card(self.content); shell.pack(fill="both",expand=True,pady=4)
+        self.news_tree=ttk.Treeview(shell,columns=("source","time","title"),show="headings",selectmode="browse")
+        self.news_tree.heading("source",text=self.ui_text("Source"))
+        self.news_tree.heading("time",text=self.ui_text("Date"))
+        self.news_tree.heading("title",text=self.ui_text("Headline"))
+        self.news_tree.column("source",width=145,anchor="center",stretch=False)
+        self.news_tree.column("time",width=170,anchor="center",stretch=False)
+        self.news_tree.column("title",anchor="w")
+        self.news_tree.pack(fill="both",expand=True,padx=8,pady=8)
         self.news_tree.bind("<Double-1>",self.open_selected_news)
         self.refresh_news()
 
     def refresh_news(self):
         if not hasattr(self,"news_tree"): return
         for item in self.news_tree.get_children(): self.news_tree.delete(item)
-        self.news_tree.insert("","end",iid="loading",values=("…",self.tr("market_loading")))
+        self.news_status.config(text="● "+self.tr("market_loading"),fg=C["gold"])
+        self.news_tree.insert("","end",iid="loading",values=("…","…",self.tr("market_loading")))
         def done(rows):
-            try:
-                self.after(0,lambda:self._apply_news(rows))
+            try: self.after(0,lambda:self._apply_news(rows))
             except Exception: pass
         fetch_crypto_news(done)
 
@@ -1993,19 +2002,31 @@ class App(tk.Tk):
         self.news_items=rows or []
         if not hasattr(self,"news_tree"): return
         for item in self.news_tree.get_children(): self.news_tree.delete(item)
-        for i,row in enumerate(self.news_items):
-            self.news_tree.insert("","end",iid=str(i),values=(row.get("published",""),row.get("title","")))
-        if not self.news_items:
-            self.news_tree.insert("","end",values=("",self.ui_text("market_unavailable")))
+        if self.news_items:
+            self.news_status.config(text=f"● {len(self.news_items)} headlines",fg=C["accent"])
+            for i,row in enumerate(self.news_items):
+                self.news_tree.insert("","end",iid=str(i),values=(row.get("source","News"),row.get("published",""),row.get("title","")))
+        else:
+            self.news_status.config(text="● "+self.tr("market_unavailable"),fg=C["danger"])
+            fallback=[
+                ("CoinDesk","Live crypto terminal",COINDESK_HOME),
+                ("Cointelegraph","Live crypto headlines","https://cointelegraph.com/"),
+                ("CryptoSlate","Live crypto news terminal",CRYPTO_NEWS_HOME),
+            ]
+            for i,(source,title,url) in enumerate(fallback):
+                self.news_tree.insert("","end",iid=f"fallback-{i}",values=(source,"LIVE",title))
+            self.news_items=[{"source":s,"published":"LIVE","title":t,"link":u} for s,t,u in fallback]
 
     def open_selected_news(self,_=None):
         if not hasattr(self,"news_tree"): return
         sel=self.news_tree.selection()
         if not sel: return
+        key=sel[0]
         try:
-            url=self.news_items[int(sel[0])]["link"]
-            self.open_webview(url,"CoinDesk")
-        except Exception: pass
+            row=self.news_items[int(key)] if key.isdigit() else next(r for r in self.news_items if r.get("source")==self.news_tree.item(key,"values")[0] and r.get("title")==self.news_tree.item(key,"values")[2])
+            self.open_webview(row["link"],f"Trader Planner Pro • {row.get('source','News')}")
+        except Exception:
+            pass
 
     def ai(self):
         self.heading(self.tr("ai_title"), self.tr("ai_sub"))
