@@ -283,9 +283,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "7.9.0"' in iss
+    assert 'MyAppVersion "8.0.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"7.9.0\"" in launcher
+    assert "VERSION = \"8.0.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -294,9 +294,9 @@ def test_v780_news_webview_has_fallback():
     assert "webbrowser.open(url)" in text
 
 
-def test_v79_ai_uses_supported_master_model():
+def test_v800_ai_uses_supported_master_model():
     from ai_assistant import DEFAULT_MODEL, ROLES
-    assert DEFAULT_MODEL == "gpt-5.6-luna"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert "academy" in ROLES
     assert "product" in ROLES
 
