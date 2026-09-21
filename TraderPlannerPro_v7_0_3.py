@@ -2416,8 +2416,8 @@ class App(tk.Tk):
         tree=ttk.Treeview(left,columns=("term","category"),show="headings",selectmode="browse"); tree.heading("term",text="Term"); tree.heading("category",text="Category"); tree.column("term",width=260); tree.column("category",width=120); tree.pack(fill="both",expand=True,padx=8,pady=8)
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=(8,4))
         title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold"),justify="right",anchor="e"); title.pack(fill="x",padx=18,pady=(8,5))
-        meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
-        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=720,justify="right",anchor="e"); usage.pack(fill="both",expand=True,padx=18,pady=7)
+        meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
+        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",11),wraplength=860,justify="right",anchor="e"); usage.pack(fill="both",expand=True,padx=18,pady=7)
         def refresh(*_):
             term=q.get().strip().lower(); selected_cat=cat.get()
             for x in tree.get_children(): tree.delete(x)
