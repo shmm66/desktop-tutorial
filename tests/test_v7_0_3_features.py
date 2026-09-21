@@ -298,7 +298,7 @@ def test_v790_deterministic_navigation_and_market_switching():
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "self.after_idle(lambda k=key, t=token: self._render_page(k, t))" in source
     assert 'self.after_idle(lambda t=token: self._render_page("home", t))' in source
-    assert "self.cur = "home"" in source
+    assert 'self.cur = "home"' in source
 
 
 def test_v790_exact_academy_images_are_bundled_and_displayed():
