@@ -10,9 +10,9 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-5.6-sol"
+DEFAULT_MODEL = os.getenv("TRADER_PLANNER_AI_MODEL", "gpt-4.1-mini")
 REASONING_EFFORT = "high"
-MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-luna")
+MODEL_FALLBACKS = ("qwen3:8b", "gemma3:4b", "llama3.1:8b", "llama3.2:3b")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
@@ -153,11 +153,60 @@ def _fallback(role, user_message, context):
     )
 
 
+def _offline_agent(role, user_message, context):
+    """Deterministic offline assistant: always usable without a network or API key."""
+    import re
+    msg = str(user_message or "").strip()
+    lower = msg.lower()
+    answers=[]
+
+    symbol = None
+    for token in re.findall(r"\b[A-Z]{2,12}(?:USDT|USD)?\b", msg.upper()):
+        if token not in {"ENTRY","STOP","LOSS","TAKE","PROFIT","RISK","RR","SL","TP","ICT","SMC","FVG","BOS","MSS","CHOCH"}:
+            symbol = token
+            break
+    numbers = [float(x) for x in re.findall(r"(?<![A-Za-z])\d+(?:\.\d+)?", msg)]
+
+    if role == "form":
+        answers.append("فرم‌کوچ آفلاین: اطلاعاتی که از پیام فهمیدم را استخراج کردم.")
+        if symbol: answers.append(f"Symbol: {symbol}")
+        if numbers: answers.append("اعداد قابل استفاده: " + ", ".join(f"{n:g}" for n in numbers[:8]))
+        answers.append("فیلدهای باقی‌مانده برای ثبت: Direction, Entry, SL, TP, Risk %, Setup, Structure, Liquidity, Emotion, Result.")
+        answers.append("قبل از ثبت معامله، چک‌لیست اجباری را کامل کن.")
+    elif role == "strategy":
+        if "engulf" in lower: answers.append("Engulfing یک الگوی کندلی است؛ آن را با مدل ICT اشتباه نکن.")
+        if "ict" in lower or "2022" in lower:
+            answers.append("ICT 2022 map: Liquidity → Sweep → MSS/Displacement → FVG → Return.")
+        elif "smc" in lower or "smart money" in lower:
+            answers.append("SMC workflow: Liquidity → Structure → Displacement → Zone → Retest → Invalidation.")
+        else:
+            answers.append("ترتیب بررسی: Context → Setup → Trigger → Invalidation → Target → Risk.")
+        answers.append("اگر یکی از حلقه‌ها تأیید نشده، وضعیت را WAIT نگه دار.")
+    elif role == "psychology":
+        answers.append("Psychology check: مکث 60 ثانیه → احساس فعلی را نام‌گذاری کن → ریسک را بخوان → چک‌لیست را تیک بزن → سپس تصمیم بگیر.")
+        if any(k in lower for k in ("fomo","انتقام","revenge","ترس")):
+            answers.append("این پیام یک محرک احساسی را نشان می‌دهد؛ تا کامل شدن چک‌لیست وارد معامله نشو.")
+    elif role == "planner":
+        answers.append("روتین پیشنهادی: Pre-market → News → HTF Bias → Session Window → Execution → Hard Stop → Journal → Review.")
+        answers.append("کارهای تکرارشونده را به Reminder روزانه تبدیل کن.")
+    elif role == "academy":
+        answers.append("Academy Tutor: SMC یک چارچوب گسترده است؛ ICT مدل‌ها و نام‌گذاری‌های مشخص خود را دارد.")
+        answers.append("برای هر مفهوم از صفحه همان مفهوم، آناتومی اختصاصی و منبع اصلی استفاده کن.")
+    elif role == "product":
+        answers.append("Product Agent: هر صفحه باید یک Primary Action، یک وضعیت واضح (LIVE/CACHED/OFFLINE) و یک راه برگشت ثابت به Home داشته باشد.")
+        answers.append("برای آکادمی، مدل مفهومی اختصاصی از منبع عمومی جدا نمایش داده شود تا کاربر آن دو را با هم اشتباه نگیرد.")
+    else:
+        answers.append("Master Agent آفلاین: سؤال را به Context → Setup → Trigger → Invalidation → Risk تبدیل می‌کنم.")
+        if "آموز" in lower or "academy" in lower: answers.append("برای آموزش، SMC و ICT و Candlestick را جدا نگه می‌دارم.")
+        if "بازار" in lower or "market" in lower: answers.append("از داده‌ای خارج از payload برنامه برای نتیجه‌گیری استفاده نمی‌کنم.")
+    return "\n".join(answers)
+
+
 class AIOrchestrator:
     """Multi-provider, multi-agent trader assistant.
 
     Priority: OpenAI Agents SDK when configured, then local Ollama, then a
-    deterministic built-in assistant. The chat UI remains usable in all modes.
+    deterministic built-in offline agent. The chat UI remains usable in all modes.
     """
 
     def __init__(self, model=DEFAULT_MODEL):
@@ -178,6 +227,8 @@ class AIOrchestrator:
             "models": ollama_models,
             "model": cloud["model"] if cloud["enabled"] else (ollama_models[0] if ollama_models else self.model),
             "last_error": self.last_error,
+            "mode": "cloud" if cloud["enabled"] else ("local" if ollama_online else "offline"),
+            "roles": list(self.roles.keys()),
         }
 
     def _build_cloud_agents(self):
@@ -302,9 +353,9 @@ class AIOrchestrator:
                     self.last_error = f"Local AI: {type(exc).__name__}: {exc}"
 
             if not answer:
-                answer = _fallback(role, user_message, context)
+                answer = _offline_agent(role, user_message, context)
                 if not self.last_error:
-                    self.last_error = "No live AI provider configured; using offline assistant."
+                    self.last_error = "No live AI provider configured; using deterministic offline agent."
 
             self.history.append({"role": "assistant", "content": answer})
             self.history = self.history[-10:]
