@@ -297,7 +297,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 750, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"obsidian","ai_reminders":[]}}
+    return {"version": 750, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"glass","ai_reminders":[]}}
 
 def numeric(value):
     try:
@@ -318,7 +318,7 @@ def migrate_payload(old):
     base["settings"].setdefault("theme", "dark")
     base["settings"].setdefault("theme_auto_start", "08:00")
     base["settings"].setdefault("theme_auto_end", "20:00")
-    base["settings"].setdefault("skin", "obsidian")
+    base["settings"].setdefault("skin", "glass")
     base["settings"].setdefault("ai_reminders", [])
     if isinstance(old.get("profiles"), list) and old["profiles"]:
         base["profiles"] = old["profiles"]
@@ -2205,7 +2205,7 @@ class App(tk.Tk):
         self.show("calculators")
 
     def _save_skin_and_theme(self,skin_labels,skin_var):
-        self.skin=skin_labels.get(skin_var.get(),"obsidian")
+        self.skin=skin_labels.get(skin_var.get(),"glass")
         DB.setdefault("settings",{})["skin"]=self.skin
         save_db()
         self.apply_theme()
