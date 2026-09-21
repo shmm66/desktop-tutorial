@@ -103,7 +103,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "7.5.0"
+    assert VERSION == "7.6.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -169,3 +169,29 @@ def test_v750_navigation_ai_news_calculators_and_theme_are_present():
     assert "def apply_theme(self, initial=False):" in source
     assert "def render_market_indicators(self, payload=None):" in source
     assert "def open_webview(self, url, title=" in source
+
+
+def test_v760_market_engine_has_exchange_and_cache_fallbacks():
+    from market_data import BINANCE_TICKER_ENDPOINTS, YAHOO_ENDPOINTS, CRYPTO_ENDPOINT, GLOBAL_ENDPOINT
+    assert len(BINANCE_TICKER_ENDPOINTS) >= 2
+    assert len(YAHOO_ENDPOINTS) >= 2
+    assert "coingecko.com/api/v3/coins/markets" in CRYPTO_ENDPOINT
+    assert "coingecko.com/api/v3/global" in GLOBAL_ENDPOINT
+
+
+def test_v760_news_uses_multiple_live_feeds():
+    from news_data import FEEDS, COINTELEGRAPH_RSS, CRYPTOSLATE_RSS
+    assert len(FEEDS) >= 4
+    assert COINTELEGRAPH_RSS in [url for _, url in FEEDS]
+    assert CRYPTOSLATE_RSS in [url for _, url in FEEDS]
+
+
+def test_v760_modern_skins_and_ai_chat_hooks():
+    from TraderPlannerPro_v7_0_3 import SKINS, I18N
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert {"obsidian","aurora","graphite","pearl"} <= set(SKINS)
+    assert "def open_ai_chat(self):" in source
+    assert "<Control-K>" in source
+    assert "def _rounded_rect(" in source
+    assert I18N["fa"]["ai"] == "🤖  AI Chat"

@@ -23,10 +23,10 @@ from academy_visuals import render_visual, visual_key_for, source_for_visual
 from market_data import MarketDataService
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
-from news_data import fetch_crypto_news, COINDESK_HOME, FOREX_FACTORY
+from news_data import fetch_crypto_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 
 APP = "Trader Planner Pro"
-VERSION = "7.5.0"
+VERSION = "7.6.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -85,6 +85,29 @@ THEMES = {
     }
 }
 
+SKINS = {
+    "obsidian": {
+        "label_fa":"Obsidian • شیشه‌ای تیره", "label_en":"Obsidian • Dark Glass",
+        "dark":{"panel":"#0F1520","panel2":"#151E2B","soft":"#1B2736","panel3":"#0B111A","line":"#26384A","accent":"#27D3B0","cyan":"#56E0FF","gold":"#FFD166","violet":"#9B8CFF"},
+        "light":{"panel":"#FFFFFF","panel2":"#F3F7FA","soft":"#E9F0F4","panel3":"#EEF4F7","line":"#CED9E0","accent":"#0C9F85","cyan":"#087EA4","gold":"#9B6500","violet":"#6F56C8"},
+    },
+    "aurora": {
+        "label_fa":"Aurora • نئونی", "label_en":"Aurora • Neon",
+        "dark":{"panel":"#11142A","panel2":"#171B37","soft":"#20264A","panel3":"#0C1020","line":"#343A63","accent":"#65F2C6","cyan":"#67D8FF","gold":"#F6D77A","violet":"#B58CFF"},
+        "light":{"panel":"#FFFFFF","panel2":"#F2F3FF","soft":"#E8EBFF","panel3":"#EFF1FF","line":"#C9D0ED","accent":"#147F6B","cyan":"#1877A6","gold":"#9B6500","violet":"#6E4BC4"},
+    },
+    "graphite": {
+        "label_fa":"Graphite • مینیمال", "label_en":"Graphite • Minimal",
+        "dark":{"panel":"#16181C","panel2":"#1D2026","soft":"#252A31","panel3":"#111317","line":"#373E48","accent":"#7DE2D1","cyan":"#7CC7FF","gold":"#EBCB8B","violet":"#B8A4FF"},
+        "light":{"panel":"#FFFFFF","panel2":"#F5F6F7","soft":"#EAEDF0","panel3":"#F2F4F5","line":"#D2D7DC","accent":"#147D6B","cyan":"#246FA8","gold":"#946300","violet":"#6C55BC"},
+    },
+    "pearl": {
+        "label_fa":"Pearl • روشن حرفه‌ای", "label_en":"Pearl • Light Pro",
+        "dark":{"panel":"#10161D","panel2":"#172029","soft":"#202B36","panel3":"#0C1116","line":"#2F3D49","accent":"#8ED6FF","cyan":"#70D7FF","gold":"#F0C96A","violet":"#BBA3FF"},
+        "light":{"panel":"#FFFFFF","panel2":"#F7FAFC","soft":"#EDF2F6","panel3":"#F2F7FA","line":"#D6E0E7","accent":"#176EA6","cyan":"#0B7FA7","gold":"#956500","violet":"#6D57BA"},
+    },
+}
+
 THEME_LABELS = {
     "fa": {"dark":"تیره","light":"روشن","auto":"خودکار","auto_start":"شروع حالت روشن","auto_end":"پایان حالت روشن"},
     "en": {"dark":"Dark","light":"Light","auto":"Automatic","auto_start":"Light mode start","auto_end":"Light mode end"},
@@ -131,7 +154,7 @@ I18N = {
         "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
         "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
-        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  دستیار هوش مصنوعی","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
+        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  AI Chat","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","ai_open_chat":"باز کردن چت هوش مصنوعی","ai_clear":"پاک کردن گفتگو","ai_close":"بستن","ai_welcome":"سلام. من دستیار Trader Planner Pro هستم. درباره فرم‌ها، استراتژی ثبت‌شده، روانشناسی و نظم معاملاتی سؤال بپرس.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی",
     },
     "en": {
         "home":"⌂  Home","daily":"◫  Daily Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
@@ -166,7 +189,7 @@ I18N = {
         "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
         "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
-        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Assistant","news":"📰  Market News","calculators":"🧮  Calculators","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
+        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Chat","news":"📰  Market News","calculators":"🧮  Calculators","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","ai_open_chat":"Open AI Chat","ai_clear":"Clear Chat","ai_close":"Close","ai_welcome":"Hi. I am the Trader Planner Pro assistant. Ask about forms, documented strategies, psychology or your trading routine.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated",
     }
 }
 
@@ -254,7 +277,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 750, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","ai_reminders":[]}}
+    return {"version": 750, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"obsidian","ai_reminders":[]}}
 
 def numeric(value):
     try:
@@ -275,6 +298,7 @@ def migrate_payload(old):
     base["settings"].setdefault("theme", "dark")
     base["settings"].setdefault("theme_auto_start", "08:00")
     base["settings"].setdefault("theme_auto_end", "20:00")
+    base["settings"].setdefault("skin", "obsidian")
     base["settings"].setdefault("ai_reminders", [])
     if isinstance(old.get("profiles"), list) and old["profiles"]:
         base["profiles"] = old["profiles"]
@@ -468,6 +492,11 @@ class App(tk.Tk):
         self.theme_mode = DB.get("settings", {}).get("theme", "dark")
         self.theme_auto_start = DB.get("settings", {}).get("theme_auto_start", "08:00")
         self.theme_auto_end = DB.get("settings", {}).get("theme_auto_end", "20:00")
+        self.skin = DB.get("settings", {}).get("skin", "obsidian")
+        if self.skin not in SKINS: self.skin = "obsidian"
+        self.ai_chat_window = None
+        self.ai_chat_text = None
+        self.ai_chat_input = None
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -477,7 +506,9 @@ class App(tk.Tk):
         self._logo_photo = None
         self.apply_theme(initial=True)
         self.bind_all("<Home>", self._home_shortcut)
-        self.bind_all("<Alt-Home>", lambda e: self.show("home"))
+        self.bind_all("<Alt-Home>", lambda e: self.go_home())
+        self.bind_all("<Control-K>", lambda e: self.open_ai_chat())
+        self.bind_all("<F2>", lambda e: self.open_ai_chat())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
         self.bind("<Motion>", self._shell_motion, add="+")
@@ -508,7 +539,7 @@ class App(tk.Tk):
                 self.menu_open = False
         except Exception:
             pass
-        self.after_idle(lambda: self.show("home"))
+        self.show("home")
 
     def close_app(self):
         try:
@@ -553,7 +584,9 @@ class App(tk.Tk):
 
     def apply_theme(self, initial=False):
         effective = self._effective_theme()
-        palette = THEMES[effective]
+        skin = self.skin if self.skin in SKINS else "obsidian"
+        palette = dict(THEMES[effective])
+        palette.update(SKINS[skin][effective])
         C.update(palette)
         self.configure(bg=C["bg"])
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -783,7 +816,8 @@ class App(tk.Tk):
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","settings"):
-            b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
+            cmd = self.open_ai_chat if key=="ai" else (lambda k=key:self.go(k))
+            b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
                           padx=18, pady=11, cursor="hand2")
@@ -859,23 +893,56 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        if self.session_clock_job is not None:
-            try: self.after_cancel(self.session_clock_job)
-            except Exception: pass
-            self.session_clock_job = None
-        if self.ticker_job is not None:
-            try: self.after_cancel(self.ticker_job)
-            except Exception: pass
-            self.ticker_job = None
-        self.session_clock_widgets = []
-        self.cur = key
+        allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
+        if key not in allowed:
+            key="home"
+        for job_name in ("session_clock_job","ticker_job"):
+            job=getattr(self, job_name, None)
+            if job is not None:
+                try: self.after_cancel(job)
+                except Exception: pass
+                setattr(self, job_name, None)
+        self.session_clock_widgets=[]
+        self.cur=key
         for widget in self.content.winfo_children():
-            widget.destroy()
-        getattr(self, key)()
+            try: widget.destroy()
+            except Exception: pass
         try:
+            getattr(self,key)()
             self.translate_widget_tree(self.content)
+        except Exception as exc:
+            self._show_page_error(key,exc)
+
+    def _show_page_error(self,key,exc):
+        try:
+            ROOT.mkdir(parents=True,exist_ok=True)
+            with (ROOT/"ui_errors.log").open("a",encoding="utf-8") as log:
+                log.write(f"{datetime.now().isoformat(timespec='seconds')} | page={key} | {type(exc).__name__}: {exc}\n")
         except Exception:
             pass
+        for widget in self.content.winfo_children():
+            try: widget.destroy()
+            except Exception: pass
+        box=self.card(self.content); box.pack(fill="both",expand=True,padx=30,pady=30)
+        tk.Label(box,text="Trader Planner Pro",bg=C["panel"],fg=C["accent"],font=("Segoe UI",22,"bold")).pack(pady=(60,10))
+        tk.Label(box,text=f"{key.upper()} • SAFE RECOVERY",bg=C["panel"],fg=C["gold"],font=("Consolas",11,"bold")).pack(pady=4)
+        tk.Label(box,text="The page hit a UI error and was recovered safely.",bg=C["panel"],fg=C["text"],font=("Segoe UI",12)).pack(pady=8)
+        tk.Label(box,text=str(exc),bg=C["soft"],fg=C["danger"],font=("Consolas",9),wraplength=1050,justify="center").pack(fill="x",padx=30,pady=20,ipady=12)
+        self.btn(box,self.tr("home"),self.go_home,True).pack(pady=10)
+
+    def _rounded_rect(self,canvas,x1,y1,x2,y2,radius=12,fill="",outline="",width=1):
+        r=max(1,int(radius))
+        canvas.create_arc(x1,y1,x1+2*r,y1+2*r,start=90,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_arc(x2-2*r,y1,x2,y1+2*r,start=0,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_arc(x1,y2-2*r,x1+2*r,y2,start=180,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_arc(x2-2*r,y2-2*r,x2,y2,start=270,extent=90,fill=fill,outline=outline,width=width)
+        canvas.create_rectangle(x1+r,y1,x2-r,y2,fill=fill,outline="")
+        canvas.create_rectangle(x1,y1+r,x2,y2-r,fill=fill,outline="")
+        if outline:
+            canvas.create_line(x1+r,y1,x2-r,y1,fill=outline,width=width)
+            canvas.create_line(x1+r,y2,x2-r,y2,fill=outline,width=width)
+            canvas.create_line(x1,y1+r,x1,y2-r,fill=outline,width=width)
+            canvas.create_line(x2,y1+r,x2,y2-r,fill=outline,width=width)
 
     def clock(self):
         now = datetime.now()
@@ -903,7 +970,7 @@ class App(tk.Tk):
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
         if self.cur != "home":
-            ai_btn = tk.Button(left_tools, text="🤖 AI", command=lambda:self.show("ai"),
+            ai_btn = tk.Button(left_tools, text=self.tr("ai"), command=self.open_ai_chat,
                                bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                                relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
             ai_btn.pack(side="left", padx=(0,5))
@@ -981,7 +1048,7 @@ class App(tk.Tk):
     def change_market(self):
         p=active_profile(); p["market"]="Forex" if p.get("market")=="Crypto" else "Crypto"
         self.market=p["market"]; self.market_btn.config(text=self.market); self.market_data.set_market(self.market); p["updated_at"]=datetime.now().isoformat(timespec="seconds")
-        save_db(); self.show(self.cur)
+        save_db(); self.go_home()
 
     def home(self):
         p = active_profile()
@@ -1010,6 +1077,8 @@ class App(tk.Tk):
         tk.Label(indicator_head, text=f"{self.market} • {self.market_data_payload.get('source','—')}", bg=C["bg"], fg=C["muted"], font=("Segoe UI", 8)).pack(side="left")
         self.indicator_row = tk.Frame(self.content, bg=C["bg"]); self.indicator_row.pack(fill="x", pady=(0,7))
         self.render_market_indicators(self.market_data_payload)
+        self.market_data.set_market(self.market)
+        self.market_data.refresh_now()
 
         session_wrap = tk.Frame(self.content, bg=C["bg"]); session_wrap.pack(fill="x", pady=(1,7))
         session_head = tk.Frame(session_wrap, bg=C["bg"]); session_head.pack(fill="x")
@@ -1153,7 +1222,7 @@ class App(tk.Tk):
                 else: ptxt = f"{price:,.5f}"
                 ctxt = "—" if change is None else f"{change:+.2f}%"
                 accent = C["accent"] if (change or 0) >= 0 else C["danger"]
-                c.rounded_rectangle((x, 7, x+card_w, 69), radius=14, fill=C["panel"], outline=C["line"], width=1)
+                self._rounded_rect(c, x, 7, x+card_w, 69, radius=14, fill=C["panel"], outline=C["line"], width=1)
                 c.create_oval((x+10, 19, x+17, 26), fill=accent, outline="")
                 c.create_text(x+24, 23, text=tag, anchor="w", fill=C["muted"], font=("Segoe UI", 8, "bold"))
                 c.create_text(x+12, 47, text=ptxt, anchor="w", fill=C["text"], font=("Consolas", 12, "bold"))
@@ -1641,6 +1710,124 @@ class App(tk.Tk):
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
         self.translate_widget_tree(dlg)
 
+    def open_ai_chat(self):
+        if self.ai_chat_window is not None:
+            try:
+                if self.ai_chat_window.winfo_exists():
+                    self.ai_chat_window.deiconify()
+                    self.ai_chat_window.lift()
+                    self.ai_chat_window.focus_force()
+                    return
+            except Exception:
+                pass
+
+        dlg=tk.Toplevel(self)
+        self.ai_chat_window=dlg
+        dlg.title("Trader Planner Pro • AI Chat")
+        dlg.geometry("820x700")
+        dlg.minsize(680,560)
+        dlg.configure(bg=C["bg"])
+        dlg.transient(self)
+
+        header=tk.Frame(dlg,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
+        header.pack(fill="x",padx=12,pady=12)
+        tk.Label(header,text=self.tr("ai_title"),bg=C["panel"],fg=C["text"],font=("Segoe UI",17,"bold")).pack(side="right",padx=14,pady=12)
+        status=self.ai.status()
+        status_text="LOCAL • READY" if status["online"] and status["models"] else "BUILT-IN • READY"
+        tk.Label(header,text=status_text,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(side="left",padx=10)
+
+        toolbar=tk.Frame(dlg,bg=C["bg"]); toolbar.pack(fill="x",padx=12)
+        role_var=tk.StringVar(value="form")
+        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach"}
+        ttk.Combobox(toolbar,textvariable=role_var,state="readonly",values=list(role_labels.values()),
+                     width=25,justify="right").pack(side="right",padx=4)
+        self.btn(toolbar,self.tr("ai_clear"),lambda:self._clear_ai_chat(),).pack(side="left",padx=4)
+
+        card=self.card(dlg); card.pack(fill="both",expand=True,padx=12,pady=8)
+        chat=tk.Text(card,bg=C["soft"],fg=C["text"],insertbackground=C["text"],wrap="word",relief="flat",
+                     font=("Segoe UI",11),padx=14,pady=12)
+        chat.pack(fill="both",expand=True,padx=6,pady=6)
+        self.ai_chat_text=chat
+        chat.insert("1.0",self.tr("ai_welcome")+"\n\n")
+        chat.configure(state="disabled")
+
+        bottom=tk.Frame(dlg,bg=C["bg"]); bottom.pack(fill="x",padx=12,pady=(0,12))
+        prompt=tk.Entry(bottom,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",
+                        font=("Segoe UI",11),justify="right")
+        prompt.pack(side="right",fill="x",expand=True,padx=5,ipady=10)
+        self.ai_chat_input=prompt
+
+        def send(_=None):
+            msg=prompt.get().strip()
+            if not msg: return
+            prompt.delete(0,"end")
+            role=next((k for k,v in role_labels.items() if v==role_var.get()),"form")
+            context=self._ai_context()
+            self._append_ai("You",msg)
+            self._append_ai("Assistant","…")
+            self.ai.respond(role,msg,context,lambda answer:self.after(0,lambda:self._replace_ai_waiting(answer)))
+
+        send_btn=self.btn(bottom,self.tr("ai_send"),send,True); send_btn.pack(side="left",padx=5)
+        self.btn(bottom,self.tr("ai_close"),dlg.destroy).pack(side="left",padx=5)
+        prompt.bind("<Return>",send)
+
+        def on_close():
+            self.ai_chat_window=None
+            self.ai_chat_text=None
+            self.ai_chat_input=None
+            dlg.destroy()
+        dlg.protocol("WM_DELETE_WINDOW",on_close)
+
+    def _ai_context(self):
+        p=active_profile()
+        recent=p.get("journals",{}).get(self.market,[])
+        checklist=p.get("checklist",[])
+        return (
+            f"Current page: {self.cur}\n"
+            f"Market: {self.market}\n"
+            f"Profile: {p.get('name','')}\n"
+            f"Trading plan: {json.dumps(p.get('plan_draft',{}),ensure_ascii=False)}\n"
+            f"Recent trades: {json.dumps(recent[-5:],ensure_ascii=False)}\n"
+            f"Checklist completed: {sum(1 for x in checklist if x.get('done'))}/{len(checklist)}\n"
+            f"Market payload: {json.dumps(self.market_data_payload,ensure_ascii=False)}"
+        )
+
+    def _append_ai(self,speaker,text):
+        if not self.ai_chat_text: return
+        try:
+            self.ai_chat_text.configure(state="normal")
+            self.ai_chat_text.insert("end",f"{speaker}: {text}\n\n")
+            self.ai_chat_text.configure(state="disabled")
+            self.ai_chat_text.see("end")
+        except Exception:
+            pass
+
+    def _replace_ai_waiting(self,answer):
+        if not self.ai_chat_text: return
+        try:
+            self.ai_chat_text.configure(state="normal")
+            current=self.ai_chat_text.get("1.0","end-1c")
+            pos=current.rfind("Assistant: …")
+            if pos>=0:
+                self.ai_chat_text.delete(f"1.0+{pos}c",f"1.0+{pos+13}c")
+                self.ai_chat_text.insert(f"1.0+{pos}c",f"Assistant: {answer}")
+            else:
+                self.ai_chat_text.insert("end",f"Assistant: {answer}\n")
+            self.ai_chat_text.configure(state="disabled")
+            self.ai_chat_text.see("end")
+        except Exception:
+            self._append_ai("Assistant",str(answer))
+
+    def _clear_ai_chat(self):
+        if self.ai_chat_text:
+            try:
+                self.ai_chat_text.configure(state="normal")
+                self.ai_chat_text.delete("1.0","end")
+                self.ai_chat_text.insert("1.0",self.tr("ai_welcome")+"\n\n")
+                self.ai_chat_text.configure(state="disabled")
+            except Exception:
+                pass
+
     def open_webview(self, url, title="Trader Planner Pro"):
         try:
             if getattr(sys, "frozen", False):
@@ -1668,6 +1855,17 @@ class App(tk.Tk):
         fa_btn.pack(side="right",padx=5); en_btn.pack(side="right",padx=5)
         tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",
                  bg=C["panel"],fg=C["gold"],font=("Segoe UI",9,"bold")).pack(side="left",padx=8)
+
+        skin_box=self.card(self.content); skin_box.pack(fill="x",pady=8)
+        tk.Label(skin_box,text=self.tr("skin"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
+        tk.Label(skin_box,text=self.tr("skin_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
+        skin_labels={}
+        for k,v in SKINS.items():
+            skin_labels[v.get(self.language=="fa" and "label_fa" or "label_en",k)]=k
+        skin_var=tk.StringVar(value=SKINS[self.skin]["label_fa" if self.language=="fa" else "label_en"])
+        skin_combo=ttk.Combobox(skin_box,textvariable=skin_var,state="readonly",values=list(skin_labels.keys()),width=30,justify="center")
+        skin_combo.pack(anchor="e",padx=18,pady=(0,14))
+        self.btn(skin_box,self.tr("save_theme"),lambda:self._save_skin_and_theme(skin_labels,skin_var),True).pack(anchor="e",padx=18,pady=(0,14))
 
         theme_box=self.card(self.content); theme_box.pack(fill="x",pady=8)
         tk.Label(theme_box,text=self.tr("theme"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
@@ -1709,6 +1907,13 @@ class App(tk.Tk):
     def open_calculator(self, market):
         self._calculator_market = "Forex" if market == "Forex" else "Crypto"
         self.show("calculators")
+
+    def _save_skin_and_theme(self,skin_labels,skin_var):
+        self.skin=skin_labels.get(skin_var.get(),"obsidian")
+        DB.setdefault("settings",{})["skin"]=self.skin
+        save_db()
+        self.apply_theme()
+        self.show(self.cur)
 
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
@@ -1763,24 +1968,33 @@ class App(tk.Tk):
 
     def news(self):
         self.heading(self.tr("news_title"), self.tr("news_sub"))
-        toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=5)
+        toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=(2,6))
         self.btn(toolbar,self.tr("open_forex_factory"),lambda:self.open_webview(FOREX_FACTORY,"Forex Factory — Economic Calendar"),True).pack(side="right",padx=3)
-        self.btn(toolbar,self.tr("open_coindesk"),lambda:self.open_webview(COINDESK_HOME,"CoinDesk — Crypto News")).pack(side="right",padx=3)
+        self.btn(toolbar,self.tr("open_coindesk"),lambda:self.open_webview(CRYPTO_NEWS_HOME,"CryptoSlate — News Terminal")).pack(side="right",padx=3)
+        self.btn(toolbar,"Cointelegraph",lambda:self.open_webview("https://cointelegraph.com/","Cointelegraph")).pack(side="right",padx=3)
         self.btn(toolbar,self.tr("refresh_news"),self.refresh_news).pack(side="left",padx=3)
-        self.news_tree=ttk.Treeview(self.content,columns=("time","title"),show="headings",selectmode="browse")
-        self.news_tree.heading("time",text=self.ui_text("Date")); self.news_tree.heading("title",text=self.ui_text("Title"))
-        self.news_tree.column("time",width=180,anchor="center"); self.news_tree.column("title",anchor="w")
-        self.news_tree.pack(fill="both",expand=True,pady=8)
+        self.news_status=tk.Label(toolbar,text="● "+self.tr("market_loading"),bg=C["bg"],fg=C["gold"],font=("Consolas",8,"bold"))
+        self.news_status.pack(side="left",padx=10)
+
+        shell=self.card(self.content); shell.pack(fill="both",expand=True,pady=4)
+        self.news_tree=ttk.Treeview(shell,columns=("source","time","title"),show="headings",selectmode="browse")
+        self.news_tree.heading("source",text=self.ui_text("Source"))
+        self.news_tree.heading("time",text=self.ui_text("Date"))
+        self.news_tree.heading("title",text=self.ui_text("Headline"))
+        self.news_tree.column("source",width=145,anchor="center",stretch=False)
+        self.news_tree.column("time",width=170,anchor="center",stretch=False)
+        self.news_tree.column("title",anchor="w")
+        self.news_tree.pack(fill="both",expand=True,padx=8,pady=8)
         self.news_tree.bind("<Double-1>",self.open_selected_news)
         self.refresh_news()
 
     def refresh_news(self):
         if not hasattr(self,"news_tree"): return
         for item in self.news_tree.get_children(): self.news_tree.delete(item)
-        self.news_tree.insert("","end",iid="loading",values=("…",self.tr("market_loading")))
+        self.news_status.config(text="● "+self.tr("market_loading"),fg=C["gold"])
+        self.news_tree.insert("","end",iid="loading",values=("…","…",self.tr("market_loading")))
         def done(rows):
-            try:
-                self.after(0,lambda:self._apply_news(rows))
+            try: self.after(0,lambda:self._apply_news(rows))
             except Exception: pass
         fetch_crypto_news(done)
 
@@ -1788,22 +2002,35 @@ class App(tk.Tk):
         self.news_items=rows or []
         if not hasattr(self,"news_tree"): return
         for item in self.news_tree.get_children(): self.news_tree.delete(item)
-        for i,row in enumerate(self.news_items):
-            self.news_tree.insert("","end",iid=str(i),values=(row.get("published",""),row.get("title","")))
-        if not self.news_items:
-            self.news_tree.insert("","end",values=("",self.ui_text("market_unavailable")))
+        if self.news_items:
+            self.news_status.config(text=f"● {len(self.news_items)} headlines",fg=C["accent"])
+            for i,row in enumerate(self.news_items):
+                self.news_tree.insert("","end",iid=str(i),values=(row.get("source","News"),row.get("published",""),row.get("title","")))
+        else:
+            self.news_status.config(text="● "+self.tr("market_unavailable"),fg=C["danger"])
+            fallback=[
+                ("CoinDesk","Live crypto terminal",COINDESK_HOME),
+                ("Cointelegraph","Live crypto headlines","https://cointelegraph.com/"),
+                ("CryptoSlate","Live crypto news terminal",CRYPTO_NEWS_HOME),
+            ]
+            for i,(source,title,url) in enumerate(fallback):
+                self.news_tree.insert("","end",iid=f"fallback-{i}",values=(source,"LIVE",title))
+            self.news_items=[{"source":s,"published":"LIVE","title":t,"link":u} for s,t,u in fallback]
 
     def open_selected_news(self,_=None):
         if not hasattr(self,"news_tree"): return
         sel=self.news_tree.selection()
         if not sel: return
+        key=sel[0]
         try:
-            url=self.news_items[int(sel[0])]["link"]
-            self.open_webview(url,"CoinDesk")
-        except Exception: pass
+            row=self.news_items[int(key)] if key.isdigit() else next(r for r in self.news_items if r.get("source")==self.news_tree.item(key,"values")[0] and r.get("title")==self.news_tree.item(key,"values")[2])
+            self.open_webview(row["link"],f"Trader Planner Pro • {row.get('source','News')}")
+        except Exception:
+            pass
 
     def ai(self):
         self.heading(self.tr("ai_title"), self.tr("ai_sub"))
+        self.after(120, self.open_ai_chat)
         top=self.card(self.content); top.pack(fill="x",pady=6)
         info=tk.Frame(top,bg=C["panel"]); info.pack(fill="x",padx=14,pady=12)
         role_var=tk.StringVar(value="form")
