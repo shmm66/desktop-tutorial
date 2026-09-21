@@ -2398,7 +2398,11 @@ class App(tk.Tk):
             if not lb.curselection(): return
             name,en,fa=CANDLE_PLAYBOOK[lb.curselection()[0]]
             for w in visual_holder.winfo_children(): w.destroy()
-            self._academy_visual(visual_holder,"candlestick",name,en_desc.get(name,"Candlestick pattern reference."))
+            self._academy_visual(
+                visual_holder,"candlestick",name,
+                en_desc.get(name,"Candlestick pattern reference."),
+                visual_kind=pattern_visual_key(name)
+            )
             desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick pattern reference.')}")
         lb.bind("<<ListboxSelect>>",render)
         if CANDLE_PLAYBOOK: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
@@ -2427,7 +2431,8 @@ class App(tk.Tk):
         def render(_=None):
             sel=tree.selection()
             if not sel: return
-            item=GLOSSARY[int(sel[0])]; kind=visual_key_for(item["en"],item["category"],item["meaning_en"] )
+            item=GLOSSARY[int(sel[0])]
+            kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
             for w in visual_holder.winfo_children(): w.destroy()
             self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"])
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
