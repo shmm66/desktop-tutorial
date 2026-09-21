@@ -4,7 +4,7 @@ import tempfile
 import sys
 
 APP = "Trader Planner Pro"
-VERSION = "8.0.0"
+VERSION = "8.1.0"
 
 def show_splash():
     root = tk.Tk()
@@ -32,7 +32,25 @@ def show_splash():
     root.after(850, root.destroy)
     root.mainloop()
 
+def run_self_test():
+    """Lightweight packaged-runtime verification used by CI and support."""
+    import importlib
+    required = [
+        "TraderPlannerPro_v7_0_3", "market_data", "news_data",
+        "ai_assistant", "academy_visuals", "academy_diagrams",
+        "glass_theme", "google_oauth", "statement_report",
+    ]
+    for name in required:
+        importlib.import_module(name)
+    from TraderPlannerPro_v7_0_3 import VERSION
+    if VERSION != "8.1.0":
+        raise RuntimeError(f"Version mismatch: {VERSION}")
+    print("Trader Planner Pro self-test: OK")
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
+        run_self_test()
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "--webview":
         from webview_runner import main as webview_main
         webview_main()
