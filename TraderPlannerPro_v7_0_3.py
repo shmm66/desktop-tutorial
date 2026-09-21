@@ -538,6 +538,7 @@ class App(tk.Tk):
         self.apply_language()
         self.update_idletasks()
         apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic")
+        self.after(220, self._apply_glass_surfaces)
         self.show("home")
         self.market_data.start(self.market)
         self.after(700, self.clock)
@@ -634,6 +635,7 @@ class App(tk.Tk):
             self._refresh_shell_theme()
         try:
             apply_glass(self, dark=effective=="dark", style="acrylic")
+            self.after(80, self._apply_glass_surfaces)
         except Exception:
             pass
         if self.theme_mode == "auto":
@@ -658,6 +660,33 @@ class App(tk.Tk):
             self.apply_theme()
         if self.theme_mode == "auto":
             self.theme_auto_job = self.after(60000, self._theme_watch)
+
+    def _apply_glass_surfaces(self):
+        """Push the glass treatment beyond the outer window into main surfaces."""
+        surfaces = [
+            getattr(self, "topbar", None),
+            getattr(self, "menu", None),
+            getattr(self, "content", None),
+            getattr(self, "status_bar", None),
+            getattr(self, "quickbar", None),
+            getattr(self, "brand_frame", None),
+            getattr(self, "menu_title", None),
+            getattr(self, "ticker_canvas", None),
+        ]
+        for widget in surfaces:
+            if widget is None:
+                continue
+            try:
+                set_widget_glass(widget, 0.90)
+            except Exception:
+                pass
+        # Keep the glass effect subtle on text/button controls.
+        for widget in self.winfo_children():
+            try:
+                if isinstance(widget, (tk.Frame, tk.Button, tk.Label)):
+                    set_widget_glass(widget, 0.94 if isinstance(widget, tk.Button) else 0.90)
+            except Exception:
+                pass
 
     def _refresh_shell_theme(self):
         if not hasattr(self, "topbar"):
