@@ -13,8 +13,12 @@ permissions:
 
 jobs:
   quality:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
+      - name: Install Tk runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -40,7 +44,6 @@ jobs:
           python -m py_compile academy_diagrams.py
           python -m py_compile google_oauth.py
           python -m py_compile statement_report.py
-          python -m py_compile google_oauth.py
       - name: Run tests
         run: python -m pytest -q
 
