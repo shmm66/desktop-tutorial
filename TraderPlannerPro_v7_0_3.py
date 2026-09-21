@@ -24,9 +24,11 @@ from market_data import MarketDataService
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
 from news_data import fetch_crypto_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
+from google_oauth import google_status, login_google, logout_google, send_gmail, find_client_file
+from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "7.6.1"
+VERSION = "7.7.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
