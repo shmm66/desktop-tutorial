@@ -209,8 +209,7 @@ def _smc_ob_fvg(c, palette):
         (116, 205, 112, 198), (198, 228, 188, 214), (214, 236, 203, 230),
         (230, 244, 210, 220), (220, 232, 174, 182), (182, 212, 176, 205),
     ], x0=105, step=98, scale=1.1, base=315)
-    _zone(c, 350, 170, 460, 225, "#3A2730", danger, "LAST OPPOSING CANDLE
-= ORDER BLOCK", danger)
+    _zone(c, 350, 170, 460, 225, "#3A2730", danger, "LAST OPPOSING CANDLE = ORDER BLOCK", danger)
     _zone(c, 500, 132, 655, 182, "#16382F", accent, "3-CANDLE FVG", accent)
     _arrow(c, 900, 125, 635, 160, blue, "RETRACE")
     _label(c, 885, 100, "ENTRY AREA", gold, size=10)
@@ -228,8 +227,7 @@ def _smc_breaker(c, palette):
     _zone(c, 330, 165, 530, 225, "#3A2730", danger, "ORIGINAL ORDER BLOCK", danger)
     c.create_line(330, 195, 530, 195, fill=gold, dash=(7,5), width=2)
     _arrow(c, 560, 210, 610, 120, danger, "FAIL / CLOSE THROUGH")
-    _zone(c, 650, 165, 860, 225, "#172B45", violet, "BREAKER ZONE
-FLIPPED ROLE", violet)
+    _zone(c, 650, 165, 860, 225, "#172B45", violet, "BREAKER ZONE = FLIPPED ROLE", violet)
     _arrow(c, 1010, 120, 825, 195, blue, "RETEST")
     _label(c, 590, 355, "SMC breaker: a failed OB that flips role after a confirmed break.", text, size=9)
 
