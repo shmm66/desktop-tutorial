@@ -29,7 +29,7 @@ FEEDS = [
     ("Google News • Crypto", GOOGLE_CRYPTO_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/7.6"
+USER_AGENT = "TraderPlannerPro/7.9"\nCACHE_PATH = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 
 def _clean(value):
@@ -104,6 +104,31 @@ def fetch_rss(url, source="News", limit=12):
     return items[:limit]
 
 
+def read_cached_news(limit=24):
+    try:
+        payload = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+        rows = payload.get("rows") if isinstance(payload, dict) else None
+        return rows[:limit] if isinstance(rows, list) else []
+    except Exception:
+        return []
+
+
+def write_cached_news(rows):
+    try:
+        CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = CACHE_PATH.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(
+                {"updated_at": datetime.now(timezone.utc).isoformat(), "rows": rows},
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        tmp.replace(CACHE_PATH)
+    except Exception:
+        pass
+
+
 def fetch_all_news(limit=24):
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(FEEDS)) as pool:
@@ -122,7 +147,10 @@ def fetch_all_news(limit=24):
 
     rows = list(unique.values())
     rows.sort(key=lambda row: row.get("published", ""), reverse=True)
-    return rows[:limit]
+    rows = rows[:limit]
+    if rows:
+        write_cached_news(rows)
+    return rows
 
 
 def fetch_crypto_news(callback):
@@ -131,6 +159,8 @@ def fetch_crypto_news(callback):
             rows = fetch_all_news(limit=24)
         except Exception:
             rows = []
+        if not rows:
+            rows = read_cached_news(limit=24)
         callback(rows)
 
     threading.Thread(target=worker, name="TraderPlannerNews", daemon=True).start()
