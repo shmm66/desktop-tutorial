@@ -546,6 +546,41 @@ class App(tk.Tk):
         self.go_home()
         return "break"
 
+    def _hard_home(self):
+        """Rebuild Home deterministically after market switches or page exceptions."""
+        try:
+            self._cancel_menu_hide()
+            self.menu_open = False
+            try:
+                self.menu.place_configure(x=-304)
+            except Exception:
+                pass
+            for job_name in ("session_clock_job", "ticker_job"):
+                job = getattr(self, job_name, None)
+                if job is not None:
+                    try:
+                        self.after_cancel(job)
+                    except Exception:
+                        pass
+                    setattr(self, job_name, None)
+            self._nav_token += 1
+            self.cur = "home"
+            for widget in self.content.winfo_children():
+                try:
+                    widget.destroy()
+                except Exception:
+                    pass
+            self.session_clock_widgets = []
+            self.market = active_profile().get("market", "Crypto")
+            self.market_data.set_market(self.market)
+            self.home()
+            self.translate_widget_tree(self.content)
+            self.content.update_idletasks()
+            self.market_data.refresh_now()
+            self.focus_force()
+        except Exception as exc:
+            self._show_page_error("home", exc)
+
     def go_home(self):
         try:
             self.focus_force()
