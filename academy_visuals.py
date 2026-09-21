@@ -234,7 +234,7 @@ PATTERN_VISUALS = {
 
 def strategy_visual_key(name: str) -> str:
     value = str(name).strip().lower()
-    if value[:2].isdigit() and ")" in value:
+    if value and value[0].isdigit() and ")" in value:
         value = value.split(")", 1)[1].strip()
     return STRATEGY_VISUALS.get(value, "smc_overview")
 
