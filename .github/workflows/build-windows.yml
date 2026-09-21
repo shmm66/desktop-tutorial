@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   quality:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,12 +35,16 @@ jobs:
           python -m py_compile news_data.py
           python -m py_compile webview_runner.py
           python -m py_compile prepare_education_assets.py
+          python -m py_compile glass_theme.py
+          python -m py_compile academy_diagrams.py
+          python -m py_compile google_oauth.py
+          python -m py_compile statement_report.py
       - name: Run tests
         run: python -m pytest -q
 
   package:
     needs: quality
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -94,7 +98,7 @@ jobs:
         run: |
           $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
           $p = Start-Process -FilePath $exe -PassThru
-          Start-Sleep -Seconds 8
+          Start-Sleep -Seconds 10
           if ($p.HasExited) { throw "TraderPlannerPro.exe exited during startup with code $($p.ExitCode)" }
           Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
       - name: Build installer
@@ -125,38 +129,38 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V7.8.0 Release
+      - name: Publish V7.9.0 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v7.8.0
-          name: Trader Planner Pro V7.8.0
+          tag_name: v7.9.0
+          name: Trader Planner Pro V7.9.0
           target_commitish: ${{ github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V7.8.0
+            ## Trader Planner Pro V7.9.0
 
-            Trader Planner Pro V7.8.0 — native acrylic glass UI, deterministic navigation, semantic SMC/ICT Academy, stronger multi-agent AI, resilient market/news services, Google Login + Gmail statements, and a safer per-user installer.
+            Trader Planner Pro V7.9.0 — native acrylic glass UI, deterministic navigation, semantic SMC/ICT Academy, stronger multi-agent AI, resilient market/news services, Google Login + Gmail statements, and a safer per-user installer.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v7.8.0.exe
+            installer/TraderPlannerPro_Setup_v7.9.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Write verified V7.8.0 build manifest
+      - name: Write verified V7.9.0 build manifest
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: powershell
         run: |
           $manifestDir = Join-Path $PWD 'verification'
           New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
           $exe = Get-Item 'dist\TraderPlannerPro.exe'
-          $installer = Get-ChildItem -Recurse -File -Filter 'TraderPlannerPro_Setup_v7.8.0.exe' | Select-Object -First 1
+          $installer = Get-ChildItem -Recurse -File -Filter 'TraderPlannerPro_Setup_v7.9.0.exe' | Select-Object -First 1
           if (-not $installer) { throw 'Verified installer not found.' }
           $exeHash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower()
           $installerHash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
           @"
-          Trader Planner Pro V7.8.0 verified build
+          Trader Planner Pro V7.9.0 verified build
           Commit: $env:GITHUB_SHA
           Verified UTC: $(Get-Date -AsUTC -Format o)
           EXE: $($exe.Length) bytes
@@ -164,9 +168,9 @@ jobs:
           Installer: $($installer.Length) bytes
           Installer SHA256: $installerHash
           Installer path: $($installer.FullName)
-          "@ | Set-Content -Path (Join-Path $manifestDir 'V7.8.0.txt') -Encoding UTF8
+          "@ | Set-Content -Path (Join-Path $manifestDir 'V7.9.0.txt') -Encoding UTF8
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add verification/V7.8.0.txt
-          git commit -m 'ci: record verified V7.8.0 build [skip ci]'
+          git add verification/V7.9.0.txt
+          git commit -m 'ci: record verified V7.9.0 build [skip ci]'
           git push
