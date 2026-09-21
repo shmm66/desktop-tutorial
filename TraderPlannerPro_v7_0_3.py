@@ -702,7 +702,7 @@ class App(tk.Tk):
 
     def _market_loading_timeout(self):
         self.market_timeout_job = None
-        if self.cur == "home" and self.market_data_payload.get("status") in ("unavailable", None):
+        if self.cur == "home" and self.market_data_payload.get("status") == "loading":
             self.market_data_payload["status"] = "unavailable"
             self.market_data_payload["message"] = self.tr("market_error")
             self._apply_market_data(self.market_data_payload)
