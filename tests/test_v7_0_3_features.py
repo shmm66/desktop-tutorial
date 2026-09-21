@@ -291,3 +291,32 @@ def test_v780_news_webview_has_fallback():
     from pathlib import Path
     text = Path("webview_runner.py").read_text(encoding="utf-8")
     assert "webbrowser.open(url)" in text
+
+
+def test_v79_ai_uses_supported_master_model():
+    from ai_assistant import DEFAULT_MODEL, ROLES
+    assert DEFAULT_MODEL == "gpt-5.6-luna"
+    assert "academy" in ROLES
+    assert "product" in ROLES
+
+
+def test_v79_academy_visuals_are_family_specific():
+    from academy_visuals import strategy_visual_key, glossary_visual_key, pattern_visual_key
+    assert strategy_visual_key("1) ICT 2022 Model") == "ict_2022"
+    assert strategy_visual_key("2) ICT Silver Bullet") == "ict_silver_bullet"
+    assert strategy_visual_key("3) ICT Unicorn Model") == "unicorn"
+    assert strategy_visual_key("7) SMT Divergence") == "smt"
+    assert pattern_visual_key("Bullish Engulfing") == "bullish_engulfing"
+    assert pattern_visual_key("Bearish Engulfing") == "bearish_engulfing"
+    assert glossary_visual_key("SMT Divergence", "ICT") == "smt"
+
+
+def test_v79_google_scopes_include_gmail_send():
+    from google_oauth import GOOGLE_SCOPES
+    assert "https://www.googleapis.com/auth/gmail.send" in GOOGLE_SCOPES
+
+
+def test_v79_market_payload_never_sticks_as_loading():
+    from market_data import cached_market_payload
+    payload = cached_market_payload("Crypto")
+    assert payload.get("status") in {"cache", "unavailable"}
