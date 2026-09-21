@@ -1,6 +1,7 @@
 #define MyAppName "Trader Planner Pro"
-#define MyAppVersion "7.8.0"
+#define MyAppVersion "7.9.0"
 #define MyAppExeName "TraderPlannerPro.exe"
+
 [Setup]
 AppId={{8D6D0F58-7D16-4C1B-9D0C-20A4F1B8C901}
 AppName={#MyAppName}
@@ -9,19 +10,28 @@ AppPublisher="Seyed Hadi Mir Mohammad"
 AppCopyright="Copyright (c) 2026 Seyed Hadi Mir Mohammad"
 DefaultDirName={localappdata}\Programs\Trader Planner Pro
 DefaultGroupName=Trader Planner Pro
-SetupIconFile=app.ico
+PrivilegesRequired=lowest
+ArchitecturesInstallIn64BitMode=x64
+DisableProgramGroupPage=yes
+UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=installer
-OutputBaseFilename=TraderPlannerPro_Setup_v7.8.0
-Compression=lzma
+OutputBaseFilename=TraderPlannerPro_Setup_v7.9.0
+Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesInstallIn64BitMode=x64
-PrivilegesRequired=lowest
+SetupLogging=yes
+CloseApplications=yes
+RestartApplications=no
+
 [Files]
-Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\TraderPlannerPro.exe"; DestDir: "{app}"; Flags: ignoreversion
+
 [Icons]
-Name: "{autoprograms}\Trader Planner Pro"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\Trader Planner Pro"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app.ico"
+Name: "{group}\Trader Planner Pro"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\Trader Planner Pro"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch Trader Planner Pro"; Flags: nowait postinstall skipifsilent
