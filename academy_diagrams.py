@@ -44,7 +44,9 @@ def _grid(c, W, bg, grid, text, family, model):
     badge = "#193244" if str(family).lower() == "ict" else "#18352E"
     c.create_rectangle(W - 248, 14, W - 24, 42, fill=badge, outline="")
     _label(c, W - 136, 28, "SETUP MAP • NO TRADE SIGNAL", text, size=8)
-\n\ndef _ict_2022(c, palette):
+
+
+def _ict_2022(c, palette):
     text = palette["text"]
     accent = palette["accent"]
     danger = palette["danger"]
@@ -87,7 +89,9 @@ def _grid(c, W, bg, grid, text, family, model):
         "Sweep → MSS / displacement → FVG → return → target (educational model map)",
         text, size=10
     )
-\n\ndef _ict_silver_bullet(c, palette):
+
+
+def _ict_silver_bullet(c, palette):
     text = palette["text"]
     accent = palette["accent"]
     danger = palette["danger"]
@@ -115,7 +119,9 @@ def _grid(c, W, bg, grid, text, family, model):
     _arrow(c, 860, 225, 714, 180, blue, "RETRACE")
     _label(c, 820, 115, "TIME + DISPLACEMENT + FVG", violet, size=9)
     _label(c, 580, 383, "The time window is the constraint; the FVG is the entry mechanism in this model.", text, size=9)
-\n\ndef _ict_unicorn(c, palette):
+
+
+def _ict_unicorn(c, palette):
     text = palette["text"]
     accent, violet, gold, blue = palette["accent"], palette.get("violet", "#9B8CFF"), palette["gold"], palette.get("blue", "#63A7FF")
     candles = [(60, 110, 42, 98), (98, 146, 80, 134), (134, 160, 112, 120),
@@ -241,7 +247,9 @@ def _smc_liquidity_bos(c, palette):
     _zone(c, 860, 94, 1068, 132, "#3A2730", danger, "INVALIDATION", danger)
 
     _label(c, 590, 385, "SMC flow: liquidity event → confirmed structure break → reaction area → retest.", text, size=9)
-\n\ndef _smc_ob_fvg(c, palette):
+
+
+def _smc_ob_fvg(c, palette):
     text = palette["text"]
     accent = palette["accent"]
     gold = palette["gold"]
@@ -262,7 +270,9 @@ def _smc_liquidity_bos(c, palette):
     c.create_line(760, 270, 1030, 270, fill=gold, dash=(6, 5), width=2)
     _label(c, 765, 252, "INVALIDATION BELOW MODEL OR STRUCTURAL FAIL", gold, anchor="w", size=8)
     _label(c, 590, 385, "SMC separates the OB and the three-candle FVG; the retest defines the reaction area.", text, size=9)
-\n\ndef _smc_breaker(c, palette):
+
+
+def _smc_breaker(c, palette):
     text = palette["text"]
     accent, danger, violet, gold, blue = palette["accent"], palette["danger"], palette.get("violet", "#9B8CFF"), palette["gold"], palette.get("blue", "#63A7FF")
     _candles(c, [
