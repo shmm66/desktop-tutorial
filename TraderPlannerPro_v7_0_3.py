@@ -2693,7 +2693,7 @@ class App(tk.Tk):
             self._academy_visual(
                 visual_holder,"candlestick",name,
                 en_desc.get(name,"Candlestick pattern reference."),
-                visual_kind=pattern_visual_key(name)
+                visual_kind=pattern_visual_key(name),family="candles"
             )
             desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick pattern reference.')}")
         lb.bind("<<ListboxSelect>>",render)
@@ -2726,7 +2726,8 @@ class App(tk.Tk):
             item=GLOSSARY[int(sel[0])]
             kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
             for w in visual_holder.winfo_children(): w.destroy()
-            self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"])
+            family = "ict" if kind.startswith("ict_") or kind in {"unicorn","breaker"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
+            self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"],family=family)
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
             meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
             usage.config(text=self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"]))
