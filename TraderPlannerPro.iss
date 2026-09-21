@@ -3,6 +3,7 @@
 #define MyAppExeName "TraderPlannerPro.exe"
 
 [Setup]
+SetupArchitecture=x64
 AppId={{8D6D0F58-7D16-4C1B-9D0C-20A4F1B8C901}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
