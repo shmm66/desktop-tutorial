@@ -666,12 +666,12 @@ class App(tk.Tk):
                 button.configure(bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"])
             except Exception:
                 pass
-        for widget_name in ("menu_button", "market_btn"):
+        for widget_name in ("menu_button", "market_btn", "global_home_btn"):
             widget = getattr(self, widget_name, None)
             if widget:
                 try:
                     widget.configure(bg=C["panel2"] if widget_name == "menu_button" else C["soft"], fg=C["text"],
-                                      activebackground=C["accent"] if widget_name == "menu_button" else C["gold"],
+                                      activebackground=C["accent"] if widget_name in ("menu_button","global_home_btn") else C["gold"],
                                       activeforeground="#061019")
                 except Exception:
                     pass
