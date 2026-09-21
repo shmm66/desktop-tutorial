@@ -21,6 +21,8 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key
+from academy_diagrams import draw_setup, draw_candlestick
+from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
