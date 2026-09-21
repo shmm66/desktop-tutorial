@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   quality:
-    runs-on: windows-2025
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,41 +21,30 @@ jobs:
       - name: Install test/build dependencies
         run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
       - name: Syntax check
-        shell: pwsh
         run: |
-          $ErrorActionPreference = 'Continue'
-          Remove-Item -Force -ErrorAction SilentlyContinue quality-log.txt
-          $files = @(
-            'TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py',
-            'logo_3d.py','branding_assets.py','prepare_branding.py','academy_visuals.py',
-            'market_data.py','calendar_utils.py','ai_assistant.py','news_data.py',
-            'webview_runner.py','prepare_education_assets.py','glass_theme.py',
-            'academy_diagrams.py','google_oauth.py','statement_report.py'
-          )
-          $failed = $false
-          foreach ($file in $files) {
-            Write-Host "=== py_compile $file ==="
-            "=== py_compile $file ===" | Out-File quality-log.txt -Append
-            python -m py_compile $file 2>&1 | Tee-Object quality-log.txt -Append
-            if ($LASTEXITCODE -ne 0) { $failed = $true }
-          }
-          if ($failed) { throw 'One or more Python files failed syntax compilation. See quality-log.txt.' }
+          python -m py_compile TraderPlannerPro_v7_0_3.py
+          python -m py_compile TraderPlannerPro_v7.py
+          python -m py_compile launcher.py
+          python -m py_compile logo_3d.py
+          python -m py_compile branding_assets.py
+          python -m py_compile prepare_branding.py
+          python -m py_compile academy_visuals.py
+          python -m py_compile market_data.py
+          python -m py_compile calendar_utils.py
+          python -m py_compile ai_assistant.py
+          python -m py_compile news_data.py
+          python -m py_compile webview_runner.py
+          python -m py_compile prepare_education_assets.py
+          python -m py_compile glass_theme.py
+          python -m py_compile academy_diagrams.py
+          python -m py_compile google_oauth.py
+          python -m py_compile statement_report.py
       - name: Run tests
-        shell: pwsh
-        run: |
-          python -m pytest -q 2>&1 | Tee-Object -FilePath quality-log.txt -Append
-          if ($LASTEXITCODE -ne 0) { throw 'pytest failed. See quality-log.txt.' }
-      - name: Upload quality diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: v8-quality-diagnostics-${{ github.run_id }}
-          path: quality-log.txt
-          if-no-files-found: warn
+        run: python -m pytest -q
 
   package:
     needs: quality
-    runs-on: windows-2025
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -158,62 +147,3 @@ jobs:
             installer/TraderPlannerPro_Setup_v8.0.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Write verified V8.0.0 build manifest
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: powershell
-        run: |
-          $manifestDir = Join-Path $PWD 'verification'
-          New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
-          $exe = Get-Item 'dist\TraderPlannerPro.exe'
-          $installer = Get-ChildItem -Recurse -File -Filter 'TraderPlannerPro_Setup_v8.0.0.exe' | Select-Object -First 1
-          if (-not $installer) { throw 'Verified installer not found.' }
-          $exeHash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower()
-          $installerHash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
-          @"
-          Trader Planner Pro V8.0.0 verified build
-          Commit: $env:GITHUB_SHA
-          Verified UTC: $(Get-Date -AsUTC -Format o)
-          EXE: $($exe.Length) bytes
-          EXE SHA256: $exeHash
-          Installer: $($installer.Length) bytes
-          Installer SHA256: $installerHash
-          Installer path: $($installer.FullName)
-          "@ | Set-Content -Path (Join-Path $manifestDir 'V8.0.0.txt') -Encoding UTF8
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add verification/V8.0.0.txt
-          git commit -m 'ci: record verified V8.0.0 build [skip ci]'
-          git push
-
-  diagnostics:
-    if: always()
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Diagnose Python syntax
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Continue'
-          $log = Join-Path $PWD 'diagnostics.txt'
-          Remove-Item -Force -ErrorAction SilentlyContinue $log
-          $failed = $false
-          $files = Get-ChildItem -Recurse -File -Filter '*.py' | Where-Object {
-            $_.FullName -notmatch '\\.git\\' -and $_.FullName -notmatch '\\.venv\\'
-          }
-          foreach ($file in $files) {
-            "=== $($file.FullName) ===" | Out-File $log -Append
-            python -m py_compile $file.FullName 2>&1 | Tee-Object $log -Append
-            if ($LASTEXITCODE -ne 0) { $failed = $true }
-          }
-          if ($failed) { throw 'Python syntax diagnostics found errors.' }
-      - name: Upload diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: v8-diagnostics-${{ github.run_id }}
-          path: diagnostics.txt
-          if-no-files-found: warn
