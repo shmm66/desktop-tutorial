@@ -185,3 +185,35 @@ jobs:
           git add verification/V8.0.0.txt
           git commit -m 'ci: record verified V8.0.0 build [skip ci]'
           git push
+
+  diagnostics:
+    if: always()
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Diagnose Python syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $log = Join-Path $PWD 'diagnostics.txt'
+          Remove-Item -Force -ErrorAction SilentlyContinue $log
+          $failed = $false
+          $files = Get-ChildItem -Recurse -File -Filter '*.py' | Where-Object {
+            $_.FullName -notmatch '\\.git\\' -and $_.FullName -notmatch '\\.venv\\'
+          }
+          foreach ($file in $files) {
+            "=== $($file.FullName) ===" | Out-File $log -Append
+            python -m py_compile $file.FullName 2>&1 | Tee-Object $log -Append
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+          if ($failed) { throw 'Python syntax diagnostics found errors.' }
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-diagnostics-${{ github.run_id }}
+          path: diagnostics.txt
+          if-no-files-found: warn
