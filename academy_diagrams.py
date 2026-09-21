@@ -131,6 +131,29 @@ def draw_setup(parent, family, model, palette):
         _label(c,580,170,"UNICORN OVERLAP",gold,size=9)
         pts=[(60,230),(130,190),(205,210),(280,150),(340,175),(410,100),(500,165),(580,115),(660,155),(760,95),(880,135),(1015,75)]
         _line(c,[v for p in pts for v in p],blue,4)
+    elif "ote" in m or "premium-discount" in m:
+        c.create_rectangle(160,72,1020,285,outline=grid,width=1)
+        c.create_line(160,180,1020,180,fill=gold,dash=(8,5),width=2)
+        _label(c,590,165,"EQUILIBRIUM",gold,size=9)
+        _zone(c, 250, 190, 520, 280, "#173148", blue, "DISCOUNT • OTE 62%–79%", blue)
+        _zone(c, 650, 80, 920, 170, "#3A2730", danger, "PREMIUM • OTE 62%–79%", danger)
+        pts=[(70,230),(145,205),(220,220),(300,150),(380,185),(455,112),(530,158),(620,210),(700,170),(770,120),(850,145),(940,95),(1060,70)]
+        _line(c,[v for p in pts for v in p],blue,4)
+        _label(c,380,305,"Dealing Range → Equilibrium → OTE + Liquidity + Trigger",text,size=9)
+    elif "smt" in m:
+        c.create_line(70,145,1070,145,fill=grid)
+        c.create_line(70,245,1070,245,fill=grid)
+        _label(c,82,55,"INSTRUMENT A",accent,anchor="w",size=10)
+        _label(c,82,285,"INSTRUMENT B",violet,anchor="w",size=10)
+        a=[(90,175),(170,135),(250,165),(330,110),(410,140),(490,85),(570,120),(650,72),(730,105),(810,60),(900,95),(1010,48)]
+        b=[(90,275),(170,235),(250,260),(330,210),(410,240),(490,185),(570,220),(650,170),(730,200),(810,185),(900,205),(1010,175)]
+        _line(c,[v for p in a for v in p],accent,4)
+        _line(c,[v for p in b for v in p],violet,4)
+        c.create_oval(888,82,908,102,outline=gold,width=3)
+        c.create_oval(888,192,908,212,outline=gold,width=3)
+        _label(c,900,125,"NON-CONFIRMATION",gold,size=9)
+        _label(c,900,145,"SMT DIVERGENCE",gold,size=11)
+        _label(c,580,315,"Compare corresponding swing highs/lows; confirm with liquidity + structure.",text,size=9)
     elif "power of three" in m or "amd" in m:
         bands=[("ACCUMULATION",50,320,accent),("MANIPULATION",320,650,danger),("DISTRIBUTION",650,1120,gold)]
         for label,x1,x2,color in bands:
