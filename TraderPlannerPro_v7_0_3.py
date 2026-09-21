@@ -1911,6 +1911,7 @@ class App(tk.Tk):
         ttk.Combobox(toolbar,textvariable=role_var,state="readonly",values=list(role_labels.values()),
                      width=25,justify="right").pack(side="right",padx=4)
         self.btn(toolbar,"AI Web",lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • AI Web")).pack(side="left",padx=4)
+        self.btn(toolbar,"Get AI Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="left",padx=4)
         self.btn(toolbar,self.tr("ai_clear"),lambda:self._clear_ai_chat(),).pack(side="left",padx=4)
 
         card=self.card(dlg); card.pack(fill="both",expand=True,padx=12,pady=8)
@@ -2185,7 +2186,10 @@ class App(tk.Tk):
         ai_entry.pack(side="right",padx=5,ipady=8)
         self.btn(ai_row,self.tr("ai_save_key"),lambda:self._save_ai_key(ai_key.get()),True).pack(side="right",padx=4)
         self.btn(ai_row,self.tr("ai_clear_key"),self._clear_ai_key).pack(side="right",padx=4)
-        self.btn(ai_box,self.tr("agent_upgrade_ideas"),lambda:self._open_product_agent_from_settings()).pack(anchor="e",padx=18,pady=(0,12))
+        ai_actions=tk.Frame(ai_box,bg=C["panel"]); ai_actions.pack(fill="x",padx=18,pady=(0,12))
+        self.btn(ai_actions,self.tr("agent_upgrade_ideas"),lambda:self._open_product_agent_from_settings()).pack(side="right",padx=4)
+        self.btn(ai_actions,"Get OpenAI API Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="right",padx=4)
+        self.btn(ai_actions,"Open AI Chat",self.open_ai_chat,True).pack(side="right",padx=4)
 
         # Google / Gmail card
         google_box=self.card(self.content); google_box.pack(fill="x",pady=8)
@@ -2369,6 +2373,7 @@ class App(tk.Tk):
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
         if not status.get("cloud") and not status.get("ollama"):
             self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
+        self.btn(row,"Get AI Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="left",padx=6)
         self.btn(row,"AI Web",lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • AI Web")).pack(side="left",padx=6)
 
         quick=tk.Frame(self.content,bg=C["bg"])
