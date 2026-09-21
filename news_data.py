@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import concurrent.futures
+import json
+from pathlib import Path
 import email.utils
 import html
 import re
@@ -32,7 +34,8 @@ FEEDS = [
     ("Google News • Crypto", GOOGLE_CRYPTO_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/7.6"
+USER_AGENT = "TraderPlannerPro/7.9"
+NEWS_CACHE = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 
 def _clean(value):
@@ -126,7 +129,22 @@ def fetch_all_news(limit=24, include_forex=False):
 
     rows = list(unique.values())
     rows.sort(key=lambda row: row.get("published", ""), reverse=True)
-    return rows[:limit]
+    rows = rows[:limit]
+    if rows:
+        try:
+            NEWS_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            NEWS_CACHE.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+        return rows
+
+    try:
+        cached = json.loads(NEWS_CACHE.read_text(encoding="utf-8"))
+        if isinstance(cached, list):
+            return cached[:limit]
+    except (OSError, ValueError, TypeError):
+        pass
+    return []
 
 
 def fetch_market_news(callback, include_forex=False):
