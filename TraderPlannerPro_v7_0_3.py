@@ -2782,7 +2782,7 @@ class App(tk.Tk):
                 if term and term not in blob: continue
                 if selected_cat!="ALL" and item["category"]!=selected_cat: continue
                 kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
-                family = "ICT" if kind.startswith("ict_") or kind in {"unicorn","breaker","smt"} else ("CANDLE" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "SMC")
+                family = "ICT" if kind.startswith("ict_") or kind in {"unicorn","smt"} else ("CANDLE" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "SMC")
                 if selected_family!="ALL" and family!=selected_family: continue
                 matched.append(i); tree.insert("", "end",iid=str(i),values=(item["term"],item["category"]))
             if matched: tree.selection_set(str(matched[0])); render()
