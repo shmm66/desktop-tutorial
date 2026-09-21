@@ -2221,7 +2221,7 @@ class App(tk.Tk):
         self.heading(self.tr("news_title"), self.tr("news_sub"))
         toolbar=tk.Frame(self.content,bg=C["bg"]); toolbar.pack(fill="x",pady=(2,6))
         self.btn(toolbar,self.tr("open_forex_factory"),lambda:self.open_webview(FOREX_FACTORY,"Forex Factory — Economic Calendar"),True).pack(side="right",padx=3)
-        self.btn(toolbar,self.tr("open_coindesk"),lambda:self.open_webview(CRYPTO_NEWS_HOME,"CryptoSlate — News Terminal")).pack(side="right",padx=3)
+        self.btn(toolbar,self.tr("open_coindesk"),lambda:self.open_webview(COINDESK_HOME,"CoinDesk — News Terminal")).pack(side="right",padx=3)
         self.btn(toolbar,"Cointelegraph",lambda:self.open_webview("https://cointelegraph.com/","Cointelegraph")).pack(side="right",padx=3)
         self.btn(toolbar,self.tr("refresh_news"),self.refresh_news).pack(side="left",padx=3)
         self.news_status=tk.Label(toolbar,text="● "+self.tr("market_loading"),bg=C["bg"],fg=C["gold"],font=("Consolas",8,"bold"))
@@ -2262,7 +2262,7 @@ class App(tk.Tk):
             fallback=[
                 ("CoinDesk","Live crypto terminal",COINDESK_HOME),
                 ("Cointelegraph","Live crypto headlines","https://cointelegraph.com/"),
-                ("CryptoSlate","Live crypto news terminal",CRYPTO_NEWS_HOME),
+                ("CoinDesk","Live crypto news terminal",COINDESK_HOME),
             ]
             for i,(source,title,url) in enumerate(fallback):
                 self.news_tree.insert("","end",iid=f"fallback-{i}",values=(source,"LIVE",title))
