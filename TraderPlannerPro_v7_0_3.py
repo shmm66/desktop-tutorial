@@ -20,7 +20,10 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
-from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key
+from academy_visuals import (
+    render_visual, visual_key_for, source_for_visual, strategy_visual_key,
+    pattern_visual_key, glossary_visual_key, bundled_asset_for_visual,
+)
 from academy_diagrams import draw_setup, draw_candlestick
 from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
@@ -31,7 +34,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "7.8.0"
+VERSION = "7.9.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -511,9 +514,11 @@ class App(tk.Tk):
         self.ai_chat_window = None
         self.ai_chat_text = None
         self.ai_chat_input = None
+        self._academy_photos = []
         self._nav_job = None
         self._nav_token = 0
         self.quickbar = None
+        self._last_nav_error = ""
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -533,6 +538,7 @@ class App(tk.Tk):
         self.apply_language()
         self.update_idletasks()
         apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic")
+        self.after(220, self._apply_glass_surfaces)
         self.show("home")
         self.market_data.start(self.market)
         self.after(700, self.clock)
@@ -547,18 +553,29 @@ class App(tk.Tk):
         return "break"
 
     def go_home(self):
+        """Hard-reset navigation so Home cannot be lost behind a pending render."""
         try:
             self.focus_force()
         except Exception:
             pass
+        self._cancel_menu_hide()
         try:
-            self._cancel_menu_hide()
             if self.menu_open:
                 self.menu.place_configure(x=-304)
-                self.menu_open = False
         except Exception:
             pass
-        self.show("home")
+        self.menu_open = False
+
+        self.cur = "home"
+        self._nav_token += 1
+        token = self._nav_token
+        if self._nav_job is not None:
+            try:
+                self.after_cancel(self._nav_job)
+            except Exception:
+                pass
+        self._nav_job = self.after_idle(lambda t=token: self._render_page("home", t))
+        return "break"
 
     def close_app(self):
         try:
@@ -618,6 +635,7 @@ class App(tk.Tk):
             self._refresh_shell_theme()
         try:
             apply_glass(self, dark=effective=="dark", style="acrylic")
+            self.after(80, self._apply_glass_surfaces)
         except Exception:
             pass
         if self.theme_mode == "auto":
@@ -642,6 +660,33 @@ class App(tk.Tk):
             self.apply_theme()
         if self.theme_mode == "auto":
             self.theme_auto_job = self.after(60000, self._theme_watch)
+
+    def _apply_glass_surfaces(self):
+        """Push the glass treatment beyond the outer window into main surfaces."""
+        surfaces = [
+            getattr(self, "topbar", None),
+            getattr(self, "menu", None),
+            getattr(self, "content", None),
+            getattr(self, "status_bar", None),
+            getattr(self, "quickbar", None),
+            getattr(self, "brand_frame", None),
+            getattr(self, "menu_title", None),
+            getattr(self, "ticker_canvas", None),
+        ]
+        for widget in surfaces:
+            if widget is None:
+                continue
+            try:
+                set_widget_glass(widget, 0.90)
+            except Exception:
+                pass
+        # Keep the glass effect subtle on text/button controls.
+        for widget in self.winfo_children():
+            try:
+                if isinstance(widget, (tk.Frame, tk.Button, tk.Label)):
+                    set_widget_glass(widget, 0.94 if isinstance(widget, tk.Button) else 0.90)
+            except Exception:
+                pass
 
     def _refresh_shell_theme(self):
         if not hasattr(self, "topbar"):
@@ -971,40 +1016,52 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
+        allowed = {"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
-            key="home"
+            key = "home"
         self._cancel_menu_hide()
         self.cur = key
         self._nav_token += 1
         token = self._nav_token
         if self._nav_job is not None:
-            try: self.after_cancel(self._nav_job)
-            except Exception: pass
-            self._nav_job = None
-        self._render_page(key, token)
+            try:
+                self.after_cancel(self._nav_job)
+            except Exception:
+                pass
+        # Queue the render so button commands finish before old page widgets
+        # are destroyed. This fixes Home/Crypto/Forex race conditions.
+        self._nav_job = self.after_idle(lambda k=key, t=token: self._render_page(k, t))
         return "break"
 
     def _render_page(self, key, token):
         self._nav_job = None
         if token != self._nav_token or not self.winfo_exists():
             return
-        for job_name in ("session_clock_job","ticker_job"):
-            job=getattr(self, job_name, None)
+        for job_name in ("session_clock_job", "ticker_job"):
+            job = getattr(self, job_name, None)
             if job is not None:
-                try: self.after_cancel(job)
-                except Exception: pass
+                try:
+                    self.after_cancel(job)
+                except Exception:
+                    pass
                 setattr(self, job_name, None)
-        self.session_clock_widgets=[]
+
+        self.session_clock_widgets = []
+        self._academy_photos = []
         for widget in self.content.winfo_children():
-            try: widget.destroy()
-            except Exception: pass
+            try:
+                widget.destroy()
+            except Exception:
+                pass
+
         try:
-            getattr(self,key)()
+            getattr(self, key)()
             self.translate_widget_tree(self.content)
             self.content.update_idletasks()
+            self._last_nav_error = ""
         except Exception as exc:
-            self._show_page_error(key,exc)
+            self._last_nav_error = f"{type(exc).__name__}: {exc}"
+            self._show_page_error(key, exc)
 
     def _show_page_error(self,key,exc):
         try:
@@ -1147,6 +1204,7 @@ class App(tk.Tk):
             self.market=active_profile()["market"]; self.refresh_profile_selector(); self.show("home")
 
     def set_market_mode(self, market):
+        """Switch market mode without tearing down the application shell."""
         market = "Forex" if str(market) == "Forex" else "Crypto"
         p = active_profile()
         p["market"] = market
@@ -1158,7 +1216,16 @@ class App(tk.Tk):
             pass
         self.market_data.set_market(market)
         save_db()
-        self.go_home()
+
+        self.cur = "home"
+        self._nav_token += 1
+        token = self._nav_token
+        if self._nav_job is not None:
+            try:
+                self.after_cancel(self._nav_job)
+            except Exception:
+                pass
+        self._nav_job = self.after_idle(lambda t=token: self._render_page("home", t))
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
@@ -1242,7 +1309,7 @@ class App(tk.Tk):
         self.market_data.refresh_now()
 
     def render_market_indicators(self, payload=None):
-        if not hasattr(self, "indicator_row"):
+        if not hasattr(self, "indicator_row") or not self.indicator_row.winfo_exists():
             return
         payload = payload or self.market_data_payload
         for w in self.indicator_row.winfo_children():
@@ -1947,10 +2014,21 @@ class App(tk.Tk):
 
     def _save_ai_key(self, api_key):
         try:
-            from ai_assistant import save_openai_key
-            save_openai_key(api_key)
-            messagebox.showinfo(self.tr("ai_cloud"), self.tr("ai_cloud_ready"), parent=self)
-            self.show("settings")
+            key = str(api_key or "").strip()
+            if not key:
+                raise ValueError("OpenAI API key is empty.")
+            from ai_assistant import verify_openai_key, save_openai_key
+            check = verify_openai_key(key)
+            if not check.get("ok"):
+                detail = check.get("detail") or check.get("reason") or "unknown error"
+                raise RuntimeError(f"AI connection test failed: {detail}")
+            save_openai_key(key)
+            messagebox.showinfo(
+                self.tr("ai_cloud"),
+                f"{self.tr('ai_cloud_ready')}\nModel: {check.get('detail', 'gpt-5.6-sol')}",
+                parent=self
+            )
+            self.show("ai")
         except Exception as exc:
             messagebox.showerror(self.tr("ai_cloud"), str(exc), parent=self)
 
@@ -2307,12 +2385,39 @@ class App(tk.Tk):
             status_text="LOCAL OLLAMA • READY"
             status_fg=C["cyan"]
         else:
-            status_text="BUILT-IN FALLBACK • CONNECT AI IN SETTINGS"
+            reason = status.get("cloud_reason") or "not configured"
+            status_text=f"BUILT-IN FALLBACK • {reason.upper()}"
             status_fg=C["gold"]
         tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
-        if not status.get("cloud") and not status.get("ollama"):
-            self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
+
+        # Visible activation strip so the AI never appears silently disabled.
+        ai_config=self.card(self.content)
+        ai_config.pack(fill="x",pady=(0,7))
+        tk.Label(
+            ai_config,text="OpenAI API Key • GPT-5.6-Sol",
+            bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold")
+        ).pack(side="right",padx=12,pady=9)
+        key_var=tk.StringVar()
+        key_entry=tk.Entry(
+            ai_config,textvariable=key_var,show="•",
+            bg=C["soft"],fg=C["text"],insertbackground=C["text"],
+            relief="flat",width=48
+        )
+        key_entry.pack(side="right",padx=6,pady=7,ipady=7)
+        self.btn(
+            ai_config,"Test & Activate",
+            lambda:self._save_ai_key(key_var.get()),True
+        ).pack(side="right",padx=6,pady=6)
+        self.btn(
+            ai_config,"Open Settings",
+            lambda:self.show("settings")
+        ).pack(side="right",padx=6,pady=6)
+        tk.Label(
+            ai_config,
+            text="Local Ollama remains available as a fallback. Cloud agent requires your own API key.",
+            bg=C["panel"],fg=C["muted"],font=("Segoe UI",8)
+        ).pack(side="left",padx=10)
 
         quick=tk.Frame(self.content,bg=C["bg"])
         quick.pack(fill="x",pady=(0,7))
@@ -2459,53 +2564,130 @@ class App(tk.Tk):
             reminders.pop(idx); save_db(); self.show("ai")
 
     def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
+        """Render the exact bundled source visual, then a semantic anatomy chart."""
         box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
         box.pack(fill="x", padx=10, pady=(4,8))
         kind = visual_kind or key
         source_title, source_url = source_for_visual(kind)
 
-        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,4))
-        if family=="smc":
-            family_text=self.tr("smc_family"); family_fg=C["accent"]
-        elif family=="ict":
-            family_text=self.tr("ict_family"); family_fg=C["violet"]
-        else:
-            family_text=self.tr("candles"); family_fg=C["gold"]
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,
-                 font=("Segoe UI",8,"bold"),padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
-                 font=("Segoe UI",11,"bold")).pack(side="right",padx=8)
-
-        diagram_holder=tk.Frame(box,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=8,pady=(2,4))
-        try:
-            if family in ("smc","ict"):
-                draw_setup(diagram_holder,family,self.ui_text(title),C)
-            elif family=="candles":
-                draw_candlestick(diagram_holder,self.ui_text(title),C)
+        # Resolve the family from the semantic mapping when the caller is a
+        # glossary card rather than an SMC/ICT strategy card.
+        visual_family = family
+        if not visual_family:
+            if str(kind).startswith("ict_") or kind in {
+                "unicorn","smt","timing","ict_ote","ict_judas","ict_silver_bullet",
+                "ict_2022","ict_amd"
+            }:
+                visual_family = "ict"
+            elif kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star",
+                          "morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers",
+                          "three_black_crows","marubozu","spinning_top","long_legged_doji"}:
+                visual_family = "candles"
             else:
-                k=str(kind)
-                if k.startswith("ict_") or k in {"unicorn","breaker"}:
-                    draw_setup(diagram_holder,"ict",self.ui_text(title),C)
-                elif k in {"smc_overview","smc_liquidity","order_block","fvg","technical","structure","liquidity"}:
-                    draw_setup(diagram_holder,"smc",self.ui_text(title),C)
-                else:
-                    draw_candlestick(diagram_holder,self.ui_text(title),C)
-        except Exception as exc:
-            tk.Label(diagram_holder,text=f"{self.tr('no_exact_image')}\n{exc}",
-                     bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
-                     padx=20,pady=30,justify="center",wraplength=900).pack(fill="x")
+                visual_family = "smc"
 
-        meta = tk.Frame(box, bg=C["panel3"]); meta.pack(fill="x", padx=12, pady=(2,10))
-        source_label = tk.Label(meta,text=f"{self.tr('source_chart')}  •  {source_title}",
-                                bg=C["panel3"],fg=C["muted"],font=("Segoe UI",9,"bold"),
-                                wraplength=930,justify="right")
-        source_label.pack(side="right",fill="x",expand=True)
-        source_btn=tk.Button(meta,text=self.tr("open_source"),bg=C["soft"],fg=C["text"],
-                             activebackground=C["gold"],relief="flat",font=("Segoe UI",9,"bold"),
-                             cursor="hand2",command=lambda u=source_url:self.open_webview(u,source_title))
-        source_btn.pack(side="left",padx=(8,0))
-        try: set_widget_glass(source_btn,0.94)
-        except Exception: pass
+        header = tk.Frame(box, bg=C["panel3"])
+        header.pack(fill="x", padx=12, pady=(10,4))
+        if visual_family == "smc":
+            family_text, family_fg = self.tr("smc_family"), C["accent"]
+        elif visual_family == "ict":
+            family_text, family_fg = self.tr("ict_family"), C["violet"]
+        else:
+            family_text, family_fg = self.tr("candles"), C["gold"]
+        tk.Label(
+            header, text=family_text, bg=C["soft"], fg=family_fg,
+            font=("Segoe UI",8,"bold"), padx=10, pady=5
+        ).pack(side="right")
+        tk.Label(
+            header, text=self.ui_text(title), bg=C["panel3"], fg=C["text"],
+            font=("Segoe UI",12,"bold")
+        ).pack(side="right", padx=8)
+
+        # 1) Exact source image — the binary asset downloaded during CI.
+        source_holder = tk.Frame(box, bg=C["panel3"])
+        source_holder.pack(fill="x", padx=10, pady=(2,5))
+        tk.Label(
+            source_holder,
+            text="ORIGINAL SOURCE VISUAL" if self.language=="en" else "تصویر اصلی منبع",
+            bg=C["panel3"], fg=C["gold"], font=("Segoe UI",9,"bold")
+        ).pack(anchor="e", padx=4, pady=(2,4))
+
+        image = None
+        try:
+            from PIL import Image, ImageTk
+            asset = bundled_asset_for_visual(kind)
+            if asset is None:
+                cache_base = ROOT / "AcademyCache" / str(kind)
+                asset = render_visual(cache_base, kind)
+
+            img = Image.open(asset).convert("RGB")
+            max_w = 1080
+            max_h = 430
+            img.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
+            image = ImageTk.PhotoImage(img)
+            self._academy_photos.append(image)
+            image_label = tk.Label(
+                source_holder, image=image, bg=C["panel3"],
+                bd=0, highlightthickness=1, highlightbackground=C["line"]
+            )
+            image_label.pack(fill="x", padx=6, pady=(0,6))
+            image_label.image = image
+        except Exception as exc:
+            tk.Label(
+                source_holder,
+                text=f"{self.tr('no_exact_image')}\n{exc}",
+                bg=C["panel3"], fg=C["muted"], font=("Segoe UI",9,"bold"),
+                padx=20, pady=26, justify="center", wraplength=980
+            ).pack(fill="x", padx=6, pady=6)
+
+        # 2) Semantic anatomy — generated from the selected concept/family,
+        # not substituted for the original reference image.
+        anatomy_title = tk.Frame(box, bg=C["panel3"])
+        anatomy_title.pack(fill="x", padx=12, pady=(4,2))
+        tk.Label(
+            anatomy_title,
+            text=("SETUP ANATOMY" if self.language=="en" else "آناتومی ستاپ"),
+            bg=C["panel3"], fg=C["cyan"], font=("Segoe UI",10,"bold")
+        ).pack(side="right")
+        tk.Label(
+            anatomy_title,
+            text=self.ui_text(subtitle),
+            bg=C["panel3"], fg=C["muted"], font=("Segoe UI",8)
+        ).pack(side="left", fill="x", expand=True, padx=8)
+
+        diagram_holder = tk.Frame(box, bg=C["panel3"])
+        diagram_holder.pack(fill="x", padx=8, pady=(2,4))
+        try:
+            if visual_family == "candles":
+                draw_candlestick(diagram_holder, self.ui_text(title), C)
+            else:
+                draw_setup(diagram_holder, visual_family, self.ui_text(title), C)
+        except Exception as exc:
+            tk.Label(
+                diagram_holder, text=f"{self.tr('no_exact_image')}\n{exc}",
+                bg=C["panel3"], fg=C["muted"], font=("Segoe UI",9,"bold"),
+                padx=20, pady=20, justify="center", wraplength=900
+            ).pack(fill="x")
+
+        meta = tk.Frame(box, bg=C["panel3"])
+        meta.pack(fill="x", padx=12, pady=(2,10))
+        source_label = tk.Label(
+            meta, text=f"{self.tr('source_chart')} • {source_title}",
+            bg=C["panel3"], fg=C["muted"], font=("Segoe UI",9,"bold"),
+            wraplength=930, justify="right"
+        )
+        source_label.pack(side="right", fill="x", expand=True)
+        source_btn = tk.Button(
+            meta, text=self.tr("open_source"), bg=C["soft"], fg=C["text"],
+            activebackground=C["gold"], relief="flat",
+            font=("Segoe UI",9,"bold"), cursor="hand2",
+            command=lambda u=source_url:self.open_webview(u, source_title)
+        )
+        source_btn.pack(side="left", padx=(8,0))
+        try:
+            set_widget_glass(source_btn,0.90)
+        except Exception:
+            pass
         return box
 
     def academy(self):

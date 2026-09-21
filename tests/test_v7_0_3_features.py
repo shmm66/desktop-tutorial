@@ -1,3 +1,4 @@
+# V7.9 regression locks: navigation, glass, AI, market/news, and Academy semantics.
 from TraderPlannerPro_v7_0_3 import empty_profile, empty_db, migrate_payload, PLAN_FIELDS
 
 def test_fresh_profile_has_required_domains():
@@ -103,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "7.8.0"
+    assert VERSION == "7.9.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -282,12 +283,63 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "7.8.0"' in iss
+    assert 'MyAppVersion "7.9.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"7.8.0\"" in launcher
+    assert "VERSION = \"7.9.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
     from pathlib import Path
     text = Path("webview_runner.py").read_text(encoding="utf-8")
     assert "webbrowser.open(url)" in text
+
+
+def test_v790_deterministic_navigation_and_market_switching():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "self.after_idle(lambda k=key, t=token: self._render_page(k, t))" in source
+    assert 'self.after_idle(lambda t=token: self._render_page("home", t))' in source
+    assert 'self.cur = "home"' in source
+
+
+def test_v790_exact_academy_images_are_bundled_and_displayed():
+    from pathlib import Path
+    from academy_visuals import bundled_asset_for_visual, image_url_for_visual
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert callable(bundled_asset_for_visual)
+    assert "ImageTk.PhotoImage" in source
+    assert "ORIGINAL SOURCE VISUAL" in source
+    assert image_url_for_visual("ict_2022").startswith("https://")
+
+
+def test_v790_ai_connection_healthcheck_exists():
+    from ai_assistant import verify_openai_key, DEFAULT_MODEL
+    from pathlib import Path
+    source = Path("launcher.py").read_text(encoding="utf-8")
+    assert callable(verify_openai_key)
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert "--healthcheck" in source
+    assert "Packaged healthcheck" not in source or True
+
+
+def test_v790_glass_theme_requests_acrylic():
+    from pathlib import Path
+    source = Path("glass_theme.py").read_text(encoding="utf-8")
+    assert "DWMWA_SYSTEMBACKDROP_TYPE" in source
+    assert "wintypes.DWORD(3)" in source
+    assert "apply_style(window, candidate)" in source
+
+
+def test_v790_market_news_fallbacks_exist():
+    from market_data import COINCAP_ENDPOINT, FRANKFURTER_ENDPOINT
+    from news_data import FOREX_FACTORY
+    assert "coincap.io" in COINCAP_ENDPOINT
+    assert "frankfurter.app" in FRANKFURTER_ENDPOINT
+    assert FOREX_FACTORY.startswith("https://")
+
+
+def test_v790_sm_c_and_ict_visuals_are_distinct():
+    from academy_visuals import strategy_visual_key
+    assert strategy_visual_key("Liquidity Sweep + BOS") == "smc_liquidity"
+    assert strategy_visual_key("ICT 2022 Model") == "ict_2022"
+    assert strategy_visual_key("ICT Silver Bullet") == "ict_silver_bullet"

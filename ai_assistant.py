@@ -12,6 +12,7 @@ AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
 DEFAULT_MODEL = "gpt-5.6-sol"
 REASONING_EFFORT = "high"
+OPENAI_MODELS_ENDPOINT = "https://api.openai.com/v1/models"
 
 ROLES = {
     "form": "Form Coach: fill forms step-by-step, detect missing fields and convert context into concise journal/checklist entries.",
@@ -85,14 +86,33 @@ def clear_openai_key():
 
 
 def cloud_status():
+    """Return whether the strongest configured cloud agent is available locally."""
     key = _read_openai_key()
     if not key:
-        return {"enabled": False, "model": DEFAULT_MODEL}
+        return {"enabled": False, "model": DEFAULT_MODEL, "reason": "missing_key"}
     try:
         import agents  # noqa: F401
-        return {"enabled": True, "model": DEFAULT_MODEL}
+        return {"enabled": True, "model": DEFAULT_MODEL, "reason": "configured"}
     except Exception:
-        return {"enabled": False, "model": DEFAULT_MODEL}
+        return {"enabled": False, "model": DEFAULT_MODEL, "reason": "agents_sdk_missing"}
+
+
+def verify_openai_key(api_key=None, timeout=12):
+    """Validate the key against the OpenAI Models endpoint without logging it."""
+    key = str(api_key or _read_openai_key() or "").strip()
+    if not key:
+        return {"ok": False, "reason": "missing_key", "detail": "No OpenAI API key is configured."}
+    request = urllib.request.Request(
+        f"{OPENAI_MODELS_ENDPOINT}/{DEFAULT_MODEL}",
+        headers={"Authorization": f"Bearer {key}", "User-Agent": "TraderPlannerPro/7.9"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            if response.status == 200:
+                return {"ok": True, "reason": "ready", "detail": DEFAULT_MODEL}
+            return {"ok": False, "reason": "http", "detail": f"HTTP {response.status}"}
+    except Exception as exc:
+        return {"ok": False, "reason": "error", "detail": str(exc)}
 
 
 def _fallback(role, user_message, context):
@@ -163,6 +183,7 @@ class AIOrchestrator:
             "online": cloud["enabled"] or ollama_online,
             "cloud": cloud["enabled"],
             "ollama": ollama_online,
+            "cloud_reason": cloud.get("reason", ""),
             "models": ollama_models,
             "model": cloud["model"] if cloud["enabled"] else (ollama_models[0] if ollama_models else self.model),
         }
@@ -232,7 +253,7 @@ class AIOrchestrator:
             Runner.run(
                 agent,
                 f"APP CONTEXT:\n{context}\n\nUSER QUESTION:\n{user_message}",
-                max_turns=6,
+                max_turns=8,
             )
         )
         return str(result.final_output or "").strip()

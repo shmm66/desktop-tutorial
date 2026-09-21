@@ -29,7 +29,7 @@ FEEDS = [
     ("Google News • Crypto", GOOGLE_CRYPTO_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/7.6"
+USER_AGENT = "TraderPlannerPro/7.9"
 
 
 def _clean(value):
@@ -53,18 +53,28 @@ def _parse_stamp(value):
             return raw
 
 
-def fetch_rss(url, source="News", limit=12):
-    request = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-            "Cache-Control": "no-cache",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:
-        data = response.read()
+def _download_feed(url, timeout=12):
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+        "Cache-Control": "no-cache",
+    }
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return response.read()
+    except Exception as primary_error:
+        try:
+            import requests
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response.content
+        except Exception:
+            raise primary_error
 
+
+def fetch_rss(url, source="News", limit=12):
+    data = _download_feed(url, timeout=12)
     root = ET.fromstring(data)
     items = []
 
@@ -122,6 +132,15 @@ def fetch_all_news(limit=24):
 
     rows = list(unique.values())
     rows.sort(key=lambda row: row.get("published", ""), reverse=True)
+    if not rows:
+        # Always leave the in-app news terminal useful even when all RSS
+        # publishers are blocked by a corporate proxy or DNS filter.
+        rows = [
+            {"source":"CoinDesk","title":"Open CoinDesk live news terminal","link":COINDESK_HOME,"published":"LIVE"},
+            {"source":"Cointelegraph","title":"Open Cointelegraph live news","link":"https://cointelegraph.com/","published":"LIVE"},
+            {"source":"CryptoSlate","title":"Open CryptoSlate live news terminal","link":CRYPTO_NEWS_HOME,"published":"LIVE"},
+            {"source":"Forex Factory","title":"Open Forex Factory economic calendar","link":FOREX_FACTORY,"published":"LIVE"},
+        ]
     return rows[:limit]
 
 
