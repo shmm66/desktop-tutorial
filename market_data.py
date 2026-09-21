@@ -46,6 +46,14 @@ BINANCE_TICKER_ENDPOINTS = [
 ]
 GLOBAL_ENDPOINT = "https://api.coingecko.com/api/v3/global"
 GLOBAL_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/global"
+CRONCOPIA_METALS = {"GOLD":"gold","SILVER":"silver","COPPER":"copper"}
+CRONCOPIA_BASE = "https://croncopia.com/api/metals"
+
+EXCHANGE_RATE_ENDPOINTS = [
+    "https://api.exchangerate.fun/latest?base=USD",
+    "https://api.exchangerate.fun/latest?base=USD&symbols=EUR,GBP,JPY,CHF,AUD,CAD,XAU,XAG",
+]
+GOLD_SPOT_ENDPOINT = "https://goldprice.dev/v1/prices?symbol=XAU-USD-SPOT"
 YAHOO_ENDPOINTS = [
     "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=5m",
     "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=5m",
@@ -228,9 +236,101 @@ def _crypto_live():
     return result, "Yahoo Finance" if result else "unavailable"
 
 
+def _free_fx_rates():
+    for endpoint in EXCHANGE_RATE_ENDPOINTS:
+        try:
+            data = _request_json(endpoint, timeout=5.0)
+            rates = data.get("rates") or {}
+            if not rates:
+                continue
+            normalized = {}
+            for key, value in rates.items():
+                number = _safe_float(value)
+                if number is not None:
+                    normalized[str(key).upper()] = number
+            if normalized:
+                return normalized
+        except Exception:
+            continue
+    return {}
+
+
+def _gold_spot():
+    try:
+        data = _request_json(GOLD_SPOT_ENDPOINT, timeout=5.0)
+        rows = data.get("prices") or []
+        if rows:
+            row = rows[0]
+            value = _safe_float(row.get("price"))
+            if value is not None:
+                return value, None
+    except Exception:
+        pass
+    return None
+
+
+def _croncopia_metals():
+    result = {}
+    for label, slug in CRONCOPIA_METALS.items():
+        try:
+            data = _request_json(f"{CRONCOPIA_BASE}/{slug}.json", timeout=4.0)
+            price = _safe_float(data.get("price"))
+            if price is None:
+                continue
+            # Normalize the published unit to the common dashboard display unit.
+            unit = str(data.get("unit") or "").lower()
+            if label == "COPPER" and "per t" in unit:
+                price = price / 2204.62262185
+            result[label] = price
+        except Exception:
+            continue
+    return result
+
+
+def _forex_free_fallback():
+    rates = _free_fx_rates()
+    if not rates:
+        return []
+    result = []
+    for label, code in (
+        ("EUR/USD", "EUR"), ("GBP/USD", "GBP"), ("USD/JPY", "JPY"),
+        ("USD/CHF", "CHF"), ("AUD/USD", "AUD"), ("USD/CAD", "CAD"),
+        ("GOLD", "XAU"), ("SILVER", "XAG"),
+    ):
+        value = rates.get(code)
+        if value is None:
+            continue
+        # USD base rates: USD/XXX is direct; XXX/USD is the reciprocal.
+        if label in ("EUR/USD", "GBP/USD", "AUD/USD"):
+            price = 1.0 / value if value else None
+        else:
+            price = value
+        if price is not None:
+            result.append({"symbol": label, "name": label, "price": price, "change": None})
+    gold = _gold_spot()
+    if gold:
+        for row in result:
+            if row["symbol"] == "GOLD":
+                row["price"] = gold[0]
+    return result
+
+
 def _forex_live():
+    # Preferred source: live Yahoo chart quotes. If blocked/unavailable,
+    # supplement with a no-key FX reference feed so the dashboard still shows
+    # usable market context instead of a permanent loading state.
     result = _parallel_yahoo(FOREX_SYMBOLS)
-    return result, "Yahoo Finance" if result else "unavailable"
+    if len(result) >= 5:
+        return result, "Yahoo Finance"
+    fallback = _forex_free_fallback()
+    by_label = {row["symbol"]: row for row in result}
+    for row in fallback:
+        by_label.setdefault(row["symbol"], row)
+    metal_prices = _croncopia_metals()
+    for label, price in metal_prices.items():
+        by_label.setdefault(label, {"symbol": label, "name": label, "price": price, "change": None})
+    merged = [by_label[label] for label, _ in FOREX_SYMBOLS if label in by_label]
+    return merged, ("Yahoo Finance + no-key FX/metals fallback" if merged else "unavailable")
 
 
 def _global_indicators():
