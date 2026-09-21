@@ -1,4 +1,5 @@
 name: CI + Windows EXE + Installer
+# Production verification: Quality -> Build EXE -> Installer -> Smoke Test -> Release
 
 on:
   workflow_dispatch:
