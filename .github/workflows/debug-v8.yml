@@ -1,0 +1,35 @@
+name: Debug V8 Quality
+on:
+  push:
+    branches: [ "fix/v8-0-0-glass-academy-stable-desk" ]
+jobs:
+  debug:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+      - name: Syntax
+        shell: powershell
+        run: |
+          $files = @("TraderPlannerPro_v7_0_3.py","TraderPlannerPro_v7.py","launcher.py","logo_3d.py","branding_assets.py","prepare_branding.py","academy_visuals.py","market_data.py","calendar_utils.py","ai_assistant.py","news_data.py","webview_runner.py","prepare_education_assets.py","glass_theme.py","academy_diagrams.py","google_oauth.py","statement_report.py")
+          foreach ($f in $files) {
+            python -m py_compile $f
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Tests with capture
+        shell: powershell
+        run: |
+          python -m pytest -q -x --tb=long 2>&1 | Tee-Object -FilePath test_output.txt
+          $code = $LASTEXITCODE
+          "EXIT_CODE=$code" | Out-File -Append test_output.txt
+          exit 0
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-test-diagnostic
+          path: test_output.txt
