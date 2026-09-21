@@ -91,6 +91,11 @@ THEMES = {
 }
 
 SKINS = {
+    "glass": {
+        "label_fa":"Acrylic Glass • شیشه‌ای واقعی", "label_en":"Acrylic Glass • Native",
+        "dark":{"panel":"#101826","panel2":"#132033","soft":"#1A2A40","panel3":"#0A1320","line":"#294A62","accent":"#36E0C0","cyan":"#62DFFF","gold":"#F6D889","violet":"#A88EFF"},
+        "light":{"panel":"#F7FBFD","panel2":"#EDF5F8","soft":"#E2EEF3","panel3":"#F0F7F9","line":"#C6D8E2","accent":"#0E987E","cyan":"#1683A3","gold":"#976600","violet":"#6E55C6"},
+    },
     "obsidian": {
         "label_fa":"Obsidian • شیشه‌ای تیره", "label_en":"Obsidian • Dark Glass",
         "dark":{"panel":"#0F1520","panel2":"#151E2B","soft":"#1B2736","panel3":"#0B111A","line":"#26384A","accent":"#27D3B0","cyan":"#56E0FF","gold":"#FFD166","violet":"#9B8CFF"},
@@ -506,8 +511,8 @@ class App(tk.Tk):
         self.theme_mode = DB.get("settings", {}).get("theme", "dark")
         self.theme_auto_start = DB.get("settings", {}).get("theme_auto_start", "08:00")
         self.theme_auto_end = DB.get("settings", {}).get("theme_auto_end", "20:00")
-        self.skin = DB.get("settings", {}).get("skin", "obsidian")
-        if self.skin not in SKINS: self.skin = "obsidian"
+        self.skin = DB.get("settings", {}).get("skin", "glass")
+        if self.skin not in SKINS: self.skin = "glass"
         self.ai_chat_window = None
         self.ai_chat_text = None
         self.ai_chat_input = None
