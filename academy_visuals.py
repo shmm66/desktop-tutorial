@@ -199,6 +199,17 @@ GLOSSARY_VISUALS = {
     "bullish engulfing": "bullish_engulfing", "bearish engulfing": "bearish_engulfing", "engulfing": "candlestick",
 }
 
+# Backward-compatible semantic aliases used by older content/tests.
+EDUCATION_SOURCES.update({
+    "structure": EDUCATION_SOURCES["smc_overview"],
+    "liquidity": EDUCATION_SOURCES["smc_liquidity"],
+})
+REMOTE_IMAGES.update({
+    "structure": REMOTE_IMAGES["smc_overview"],
+    "liquidity": REMOTE_IMAGES["smc_liquidity"],
+    "timing": REMOTE_IMAGES["ict_judas"],
+})
+ 
 PATTERN_VISUALS = {
     "pin bar / rejection candle": "candlestick",
     "bullish engulfing": "bullish_engulfing",
