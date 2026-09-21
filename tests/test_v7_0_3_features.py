@@ -344,7 +344,7 @@ def test_v810_navigation_uses_deterministic_home_renderer():
 
 def test_v810_ai_has_safe_local_fallbacks_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert DEFAULT_MODEL == "gpt-4.1-mini"
     assert MODEL_FALLBACKS[0] == "qwen3:8b"
     assert "gpt-5.6-terra" not in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
