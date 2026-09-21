@@ -569,6 +569,7 @@ class MarketDataService:
         self._executor = None
         self._future = None
         self._refresh_lock = threading.Lock()
+        self._generation = 0
 
     def start(self, market: str):
         self.set_market(market)
@@ -580,17 +581,28 @@ class MarketDataService:
         self._future = self._executor.submit(self._worker)
 
     def set_market(self, market: str):
-        self._market = "Forex" if market == "Forex" else "Crypto"
+        normalized = "Forex" if market == "Forex" else "Crypto"
+        if normalized != self._market:
+            self._generation += 1
+        self._market = normalized
+
+    def generation(self):
+        return self._generation
 
     def refresh_now(self):
         if not self._refresh_lock.acquire(blocking=False):
             return
 
         market = self._market
+        generation = self._generation
 
         def run():
             try:
                 payload = fetch_market(market)
+                # A quote started for an old market must never overwrite the
+                # current Crypto/Forex dashboard after the user switches mode.
+                if generation != self._generation or market != self._market:
+                    return
                 if self.callback:
                     self.callback(payload)
             finally:
@@ -611,8 +623,9 @@ class MarketDataService:
     def _worker(self):
         while self._running:
             market = self._market
+            generation = self._generation
             payload = fetch_market(market)
-            if self.callback:
+            if generation == self._generation and market == self._market and self.callback:
                 try:
                     self.callback(payload)
                 except Exception:
