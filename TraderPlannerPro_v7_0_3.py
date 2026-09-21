@@ -2289,7 +2289,7 @@ class App(tk.Tk):
                  wraplength=850).pack(fill="x",anchor="e")
 
         role_var=tk.StringVar(value="form")
-        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach"}
+        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
         row=tk.Frame(hero,bg=C["panel"]); row.pack(fill="x",padx=14,pady=(0,12))
         tk.Label(row,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],
                  font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
@@ -2299,9 +2299,19 @@ class App(tk.Tk):
         )
         role_combo.pack(side="right",padx=6)
         status=self.ai.status()
-        tk.Label(row,text=("LOCAL • READY" if status["online"] else "BUILT-IN • READY"),
-                 bg=C["panel3"],fg=C["accent"],font=("Consolas",8,"bold"),
-                 padx=10,pady=5).pack(side="left")
+        if status.get("cloud"):
+            status_text="CLOUD AGENT • GPT-5.6-SOL • HIGH REASONING"
+            status_fg=C["accent"]
+        elif status.get("ollama"):
+            status_text="LOCAL OLLAMA • READY"
+            status_fg=C["cyan"]
+        else:
+            status_text="BUILT-IN FALLBACK • CONNECT AI IN SETTINGS"
+            status_fg=C["gold"]
+        tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
+                 font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
+        if not status.get("cloud") and not status.get("ollama"):
+            self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
 
         quick=tk.Frame(self.content,bg=C["bg"])
         quick.pack(fill="x",pady=(0,7))
