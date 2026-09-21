@@ -4,7 +4,7 @@ import tempfile
 import sys
 
 APP = "Trader Planner Pro"
-VERSION = "7.8.0"
+VERSION = "7.9.0"
 
 def show_splash():
     root = tk.Tk()
@@ -33,6 +33,21 @@ def show_splash():
     root.mainloop()
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--healthcheck":
+        # Import the same critical modules used by the packaged runtime without
+        # opening a GUI. CI uses this to catch missing hidden imports early.
+        from TraderPlannerPro_v7_0_3 import VERSION as APP_VERSION
+        import ai_assistant
+        import academy_visuals
+        import academy_diagrams
+        import market_data
+        import news_data
+        import google_oauth
+        print(f"Trader Planner Pro healthcheck OK • {APP_VERSION}")
+        print(f"AI model: {ai_assistant.DEFAULT_MODEL}")
+        print(f"Market fallback: {market_data.COINCAP_ENDPOINT}")
+        print(f"News feeds: {len(news_data.FEEDS)}")
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "--webview":
         from webview_runner import main as webview_main
         webview_main()
