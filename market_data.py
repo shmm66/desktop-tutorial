@@ -54,6 +54,7 @@ YAHOO_ENDPOINT = YAHOO_ENDPOINTS[0]
 FEAR_GREED_ENDPOINTS = [
     "https://api.alternative.me/fng/?limit=1",
 ]
+FEAR_GREED_ENDPOINT = FEAR_GREED_ENDPOINTS[0]
 VIX_SYMBOL = "^VIX"
 
 _cache_lock = threading.Lock()
