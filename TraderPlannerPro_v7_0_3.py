@@ -297,7 +297,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 750, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"glass","ai_reminders":[]}}
+    return {"version": 800, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"glass","ai_reminders":[]}}
 
 def numeric(value):
     try:
@@ -338,7 +338,7 @@ def migrate_payload(old):
             p.setdefault("checklist", default_checklist())
             for item in p["checklist"]:
                 item.setdefault("id", str(uuid4())); item.setdefault("done", False)
-        base["version"] = 750
+        base["version"] = 800
         return base
     # V7.0.2 -> profile migration without data loss.
     legacy_profile = old.get("profile") if isinstance(old.get("profile"), dict) else {}
