@@ -617,6 +617,10 @@ class App(tk.Tk):
         if not initial and hasattr(self, "content"):
             self.content.configure(bg=C["bg"])
             self._refresh_shell_theme()
+        try:
+            apply_glass(self, dark=effective=="dark", style="acrylic")
+        except Exception:
+            pass
         if self.theme_mode == "auto":
             if self.theme_auto_job:
                 try: self.after_cancel(self.theme_auto_job)
@@ -1069,6 +1073,10 @@ class App(tk.Tk):
 
     def card(self, parent, padx=1):
         frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
+        try:
+            set_widget_glass(frame, 0.86)
+        except Exception:
+            pass
         return frame
 
     def btn(self, parent, text, cmd, primary=False, **kw):
@@ -1078,6 +1086,10 @@ class App(tk.Tk):
                          borderwidth=0,font=("Segoe UI",10,"bold"),padx=13,pady=9,cursor="hand2",**kw)
         button.bind("<Enter>",lambda e:button.configure(bg=C["gold"] if not primary else C["cyan"]))
         button.bind("<Leave>",lambda e:button.configure(bg=base))
+        try:
+            set_widget_glass(button, 0.94)
+        except Exception:
+            pass
         return button
 
     def profile_panel(self, parent):
