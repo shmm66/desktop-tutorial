@@ -2030,6 +2030,7 @@ class App(tk.Tk):
 
     def ai(self):
         self.heading(self.tr("ai_title"), self.tr("ai_sub"))
+        self.after(120, self.open_ai_chat)
         top=self.card(self.content); top.pack(fill="x",pady=6)
         info=tk.Frame(top,bg=C["panel"]); info.pack(fill="x",padx=14,pady=12)
         role_var=tk.StringVar(value="form")
