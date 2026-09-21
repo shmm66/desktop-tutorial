@@ -1,3 +1,4 @@
+# V7.9 regression locks: navigation, glass, AI, market/news, and Academy semantics.
 from TraderPlannerPro_v7_0_3 import empty_profile, empty_db, migrate_payload, PLAN_FIELDS
 
 def test_fresh_profile_has_required_domains():
