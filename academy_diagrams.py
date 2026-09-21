@@ -37,11 +37,11 @@ def _arrow(c, x1, y1, x2, y2, fill, text=""):
 
 
 def _grid(c, W, bg, grid, text, family, model):
-    c.configure(width=W, height=390)
+    c.configure(width=W, height=430)
     for y in range(70, 350, 45):
         c.create_line(20, y, W - 20, y, fill=grid, width=1)
     _label(c, 24, 28, family.upper() + "  •  " + model, text, anchor="w", size=13)
-    _label(c, W - 24, 28, "SETUP MAP • EDUCATIONAL", text, anchor="e", size=8)
+    _label(c, W - 24, 28, "SETUP MAP • EDUCATIONAL • FAMILY-SPECIFIC", text, anchor="e", size=8)
 
 
 def _ict_2022(c, palette):
@@ -260,7 +260,7 @@ def _smc_liquidity_displacement(c, palette):
 
 
 def draw_setup(parent, family, model, palette):
-    c = tk.Canvas(parent, height=390, bg=palette["panel3"], highlightthickness=0)
+    c = tk.Canvas(parent, height=430, bg=palette["panel3"], highlightthickness=0)
     c.pack(fill="x", padx=8, pady=8)
     _grid(c, 1180, palette["panel3"], palette["line"], palette["text"], family, model)
     m = str(model).lower()
@@ -297,7 +297,7 @@ def draw_setup(parent, family, model, palette):
 
 
 def draw_candlestick(parent, pattern, palette):
-    c = tk.Canvas(parent, height=290, bg=palette["panel3"], highlightthickness=0)
+    c = tk.Canvas(parent, height=330, bg=palette["panel3"], highlightthickness=0)
     c.pack(fill="x", padx=8, pady=8)
     text, muted = palette["text"], palette["muted"]
     accent, danger, gold = palette["accent"], palette["danger"], palette["gold"]
