@@ -2545,7 +2545,10 @@ class App(tk.Tk):
         # glossary card rather than an SMC/ICT strategy card.
         visual_family = family
         if not visual_family:
-            if str(kind).startswith("ict_") or kind in {"unicorn"}:
+            if str(kind).startswith("ict_") or kind in {
+                "unicorn","smt","timing","ict_ote","ict_judas","ict_silver_bullet",
+                "ict_2022","ict_amd"
+            }:
                 visual_family = "ict"
             elif kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star",
                           "morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers",
