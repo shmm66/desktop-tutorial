@@ -328,7 +328,7 @@ def test_v79_navigation_and_glass_hooks_present():
     from pathlib import Path
     text = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def _hard_home(self):" in text
-    assert "command=self._hard_home" in text
+    assert "command=self.go_home" in text
     assert "apply_glass(self" in text
     assert "set_widget_glass(top" in text
 
@@ -338,7 +338,7 @@ def test_v800_navigation_uses_single_home_renderer():
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "self.show(\"home\")" in source
     assert "self.after_idle(self._hard_home)" in source
-    assert "self.after_idle(self.market_data.refresh_now)" in source
+    assert "self.after(30, self.market_data.refresh_now)" in source
     assert 'status = "loading"' in source or '["status"] = "loading"' in source
 
 
