@@ -816,7 +816,8 @@ class App(tk.Tk):
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","settings"):
-            b = tk.Button(self.menu, text=self.tr(key), command=lambda k=key:self.go(k), anchor="w",
+            cmd = self.open_ai_chat if key=="ai" else (lambda k=key:self.go(k))
+            b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
                           padx=18, pady=11, cursor="hand2")
