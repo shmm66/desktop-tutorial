@@ -492,6 +492,11 @@ class App(tk.Tk):
         self.theme_mode = DB.get("settings", {}).get("theme", "dark")
         self.theme_auto_start = DB.get("settings", {}).get("theme_auto_start", "08:00")
         self.theme_auto_end = DB.get("settings", {}).get("theme_auto_end", "20:00")
+        self.skin = DB.get("settings", {}).get("skin", "obsidian")
+        if self.skin not in SKINS: self.skin = "obsidian"
+        self.ai_chat_window = None
+        self.ai_chat_text = None
+        self.ai_chat_input = None
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
@@ -501,7 +506,9 @@ class App(tk.Tk):
         self._logo_photo = None
         self.apply_theme(initial=True)
         self.bind_all("<Home>", self._home_shortcut)
-        self.bind_all("<Alt-Home>", lambda e: self.show("home"))
+        self.bind_all("<Alt-Home>", lambda e: self.go_home())
+        self.bind_all("<Control-K>", lambda e: self.open_ai_chat())
+        self.bind_all("<F2>", lambda e: self.open_ai_chat())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
         self.bind("<Motion>", self._shell_motion, add="+")
@@ -577,7 +584,9 @@ class App(tk.Tk):
 
     def apply_theme(self, initial=False):
         effective = self._effective_theme()
-        palette = THEMES[effective]
+        skin = self.skin if self.skin in SKINS else "obsidian"
+        palette = dict(THEMES[effective])
+        palette.update(SKINS[skin][effective])
         C.update(palette)
         self.configure(bg=C["bg"])
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
