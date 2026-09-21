@@ -2507,6 +2507,17 @@ class App(tk.Tk):
         )
         note.pack(fill="x",pady=(0,7))
 
+        family_map=self.card(self.content)
+        family_map.pack(fill="x",pady=(0,7))
+        tk.Label(family_map,text="SMC ≠ ICT",bg=C["panel"],fg=C["gold"],
+                 font=("Segoe UI",12,"bold")).pack(anchor="e",padx=14,pady=(10,3))
+        tk.Label(
+            family_map,
+            text=self.ui_text("SMC: ساختار بازار، نقدینگی، BOS/CHoCH، Order Block، FVG و ناحیه‌ها  •  ICT: مدل‌ها و اصطلاحات نام‌گذاری‌شده مانند 2022 Model، Silver Bullet، Judas Swing، AMD، OTE و Unicorn"),
+            bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold"),
+            wraplength=1180,justify="right"
+        ).pack(fill="x",padx=14,pady=(0,10))
+
         legend=tk.Frame(self.content,bg=C["bg"])
         legend.pack(fill="x",pady=(0,7))
         smc_badge=tk.Label(legend,text=self.tr("smc_family"),bg=C["soft"],fg=C["accent"],
