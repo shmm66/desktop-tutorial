@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.0.0"
+VERSION = "8.1.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -530,6 +530,7 @@ class App(tk.Tk):
         self.bind_all("<Home>", self._home_shortcut)
         self.bind_all("<Alt-Home>", lambda e: self._hard_home())
         self.bind_all("<Control-K>", lambda e: self.open_ai_chat())
+        self.bind_all("<Control-Shift-A>", lambda e: self.open_ai_chat())
         self.bind_all("<F2>", lambda e: self.open_ai_chat())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
@@ -573,8 +574,8 @@ class App(tk.Tk):
             self.market_data.set_market(self.market)
             self.cur = "home"
             self.show("home")
-            self.after_idle(self.market_data.refresh_now)
-            self.focus_force()
+            self.after(25, self.market_data.refresh_now)
+            self.after(50, self.focus_force)
         except Exception as exc:
             self._show_page_error("home", exc)
 
@@ -893,7 +894,7 @@ class App(tk.Tk):
         )
         self.global_home_btn.pack(side="left", padx=4)
         self.global_ai_btn = tk.Button(
-            status, text=self.tr("ai_chat"), command=lambda: self.go("ai"),
+            status, text=self.tr("ai_chat"), command=self.open_ai_chat,
             bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
         )
@@ -933,7 +934,7 @@ class App(tk.Tk):
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","settings"):
-            cmd = lambda k=key: self.go(k)
+            cmd = self.open_ai_chat if key == "ai" else (self._hard_home if key == "home" else (lambda k=key: self.go(k)))
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
@@ -1013,6 +1014,9 @@ class App(tk.Tk):
         allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
             key="home"
+        if key == "ai" and getattr(self, "_prefer_ai_popup", True):
+            self.open_ai_chat()
+            return "break"
         self._cancel_menu_hide()
         self.cur = key
         self._nav_token += 1
@@ -1199,7 +1203,7 @@ class App(tk.Tk):
         save_db()
         # Defer the rebuild one event-loop turn so the button callback never
         # destroys its own widget hierarchy while Tk is dispatching the click.
-        self.after_idle(self._hard_home)
+        self.after(20, self._hard_home)
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
