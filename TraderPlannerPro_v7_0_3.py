@@ -824,6 +824,7 @@ class App(tk.Tk):
         self.title(f"{APP} V{VERSION}")
         if hasattr(self, "brand_title"): self.brand_title.config(text=APP)
         if hasattr(self, "brand_subtitle"): self.brand_subtitle.config(text="PRO TRADING WORKSPACE")
+        if hasattr(self, "brand_version_badge"): self.brand_version_badge.config(text=f"V{VERSION}")
         if hasattr(self, "menu_title"): self.menu_title.config(text="TRADER PLANNER PRO")
         if hasattr(self, "menu_buttons"):
             for key, button in self.menu_buttons.items():
@@ -880,6 +881,11 @@ class App(tk.Tk):
         self.brand_subtitle = tk.Label(brand, text="PRO TRADING WORKSPACE • MARKET DESK",
                                        bg=C["panel"], fg=C["accent"], font=("Segoe UI", 7, "bold"))
         self.brand_subtitle.pack(anchor="w")
+        self.brand_version_badge = tk.Label(
+            brand, text=f"V{VERSION}", bg=C["soft"], fg=C["gold"],
+            font=("Consolas", 7, "bold"), padx=6, pady=2
+        )
+        self.brand_version_badge.pack(anchor="w", pady=(2, 0))
         status = tk.Frame(top, bg=C["panel"]); self.status_bar = status; status.pack(side="right", padx=7)
         self.date_label = tk.Label(status, bg=C["panel3"], fg=C["muted"], font=("Segoe UI", 8, "bold"),
                                    padx=10, pady=6, anchor="center")
@@ -894,7 +900,7 @@ class App(tk.Tk):
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
         self.market_btn.pack(side="left", padx=4)
         self.global_home_btn = tk.Button(
-            status, text=self.tr("nav_home"), command=self._hard_home,
+            status, text=self.tr("nav_home"), command=self.go_home,
             bg=C["accent"], fg="#061019", activebackground=C["gold"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
         )
@@ -907,17 +913,17 @@ class App(tk.Tk):
         self.global_ai_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
 
-        self.quickbar = tk.Frame(self, bg=C["bg"], highlightbackground=C["line"], highlightthickness=1)
+        self.quickbar = tk.Frame(self, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
         self.quickbar.pack(fill="x", padx=14, pady=(0,7), ipady=4)
         try: set_widget_glass(self.quickbar, 0.74)
         except Exception: pass
         self._quick_nav_buttons = {}
         nav_specs = [
-            ("home", self.tr("nav_home"), self._hard_home),
+            ("home", self.tr("nav_home"), self.go_home),
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
-            ("ai", self.tr("ai_chat"), self.open_ai_chat),
+            ("ai", self.tr("ai_chat"), self.go_ai),
             ("news", self.tr("news"), lambda: self.go("news")),
             ("calculators", self.tr("calculators"), lambda: self.go("calculators")),
         ]
@@ -1285,7 +1291,7 @@ class App(tk.Tk):
         self.btn(actions, self.tr("new_trade"), self.add_trade, True).pack(side="right")
         self.btn(actions, self.tr("crypto_calc"), lambda:self.open_calculator("Crypto")).pack(side="left", padx=3)
         self.btn(actions, self.tr("forex_calc"), lambda:self.open_calculator("Forex")).pack(side="left", padx=3)
-        self.btn(actions, self.tr("ai"), lambda:self.show("ai")).pack(side="left", padx=3)
+        self.btn(actions, self.tr("ai"), self.go_ai).pack(side="left", padx=3)
         self.btn(actions, self.tr("news"), lambda:self.show("news")).pack(side="left", padx=3)
         self.btn(actions, self.tr("email_statement"), self.email_statement).pack(side="left", padx=3)
 
@@ -2137,7 +2143,7 @@ class App(tk.Tk):
         ai_actions=tk.Frame(ai_box,bg=C["panel"]); ai_actions.pack(fill="x",padx=18,pady=(0,12))
         self.btn(ai_actions,self.tr("agent_upgrade_ideas"),lambda:self._open_product_agent_from_settings()).pack(side="right",padx=4)
         self.btn(ai_actions,"Get OpenAI API Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="right",padx=4)
-        self.btn(ai_actions,"Open AI Chat",self.open_ai_chat,True).pack(side="right",padx=4)
+        self.btn(ai_actions,"Open AI Chat",self.go_ai,True).pack(side="right",padx=4)
 
         # Google / Gmail card
         google_box=self.card(self.content); google_box.pack(fill="x",pady=8)
@@ -2315,7 +2321,7 @@ class App(tk.Tk):
             status_text="LOCAL OLLAMA • READY"
             status_fg=C["cyan"]
         else:
-            status_text="BUILT-IN FALLBACK • CONNECT AI IN SETTINGS"
+            status_text="BUILT-IN TRADER AGENT • READY | CLOUD/OLLAMA OPTIONAL"
             status_fg=C["gold"]
         tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
