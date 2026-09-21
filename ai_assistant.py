@@ -253,7 +253,7 @@ class AIOrchestrator:
             Runner.run(
                 agent,
                 f"APP CONTEXT:\n{context}\n\nUSER QUESTION:\n{user_message}",
-                max_turns=6,
+                max_turns=8,
             )
         )
         return str(result.final_output or "").strip()
