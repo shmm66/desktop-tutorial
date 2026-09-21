@@ -256,6 +256,6 @@ def test_v770_statement_email_and_settings_hooks_are_present():
 def test_v770_home_market_mode_navigation_is_hardwired():
     from pathlib import Path
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert "self.show("home")" in source
+    assert 'self.show("home")' in source
     assert "def set_market_mode(self, market):" in source
     assert "self.market_data.set_market(market)" in source
