@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "7.9.0"
+VERSION = "8.0.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -541,7 +541,7 @@ class App(tk.Tk):
         self.show("home")
         self.market_data.start(self.market)
         self.after(700, self.clock)
-        self.after(9000, self._market_loading_timeout)
+        self.after(7000, self._market_loading_timeout)
         self.check_reminders()
 
     def _home_shortcut(self, event=None):
@@ -552,7 +552,7 @@ class App(tk.Tk):
         return "break"
 
     def _hard_home(self):
-        """Rebuild Home deterministically after market switches or page exceptions."""
+        """Return to Home through the same guarded renderer used by every page."""
         try:
             self._cancel_menu_hide()
             self.menu_open = False
@@ -560,7 +560,7 @@ class App(tk.Tk):
                 self.menu.place_configure(x=-304)
             except Exception:
                 pass
-            for job_name in ("session_clock_job", "ticker_job"):
+            for job_name in ("session_clock_job", "ticker_job", "market_timeout_job"):
                 job = getattr(self, job_name, None)
                 if job is not None:
                     try:
@@ -568,20 +568,12 @@ class App(tk.Tk):
                     except Exception:
                         pass
                     setattr(self, job_name, None)
-            self._nav_token += 1
-            self.cur = "home"
-            for widget in self.content.winfo_children():
-                try:
-                    widget.destroy()
-                except Exception:
-                    pass
             self.session_clock_widgets = []
             self.market = active_profile().get("market", "Crypto")
             self.market_data.set_market(self.market)
-            self.home()
-            self.translate_widget_tree(self.content)
-            self.content.update_idletasks()
-            self.market_data.refresh_now()
+            self.cur = "home"
+            self.show("home")
+            self.after_idle(self.market_data.refresh_now)
             self.focus_force()
         except Exception as exc:
             self._show_page_error("home", exc)
@@ -732,12 +724,25 @@ class App(tk.Tk):
 
     def _market_loading_timeout(self):
         self.market_timeout_job = None
-        if self.cur == "home" and self.market_data_payload.get("status") in ("unavailable", None):
-            self.market_data_payload["status"] = "unavailable"
-            self.market_data_payload["message"] = self.tr("market_error")
+        if self.cur == "home" and self.market_data_payload.get("status") == "loading":
+            # Never leave Home visually stuck in a spinner/loading state.
+            cached = cached_market_payload(self.market)
+            if cached.get("items"):
+                cached["message"] = self.tr("market_state_cache")
+                self.market_data_payload = cached
+            else:
+                self.market_data_payload = {
+                    "market": self.market,
+                    "updated_at": None,
+                    "source": "unavailable",
+                    "items": [],
+                    "indicators": {},
+                    "status": "unavailable",
+                    "message": self.tr("market_error"),
+                }
             self._apply_market_data(self.market_data_payload)
-        if self.cur == "home" and self.market_timeout_job is None:
-            self.market_timeout_job = self.after(15000, self._market_loading_timeout)
+        if self.cur == "home":
+            self.market_timeout_job = self.after(7000, self._market_loading_timeout)
 
     def check_reminders(self):
         self.reminder_job = None
@@ -1192,7 +1197,9 @@ class App(tk.Tk):
             pass
         self.market_data.set_market(market)
         save_db()
-        self._hard_home()
+        # Defer the rebuild one event-loop turn so the button callback never
+        # destroys its own widget hierarchy while Tk is dispatching the click.
+        self.after_idle(self._hard_home)
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
@@ -1266,12 +1273,15 @@ class App(tk.Tk):
         self.btn(actions, self.tr("forex_calc"), lambda:self.open_calculator("Forex")).pack(side="left", padx=3)
         self.btn(actions, self.tr("ai"), lambda:self.show("ai")).pack(side="left", padx=3)
         self.btn(actions, self.tr("news"), lambda:self.show("news")).pack(side="left", padx=3)
+        self.btn(actions, self.tr("email_statement"), self.email_statement).pack(side="left", padx=3)
 
     def refresh_market_data(self):
-        self.market_data_payload["status"] = "unavailable"
+        self.market_data_payload["status"] = "loading"
         self.market_data_payload["message"] = self.tr("market_loading")
         if hasattr(self, "market_status_label"):
             self.market_status_label.config(text=self.tr("market_loading"), fg=C["gold"])
+        if hasattr(self, "ticker_canvas"):
+            self.render_market_ticker(self.market_data_payload)
         self.market_data.set_market(self.market)
         self.market_data.refresh_now()
 
@@ -1349,8 +1359,13 @@ class App(tk.Tk):
         items = list(payload.get("items") or [])
         if not items:
             state = payload.get("status", "unavailable")
-            msg = payload.get("message") or (self.tr("market_loading") if state == "unavailable" else self.tr("market_unavailable"))
-            c.create_text(20, 38, text=msg, anchor="w", fill=C["muted"], font=("Segoe UI", 10, "bold"))
+            if state == "loading":
+                msg = payload.get("message") or self.tr("market_loading")
+                fill = C["gold"]
+            else:
+                msg = payload.get("message") or self.tr("market_unavailable")
+                fill = C["muted"]
+            c.create_text(20, 38, text=msg, anchor="w", fill=fill, font=("Segoe UI", 10, "bold"))
         else:
             width = max(self.ticker_canvas.winfo_width(), 820)
             card_w = 170 if self.market == "Crypto" else 156
@@ -1383,6 +1398,9 @@ class App(tk.Tk):
                 status_fg = C["accent"]
             elif state == "cache":
                 status_text = f"{self.tr('cached')} • {payload.get('source','')}"
+                status_fg = C["gold"]
+            elif state == "loading":
+                status_text = self.tr("market_loading")
                 status_fg = C["gold"]
             else:
                 status_text = self.tr("market_unavailable")
@@ -1892,6 +1910,7 @@ class App(tk.Tk):
         role_labels={"orchestrator":"Trader Planner Master Agent","form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
         ttk.Combobox(toolbar,textvariable=role_var,state="readonly",values=list(role_labels.values()),
                      width=25,justify="right").pack(side="right",padx=4)
+        self.btn(toolbar,"AI Web",lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • AI Web")).pack(side="left",padx=4)
         self.btn(toolbar,self.tr("ai_clear"),lambda:self._clear_ai_chat(),).pack(side="left",padx=4)
 
         card=self.card(dlg); card.pack(fill="both",expand=True,padx=12,pady=8)
@@ -2295,9 +2314,11 @@ class App(tk.Tk):
         else:
             self.news_status.config(text="● "+self.tr("market_unavailable"),fg=C["danger"])
             fallback=[
-                ("CoinDesk","Live crypto terminal",COINDESK_HOME),
-                ("Cointelegraph","Live crypto headlines","https://cointelegraph.com/"),
-                ("CoinDesk","Live crypto news terminal",COINDESK_HOME),
+                ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
+                ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
+                ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
+                ("CryptoSlate","Open CryptoSlate news terminal","https://cryptoslate.com/news-terminal/"),
+                ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
             ]
             for i,(source,title,url) in enumerate(fallback):
                 self.news_tree.insert("","end",iid=f"fallback-{i}",values=(source,"LIVE",title))
@@ -2348,6 +2369,7 @@ class App(tk.Tk):
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
         if not status.get("cloud") and not status.get("ollama"):
             self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
+        self.btn(row,"AI Web",lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • AI Web")).pack(side="left",padx=6)
 
         quick=tk.Frame(self.content,bg=C["bg"])
         quick.pack(fill="x",pady=(0,7))
