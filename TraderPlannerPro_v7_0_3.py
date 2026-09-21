@@ -971,13 +971,16 @@ class App(tk.Tk):
         allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
             key="home"
+        self._cancel_menu_hide()
         self.cur = key
         self._nav_token += 1
         token = self._nav_token
         if self._nav_job is not None:
             try: self.after_cancel(self._nav_job)
             except Exception: pass
-        self._nav_job = self.after_idle(lambda k=key, t=token: self._render_page(k, t))
+            self._nav_job = None
+        self._render_page(key, token)
+        return "break"
 
     def _render_page(self, key, token):
         self._nav_job = None
@@ -1144,8 +1147,7 @@ class App(tk.Tk):
             pass
         self.market_data.set_market(market)
         save_db()
-        self._nav_token += 1
-        self.show("home")
+        self.go_home()
 
     def change_market(self):
         current = active_profile().get("market", "Crypto")
