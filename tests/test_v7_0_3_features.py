@@ -167,6 +167,7 @@ def test_v750_navigation_ai_news_calculators_and_theme_are_present():
     for key in ("ai", "news", "calculators"):
         assert f'"{key}"' in source
     assert "def go_home(self):" in source
+    assert "self.open_ai_chat" in source
     assert "def apply_theme(self, initial=False):" in source
     assert "def render_market_indicators(self, payload=None):" in source
     assert "def open_webview(self, url, title=" in source
