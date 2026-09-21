@@ -198,6 +198,8 @@ class AIOrchestrator:
 
         specialists = {}
         for key, instruction in ROLES.items():
+            if key == "orchestrator":
+                continue
             kwargs = {
                 "name": key.replace("_", " ").title() + " Agent",
                 "model": self.model,
