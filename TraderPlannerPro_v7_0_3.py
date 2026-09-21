@@ -1235,7 +1235,7 @@ class App(tk.Tk):
         self.btn(actions, self.tr("news"), lambda:self.show("news")).pack(side="left", padx=3)
 
     def refresh_market_data(self):
-        self.market_data_payload["status"] = "unavailable"
+        self.market_data_payload["status"] = "loading"
         self.market_data_payload["message"] = self.tr("market_loading")
         if hasattr(self, "market_status_label"):
             self.market_status_label.config(text=self.tr("market_loading"), fg=C["gold"])
