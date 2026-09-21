@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/7.8.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/7.9.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
@@ -39,6 +39,8 @@ CRYPTO_ENDPOINT = (
     "sparkline=false&price_change_percentage=24h"
 )
 CRYPTO_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=25"
+COINCAP_ENDPOINT = "https://api.coincap.io/v2/assets?limit=15"
+FRANKFURTER_ENDPOINT = "https://api.frankfurter.app/latest?from=USD"
 KRAKEN_TICKER_ENDPOINT = "https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,SOLUSD,XRPUSD,ADAUSD,DOGEUSD,BNBUSD"
 BINANCE_TICKER_ENDPOINTS = [
     "https://data-api.binance.vision/api/v3/ticker/24hr",
@@ -70,18 +72,27 @@ VIX_SYMBOL = "^VIX"
 _cache_lock = threading.Lock()
 
 
-def _request_json(url: str, timeout: float = 5.0):
-    request = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json,text/plain,*/*",
-            "Cache-Control": "no-cache",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        payload = response.read()
-    return json.loads(payload.decode("utf-8"))
+def _request_json(url: str, timeout: float = 7.0):
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json,text/plain,*/*",
+        "Cache-Control": "no-cache",
+    }
+    # Primary stdlib transport.
+    try:
+        request = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except Exception as primary_error:
+        # Windows SSL / proxy environments occasionally behave better with
+        # requests+certifi, so keep a second transport path.
+        try:
+            import requests
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            raise primary_error
 
 
 def _safe_float(value):
@@ -215,6 +226,26 @@ def _crypto_from_kraken():
         return [], "unavailable"
 
 
+def _crypto_from_coincap():
+    try:
+        data = _request_json(COINCAP_ENDPOINT, timeout=7.0)
+        assets = data.get("data") or []
+        rows = []
+        wanted = {"bitcoin":"BTC","ethereum":"ETH","tether":"USDT","binance-coin":"BNB",
+                  "xrp":"XRP","usd-coin":"USDC","solana":"SOL","tron":"TRX","dogecoin":"DOGE","cardano":"ADA"}
+        for asset in assets:
+            symbol = wanted.get(str(asset.get("id") or "").lower())
+            if not symbol:
+                continue
+            price = _safe_float(asset.get("priceUsd"))
+            change = _safe_float(asset.get("changePercent24Hr"))
+            if price is not None:
+                rows.append({"symbol":symbol,"name":asset.get("name",symbol),"price":price,"change":change})
+        return rows, "CoinCap"
+    except Exception:
+        return [], "unavailable"
+
+
 def _crypto_live():
     # Primary ranking by market cap.
     try:
@@ -246,9 +277,13 @@ def _crypto_live():
     if result:
         return result, source
 
-    # Aggregated fallback.
+    # No-key aggregated exchange fallbacks.
+    result, source = _crypto_from_coincap()
+    if result:
+        return result, source
+
     try:
-        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=5.0)
+        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=7.0)
         result = []
         for row in (rows or []):
             quote = ((row.get("quotes") or {}).get("USD") or {})
@@ -323,6 +358,25 @@ def _croncopia_metals():
     return result
 
 
+def _forex_frankfurter():
+    try:
+        data = _request_json(FRANKFURTER_ENDPOINT, timeout=7.0)
+        rates = {str(k).upper(): _safe_float(v) for k,v in (data.get("rates") or {}).items()}
+        rows = []
+        for label, code in (
+            ("EUR/USD","EUR"),("GBP/USD","GBP"),("USD/JPY","JPY"),
+            ("USD/CHF","CHF"),("AUD/USD","AUD"),("USD/CAD","CAD")
+        ):
+            value = rates.get(code)
+            if value in (None,0):
+                continue
+            price = 1.0 / value if label in ("EUR/USD","GBP/USD","AUD/USD") else value
+            rows.append({"symbol":label,"name":label,"price":price,"change":None})
+        return rows
+    except Exception:
+        return []
+
+
 def _forex_free_fallback():
     rates = _free_fx_rates()
     if not rates:
@@ -359,7 +413,10 @@ def _forex_live():
     if len(result) >= 5:
         return result, "Yahoo Finance"
     fallback = _forex_free_fallback()
+    frank = _forex_frankfurter()
     by_label = {row["symbol"]: row for row in result}
+    for row in frank:
+        by_label.setdefault(row["symbol"], row)
     for row in fallback:
         by_label.setdefault(row["symbol"], row)
     metal_prices = _croncopia_metals()
