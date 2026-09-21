@@ -1889,8 +1889,8 @@ class App(tk.Tk):
         tk.Label(header,text=status_text,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(side="left",padx=10)
 
         toolbar=tk.Frame(dlg,bg=C["bg"]); toolbar.pack(fill="x",padx=12)
-        role_var=tk.StringVar(value="form")
-        role_labels={"form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
+        role_var=tk.StringVar(value="orchestrator")
+        role_labels={"orchestrator":"Trader Planner Master Agent","form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
         ttk.Combobox(toolbar,textvariable=role_var,state="readonly",values=list(role_labels.values()),
                      width=25,justify="right").pack(side="right",padx=4)
         self.btn(toolbar,self.tr("ai_clear"),lambda:self._clear_ai_chat(),).pack(side="left",padx=4)
