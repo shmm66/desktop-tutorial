@@ -103,7 +103,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "7.6.1"
+    assert VERSION == "7.7.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -224,3 +224,38 @@ def test_v760_persistent_navigation_and_embedded_ai_are_present():
     assert "def _render_page(self, key, token):" in source
     assert "def _replace_page_ai_waiting(self,chat,answer):" in source
     assert "def ai(self):" in source and "ai_quick_strategy" in source
+
+
+def test_v770_google_ai_and_statement_services_exist():
+    from google_oauth import GOOGLE_SCOPES, google_status, candidate_client_paths
+    from statement_report import summarize
+    from ai_assistant import ROLES, cloud_status
+    assert "openid" in GOOGLE_SCOPES
+    assert "https://www.googleapis.com/auth/gmail.send" in GOOGLE_SCOPES
+    assert callable(google_status)
+    assert callable(candidate_client_paths)
+    assert {"form","strategy","psychology","planner","academy","product"} <= set(ROLES)
+    stats = summarize([{"Result (R)": "2"}, {"Result (R)": "-1"}, {"Result (R)": "0"}])
+    assert stats["trades"] == 3
+    assert stats["wins"] == 1
+    assert stats["losses"] == 1
+    assert round(stats["net_r"], 2) == 1.0
+    assert "enabled" in cloud_status()
+
+
+def test_v770_statement_email_and_settings_hooks_are_present():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "def email_statement(self):" in source
+    assert "send_gmail(" in source
+    assert "google_account" in source
+    assert "ai_cloud" in source
+    assert "Product Strategist" in source
+
+
+def test_v770_home_market_mode_navigation_is_hardwired():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "self.show("home")" in source
+    assert "def set_market_mode(self, market):" in source
+    assert "self.market_data.set_market(market)" in source
