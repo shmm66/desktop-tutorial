@@ -141,3 +141,30 @@ jobs:
             installer/TraderPlannerPro_Setup_v7.8.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write verified V7.8.0 build manifest
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: powershell
+        run: |
+          $manifestDir = Join-Path $PWD 'verification'
+          New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
+          $exe = Get-Item 'dist\TraderPlannerPro.exe'
+          $installer = Get-ChildItem -Recurse -File -Filter 'TraderPlannerPro_Setup_v7.8.0.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Verified installer not found.' }
+          $exeHash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower()
+          $installerHash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          @"
+          Trader Planner Pro V7.8.0 verified build
+          Commit: $env:GITHUB_SHA
+          Verified UTC: $(Get-Date -AsUTC -Format o)
+          EXE: $($exe.Length) bytes
+          EXE SHA256: $exeHash
+          Installer: $($installer.Length) bytes
+          Installer SHA256: $installerHash
+          Installer path: $($installer.FullName)
+          "@ | Set-Content -Path (Join-Path $manifestDir 'V7.8.0.txt') -Encoding UTF8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add verification/V7.8.0.txt
+          git commit -m 'ci: record verified V7.8.0 build [skip ci]'
+          git push
