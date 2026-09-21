@@ -39,6 +39,7 @@ CRYPTO_ENDPOINT = (
     "sparkline=false&price_change_percentage=24h"
 )
 CRYPTO_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=25"
+KRAKEN_TICKER_ENDPOINT = "https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,SOLUSD,XRPUSD,ADAUSD,DOGEUSD,BNBUSD"
 BINANCE_TICKER_ENDPOINTS = [
     "https://data-api.binance.vision/api/v3/ticker/24hr",
     "https://api.binance.com/api/v3/ticker/24hr",
@@ -50,6 +51,7 @@ CRONCOPIA_METALS = {"GOLD":"gold","SILVER":"silver","COPPER":"copper"}
 CRONCOPIA_BASE = "https://croncopia.com/api/metals"
 
 EXCHANGE_RATE_ENDPOINTS = [
+    "https://open.er-api.com/v6/latest/USD",
     "https://api.exchangerate.fun/latest?base=USD",
     "https://api.exchangerate.fun/latest?base=USD&symbols=EUR,GBP,JPY,CHF,AUD,CAD,XAU,XAG",
 ]
@@ -184,6 +186,35 @@ def _crypto_from_binance():
     return [], "unavailable"
 
 
+def _crypto_from_kraken():
+    try:
+        data = _request_json(KRAKEN_TICKER_ENDPOINT, timeout=5.0)
+        result = data.get("result") or {}
+        aliases = [
+            ("BTC", "XXBTZUSD"), ("ETH", "XETHZUSD"), ("SOL", "SOLUSD"),
+            ("XRP", "XXRPZUSD"), ("ADA", "ADAUSD"), ("DOGE", "DOGEUSD")
+        ]
+        rows=[]
+        for label,key in aliases:
+            row = result.get(key)
+            if not row:
+                # Kraken may return compact aliases.
+                row = next((v for k,v in result.items() if str(k).upper().replace("X","").replace("Z","") == key.replace("X","").replace("Z","")), None)
+            if not row:
+                continue
+            last = (row.get("c") or [None])[0]
+            open_price = (row.get("o") or [None])[0]
+            price = _safe_float(last)
+            op = _safe_float(open_price)
+            if price is None:
+                continue
+            change = None if op in (None,0) else (price-op)/op*100.0
+            rows.append({"symbol":label,"name":label,"price":price,"change":change})
+        return rows, "Kraken public market data" if len(rows)>=3 else "unavailable"
+    except Exception:
+        return [], "unavailable"
+
+
 def _crypto_live():
     # Primary ranking by market cap.
     try:
@@ -207,6 +238,11 @@ def _crypto_live():
 
     # Fast exchange fallback. Binance documents public ticker endpoints as unauthenticated market data. 
     result, source = _crypto_from_binance()
+    if result:
+        return result, source
+
+    # Exchange fallback.
+    result, source = _crypto_from_kraken()
     if result:
         return result, source
 
@@ -384,12 +420,27 @@ def _market_vix():
 def fetch_market(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    items, source = _forex_live() if market == "Forex" else _crypto_live()
-
-    indicators = _global_indicators()
-    indicators["fear_greed"] = _fear_greed()
-    indicators["vix"] = _market_vix()
-    indicators["market_regime"] = "LIVE" if items else "OFFLINE"
+    # Market quotes and secondary indicators are fetched concurrently so a slow
+    # dominance/VIX endpoint cannot keep the main ticker in a loading state.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        item_future = pool.submit(_forex_live if market == "Forex" else _crypto_live)
+        indicator_futures = {
+            "global": pool.submit(_global_indicators),
+            "fear": pool.submit(_fear_greed),
+            "vix": pool.submit(_market_vix),
+        }
+        try:
+            items, source = item_future.result()
+        except Exception:
+            items, source = [], "unavailable"
+        indicators = {}
+        try: indicators.update(indicator_futures["global"].result())
+        except Exception: pass
+        try: indicators["fear_greed"] = indicator_futures["fear"].result()
+        except Exception: indicators["fear_greed"] = None
+        try: indicators["vix"] = indicator_futures["vix"].result()
+        except Exception: indicators["vix"] = None
+        indicators["market_regime"] = "LIVE" if items else "OFFLINE"
 
     if items:
         payload = {
