@@ -76,6 +76,8 @@ jobs:
           --collect-all matplotlib
           --collect-all reportlab
           --hidden-import webview.platforms.edgechromium
+          --hidden-import glass_theme
+          --hidden-import academy_diagrams
           --hidden-import pywinstyles
           --hidden-import googleapiclient.discovery
           --hidden-import google_auth_oauthlib.flow
