@@ -568,7 +568,8 @@ class MarketDataService:
         self._running = False
         self._executor = None
         self._future = None
-        self._refresh_lock = threading.Lock()
+        self._state_lock = threading.Lock()
+        self._active_refresh_generation = None
         self._generation = 0
 
     def start(self, market: str):
@@ -590,23 +591,27 @@ class MarketDataService:
         return self._generation
 
     def refresh_now(self):
-        if not self._refresh_lock.acquire(blocking=False):
-            return
-
         market = self._market
         generation = self._generation
+        # One request per generation, not one global request forever. This lets
+        # a new Crypto/Forex selection refresh immediately even if the previous
+        # market request is still waiting on a slow endpoint.
+        with self._state_lock:
+            if self._active_refresh_generation == generation:
+                return
+            self._active_refresh_generation = generation
 
         def run():
             try:
                 payload = fetch_market(market)
-                # A quote started for an old market must never overwrite the
-                # current Crypto/Forex dashboard after the user switches mode.
                 if generation != self._generation or market != self._market:
                     return
                 if self.callback:
                     self.callback(payload)
             finally:
-                self._refresh_lock.release()
+                with self._state_lock:
+                    if self._active_refresh_generation == generation:
+                        self._active_refresh_generation = None
 
         threading.Thread(target=run, name="TraderPlannerMarketRefresh", daemon=True).start()
 
