@@ -320,3 +320,12 @@ def test_v79_market_payload_never_sticks_as_loading():
     from market_data import cached_market_payload
     payload = cached_market_payload("Crypto")
     assert payload.get("status") in {"cache", "unavailable"}
+
+
+def test_v79_navigation_and_glass_hooks_present():
+    from pathlib import Path
+    text = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "def _hard_home(self):" in text
+    assert "command=self._hard_home" in text
+    assert "apply_glass(self" in text
+    assert "set_widget_glass(top" in text
