@@ -1,0 +1,68 @@
+name: Signal Fusion Windows EXE
+
+on:
+  push:
+    paths:
+      - "signal_fusion/**"
+      - ".github/workflows/build-signal-fusion.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install --upgrade pip pyinstaller
+      - name: Syntax check
+        run: python -m py_compile signal_fusion/signal_fusion.py
+      - name: Build EXE
+        run: >-
+          pyinstaller --noconfirm --clean --onefile --windowed
+          --name SignalFusion
+          --hidden-import tkinter
+          --hidden-import tkinter.ttk
+          --hidden-import tkinter.messagebox
+          signal_fusion/signal_fusion.py
+      - name: Verify EXE
+        shell: powershell
+        run: |
+          $exe = Join-Path $PWD 'dist\\SignalFusion.exe'
+          if (-not (Test-Path $exe)) { throw "SignalFusion.exe was not produced." }
+          if ((Get-Item $exe).Length -lt 1000000) { throw "EXE is unexpectedly small." }
+      - name: Smoke test
+        shell: powershell
+        run: |
+          $exe = Join-Path $PWD 'dist\\SignalFusion.exe'
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($p.HasExited) { throw "SignalFusion.exe exited during startup with code $($p.ExitCode)" }
+          Get-Process -Name SignalFusion -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+      - name: Package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item dist\\SignalFusion.exe release\\SignalFusion.exe
+          @'
+          Signal Fusion Desktop 1.0.0
+
+          Monitors BTC, ETH, BNB, XRP, SOL, DOGE, ADA, TRX, LINK and AVAX.
+          Strategies: ICT2025, ICT2022, SMC Photon, SMC Philip.
+          Windows notifications and Persian setup explanations are included.
+          This tool is analytical/educational and does not execute trades.
+          '@ | Set-Content release\\README.txt
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SignalFusion-Windows
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
