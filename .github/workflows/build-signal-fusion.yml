@@ -7,12 +7,10 @@ on:
       - ".github/workflows/build-signal-fusion.yml"
   workflow_dispatch:
 
-permissions:
-  contents: read
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,14 +49,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path release | Out-Null
           Copy-Item dist\\SignalFusion.exe release\\SignalFusion.exe
-          @'
-          Signal Fusion Desktop 1.0.0
-
-          Monitors BTC, ETH, BNB, XRP, SOL, DOGE, ADA, TRX, LINK and AVAX.
-          Strategies: ICT2025, ICT2022, SMC Photon, SMC Philip.
-          Windows notifications and Persian setup explanations are included.
-          This tool is analytical/educational and does not execute trades.
-          '@ | Set-Content release\\README.txt
+          Set-Content release\\README.txt "Signal Fusion Desktop 1.0.0\nMonitors BTC, ETH, BNB, XRP, SOL, DOGE, ADA, TRX, LINK and AVAX.\nStrategies: ICT2025, ICT2022, SMC Photon, SMC Philip.\nWindows notifications and Persian setup explanations are included.\nThis tool is analytical/educational and does not execute trades."
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
