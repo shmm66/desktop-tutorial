@@ -629,7 +629,8 @@ class App(tk.Tk):
 
     def bell(self):
         try:
-            self.bell()
+            self.update_idletasks()
+            self.after(0, lambda: None)
         except Exception:
             pass
 
