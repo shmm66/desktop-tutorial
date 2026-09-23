@@ -2860,16 +2860,64 @@ class App(tk.Tk):
         tab_ict=tk.Frame(nb,bg=C["bg"])
         tab_candle=tk.Frame(nb,bg=C["bg"])
         tab_gloss=tk.Frame(nb,bg=C["bg"])
+        tab_compare=tk.Frame(nb,bg=C["bg"])
         nb.add(tab_smc,text=self.tr("smc"))
         nb.add(tab_ict,text=self.tr("ict"))
         nb.add(tab_candle,text=self.tr("candles"))
         nb.add(tab_gloss,text=self.tr("glossary"))
+        nb.add(tab_compare,text=self.ui_text("SMC ≠ ICT"))
         self._academy_notebook=nb
 
         self._build_strategy_tab(tab_smc, SMART_MONEY_STRATEGIES, "smc")
         self._build_strategy_tab(tab_ict, ICT_STRATEGIES, "ict")
         self._build_candle_tab(tab_candle)
         self._build_glossary_tab(tab_gloss)
+        self._build_comparison_tab(tab_compare)
+
+    def _build_comparison_tab(self,parent):
+        intro=self.card(parent); intro.pack(fill="x",padx=10,pady=(10,7))
+        tk.Label(intro,text=self.ui_text("SMC ≠ ICT"),bg=C["panel"],fg=C["gold"],
+                 font=("Segoe UI",18,"bold")).pack(anchor="e",padx=18,pady=(12,4))
+        tk.Label(intro,text=self.ui_text(
+            "Teaching boundary: broad SMC concepts cover structure, liquidity and reaction zones; "
+            "ICT is presented through its named models and timing frameworks. A generic SMC workflow "
+            "must not be relabeled as an ICT model."
+        ),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=1100,justify="right").pack(
+            fill="x",padx=18,pady=(0,12)
+        )
+        columns=tk.Frame(parent,bg=C["bg"]); columns.pack(fill="both",expand=True,padx=10,pady=4)
+        smc=self.card(columns); smc.pack(side="left",fill="both",expand=True,padx=(0,5))
+        ict=self.card(columns); ict.pack(side="left",fill="both",expand=True,padx=(5,0))
+        smc_rows=[
+            ("FAMILY","Broad Smart Money / SMC framework"),
+            ("CORE","Market Structure • Liquidity • BOS/CHoCH • Displacement"),
+            ("ZONES","Order Block • FVG • Breaker • Reaction zones"),
+            ("FLOW","Context → liquidity event → confirmation → zone → retest"),
+            ("BOUNDARY","A generic sweep+BOS or OB+FVG setup is not automatically a named ICT model."),
+        ]
+        ict_rows=[
+            ("FAMILY","Named ICT models and frameworks"),
+            ("MODELS","2022 Model • Silver Bullet • Unicorn • OTE • AMD • Judas Swing • SMT"),
+            ("TIMING","Killzones / defined windows when required by the selected model"),
+            ("FLOW","Use the exact named-model sequence, location and trigger rules."),
+            ("BOUNDARY","Bullish/Bearish Engulfing belongs to the candlestick library, not the ICT setup library."),
+        ]
+        for box,heading,rows,fg in ((smc,"SMART MONEY / SMC",smc_rows,C["accent"]),(ict,"ICT",ict_rows,C["violet"])):
+            tk.Label(box,text=heading,bg=C["panel"],fg=fg,font=("Segoe UI",15,"bold")).pack(anchor="e",padx=18,pady=(14,10))
+            for k,v in rows:
+                row=tk.Frame(box,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
+                row.pack(fill="x",padx=14,pady=4)
+                tk.Label(row,text=k,bg=C["panel3"],fg=fg,font=("Consolas",8,"bold"),
+                         width=17,anchor="w").pack(side="left",padx=8,pady=9)
+                tk.Label(row,text=self.ui_text(v),bg=C["panel3"],fg=C["text"],font=("Segoe UI",9),
+                         wraplength=420,justify="right",anchor="e").pack(side="right",fill="x",expand=True,padx=8,pady=9)
+        note=self.card(parent); note.pack(fill="x",padx=10,pady=(7,10))
+        tk.Label(note,text=self.ui_text(
+            "Every Academy card now carries a family badge, an exact mapped source visual when bundled, "
+            "a deterministic local setup map, and a source link."
+        ),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold"),wraplength=1100,justify="right").pack(
+            fill="x",padx=18,pady=12
+        )
 
     def _build_strategy_tab(self,parent,items,family):
         outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8,showhandle=False)
