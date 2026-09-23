@@ -182,58 +182,174 @@ def cloud_status():
                 "message": f"OpenAI SDK unavailable: {exc}", "sdk_error": sdk_error}
 
 
+def _academy_knowledge_answer(query: str):
+    """Offline retrieval from the app's curated Academy corpus."""
+    try:
+        from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY
+    except Exception:
+        return None
+    q = str(query or "").strip().lower()
+    if not q:
+        return None
+
+    candidates = []
+    for item in list(SMART_MONEY_STRATEGIES) + list(ICT_STRATEGIES):
+        blob = " ".join(str(item.get(k, "")) for k in ("name_en", "name_fa", "summary_en", "summary_fa"))
+        if any(token and token in blob.lower() for token in (q, q.replace("?", ""), " ".join(q.split()[:3]))):
+            candidates.append(("strategy", item))
+
+    for name, en, fa in CANDLE_PLAYBOOK:
+        if q in name.lower() or q in en.lower() or q in fa.lower():
+            candidates.append(("candle", {"name_en": name, "summary_en": en, "summary_fa": fa}))
+
+    for item in GLOSSARY:
+        blob = " ".join(str(item.get(k, "")) for k in ("term", "fa", "en", "meaning_en", "meaning_fa", "usage_en", "usage_fa"))
+        if q and q in blob.lower():
+            candidates.append(("glossary", item))
+
+    if not candidates:
+        return None
+
+    kind, item = candidates[0]
+    if kind == "strategy":
+        lines_en = item.get("steps_en") or []
+        lines_fa = item.get("steps_fa") or []
+        return {
+            "kind": "academy",
+            "title": item.get("name_en", ""),
+            "fa_title": item.get("name_fa", item.get("name_en", "")),
+            "summary": item.get("summary_en", ""),
+            "summary_fa": item.get("summary_fa", item.get("summary_en", "")),
+            "steps": lines_en,
+            "steps_fa": lines_fa,
+            "risk": item.get("risk_en", ""),
+            "risk_fa": item.get("risk_fa", item.get("risk_en", "")),
+        }
+    if kind == "candle":
+        return {
+            "kind": "candle",
+            "title": item.get("name_en", ""),
+            "fa_title": item.get("name_en", ""),
+            "summary": item.get("summary_en", ""),
+            "summary_fa": item.get("summary_fa", ""),
+            "steps": [],
+            "steps_fa": [],
+            "risk": "Candlestick evidence is context-dependent; do not treat one pattern as a complete trading setup.",
+            "risk_fa": "الگوی کندلی به‌تنهایی ستاپ کامل نیست؛ کانتکست و تأیید را بررسی کن.",
+        }
+    return {
+        "kind": "glossary",
+        "title": item.get("term", ""),
+        "fa_title": item.get("fa", item.get("term", "")),
+        "summary": item.get("meaning_en", ""),
+        "summary_fa": item.get("meaning_fa", item.get("meaning_en", "")),
+        "steps": [item.get("usage_en", "")] if item.get("usage_en") else [],
+        "steps_fa": [item.get("usage_fa", "")] if item.get("usage_fa") else [],
+        "risk": "",
+        "risk_fa": "",
+    }
+
+
+def _render_offline_knowledge(answer, role, language="fa"):
+    if not isinstance(answer, dict):
+        return None
+    use_fa = str(language).lower().startswith("fa")
+    title = answer.get("fa_title") if use_fa else answer.get("title")
+    summary = answer.get("summary_fa") if use_fa else answer.get("summary")
+    steps = answer.get("steps_fa") if use_fa else answer.get("steps")
+    risk = answer.get("risk_fa") if use_fa else answer.get("risk")
+    lines = [str(title or "Academy").strip(), "", str(summary or "").strip()]
+    if steps:
+        lines += ["", "مراحل:" if use_fa else "Steps:"]
+        for n, step in enumerate(steps, 1):
+            if str(step).strip():
+                lines.append(f"{n}. {step}")
+    if risk:
+        lines += ["", "نکته/ابطال:" if use_fa else "Risk / invalidation:", str(risk)]
+    if role not in ("academy", "strategy", "orchestrator"):
+        lines += ["", "این پاسخ از حافظه آموزشی داخلی برنامه آمده و داده زنده بازار نیست." if use_fa else
+                  "This answer comes from the app's curated Academy corpus; it is not live market data."]
+    return "\n".join(x for x in lines if x is not None)
+
+
 def _fallback(role, user_message, context):
     lower = f"{user_message} {context}".lower()
+    # The offline knowledge agent makes the AI genuinely useful without an API key.
+    language = "fa" if any("\u0600" <= ch <= "\u06FF" for ch in str(user_message)) else "en"
+    knowledge = _academy_knowledge_answer(user_message)
+    rendered = _render_offline_knowledge(knowledge, role, language)
+    if rendered:
+        return rendered
+
     if role == "orchestrator":
+        if any(k in lower for k in ("fill", "form", "فرم", "پلن", "checklist", "چک")):
+            return (
+                "AI Command Center\n"
+                "برای تکمیل فرم: بازار و جهت → ستاپ → ساختار → نقدینگی → Entry/SL/TP → ریسک → وضعیت روانی → نتیجه/درس. "
+                "هر فیلدی که از داده فعلی قابل استنباط نباشد عمداً خالی می‌ماند."
+                if language == "fa" else
+                "AI Command Center\n"
+                "For form completion: market/direction → setup → structure → liquidity → Entry/SL/TP → risk → psychology → result/lesson. "
+                "Fields that cannot be inferred from the current app data remain blank."
+            )
+        if any(k in lower for k in ("psychology", "fomo", "revenge", "روان", "فومو", "انتقام")):
+            return (
+                "AI Command Center\n"
+                "قانون دو دقیقه: توقف → نام‌گذاری احساس → بررسی چک‌لیست → بررسی ریسک → فقط در صورت عبور از قوانین اقدام کن."
+                if language == "fa" else
+                "AI Command Center\n"
+                "Two-minute rule: pause → name the emotion → check the checklist → verify risk → act only after the rules pass."
+            )
         return (
-            "Master Agent\\n"
-            "I will break the request into context, setup, trigger, invalidation, target, risk and next action. "
-            "I will keep SMC, ICT and candlestick terminology separate and only use supplied live-data context."
+            "AI Command Center\n"
+            "دستیار آفلاین فعال است. درباره ستاپ، اصطلاحات آکادمی، فرم ترید، ریسک، روانشناسی یا روتین سؤال بپرس."
+            if language == "fa" else
+            "AI Command Center\n"
+            "The offline assistant is active. Ask about Academy setups, terminology, trading forms, risk, psychology or routine."
         )
     if role == "form":
         return (
             "Form Coach\n"
-            "• Symbol / market / direction\n"
-            "• Entry / SL / TP / position size\n"
-            "• Setup + market structure + liquidity\n"
-            "• Emotion before/during/after\n"
-            "• Result in R + lesson\n"
-            "Complete the checklist before saving."
+            "می‌توانم بر اساس داده فعلی برنامه و ژورنال، فیلدهای قابل استنتاج را پیشنهاد کنم؛ موارد نامطمئن را حدس نمی‌زنم.\n"
+            "برای شروع: «فرم معامله امروز را از اطلاعات فعلی پر کن.»"
+            if language == "fa" else
+            "Form Coach\n"
+            "I can suggest fields inferable from the current plan and journal while leaving uncertain fields untouched.\n"
+            "Try: “Fill today's trade form from the current data.”"
         )
     if role == "strategy":
         if "engulf" in lower:
             return (
-                "This is a candlestick pattern, not an ICT model. "
-                "Bullish engulfing and bearish engulfing are separate patterns. "
-                "Use context and confirmation rather than treating the pattern as a standalone signal."
+                "این الگو Candlestick است، نه مدل ICT. Bullish Engulfing و Bearish Engulfing مستقل از مدل‌های ICT آموزش داده می‌شوند؛ "
+                "برای استفاده، کانتکست، سطح، تأیید و ابطال را جداگانه بررسی کن."
             )
         return (
             "Strategy Coach\n"
-            "Separate: context → setup → trigger → invalidation → target. "
-            "Use only the documented Academy definition for the selected model."
+            "SMC: نقدینگی/ساختار/OB/FVG را به‌عنوان چارچوب بررسی کن. "
+            "ICT: از نام و منطق همان مدل مشخص استفاده کن. "
+            "قبل از ورود: context → setup → trigger → invalidation → target."
         )
     if role == "psychology":
         return (
             "Psychology Coach\n"
-            "Pause → name the emotion → check the rules → check risk → act only if the checklist passes. "
-            "Record repeated FOMO/revenge triggers in the journal."
+            "توقف → نام احساس → بررسی قانون → بررسی ریسک → تصمیم. "
+            "FOMO و Revenge باید به‌عنوان رویداد ژورنال ثبت و برایشان Reminders ساخته شود."
         )
     if role == "planner":
         return (
             "Routine Coach\n"
-            "Pre-market markup → news check → trading block → hard stop → journal → review. "
-            "Convert recurring items into reminders."
+            "پیش‌گشایش → خبر → محدوده‌های مهم → سناریو → اجرای محدود → توقف اجباری → ژورنال → مرور."
         )
     if role == "academy":
         return (
             "Academy Tutor\n"
-            "Smart Money is a broad framework; ICT uses its own named models and terminology. "
-            "Read the exact source visual and the definition shown in the selected Academy card."
+            "در آکادمی، SMC یک چارچوب عمومی ساختار/نقدینگی است؛ ICT مجموعه مدل‌های نام‌گذاری‌شده با منطق مشخص است؛ "
+            "Candlestick خانواده‌ای جداست. برای اصطلاح دقیق سؤال کن تا از بانک داخلی تعریف و مراحل آن را بازیابی کنم."
         )
     return (
         "Product Strategist\n"
-        "Prioritize a calm dashboard, fewer clicks, clear state badges, responsive cards, "
-        "strong empty/error states, and a fast journal → review → improvement loop."
+        "اولویت‌های محصول: حالت‌های خالی/خطا با راهنمای واضح، ناوبری پایدار، کارت‌های شیشه‌ای سبک، "
+        "جستجوی آکادمی با تصویر اختصاصی، و حلقه Journal → Review → Improvement."
     )
 
 
