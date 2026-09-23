@@ -739,12 +739,12 @@ class App(tk.Tk):
                 button.configure(bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"])
             except Exception:
                 pass
-        for widget_name in ("menu_button", "market_btn", "global_home_btn", "global_ai_btn"):
+        for widget_name in ("menu_button", "market_btn", "global_home_btn", "global_ai_btn", "global_google_btn"):
             widget = getattr(self, widget_name, None)
             if widget:
                 try:
                     widget.configure(bg=C["panel2"] if widget_name == "menu_button" else C["soft"], fg=C["text"],
-                                      activebackground=C["accent"] if widget_name in ("menu_button","global_home_btn","global_ai_btn") else C["gold"],
+                                      activebackground=C["accent"] if widget_name in ("menu_button","global_home_btn","global_ai_btn","global_google_btn") else C["gold"],
                                       activeforeground="#061019")
                 except Exception:
                     pass
@@ -948,6 +948,12 @@ class App(tk.Tk):
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
         )
         self.global_ai_btn.pack(side="left", padx=4)
+        self.global_google_btn = tk.Button(
+            status, text="Google", command=self._global_google_action,
+            bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
+            relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
+        )
+        self.global_google_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
 
         self.quickbar = tk.Frame(self, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
@@ -1940,6 +1946,21 @@ class App(tk.Tk):
         self.btn(footer,self.tr("cancel"),dlg.destroy).pack(side="right",padx=4)
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
         self.translate_widget_tree(dlg)
+
+    def _global_google_action(self):
+        """Compact Google entry point: sign in if configured, otherwise open credential picker."""
+        status = google_status()
+        if status.get("connected"):
+            self.go("settings")
+            return "break"
+        try:
+            if find_client_file(DB.get("settings", {}).get("google_credentials_path", "")):
+                self._google_login_ui()
+            else:
+                self._pick_google_credentials()
+        except Exception as exc:
+            messagebox.showerror(self.tr("google_account"), str(exc), parent=self)
+        return "break"
 
     def open_ai_chat(self):
         """Persistent AI Command Center available globally without leaving the current page."""
