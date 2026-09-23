@@ -43,6 +43,34 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Collect quality diagnostics
+        if: always()
+        shell: powershell
+        run: |
+          python -m pip check *> ci_pip_check.txt
+          python -m pytest -q -x -vv *> ci_pytest.txt
+          python - <<'PY'
+          import sys, importlib.util
+          print("python", sys.version)
+          print("agents", bool(importlib.util.find_spec("agents")))
+          import openai
+          print("openai", getattr(openai, "__version__", "unknown"))
+          try:
+              import agents
+              print("agents module", getattr(agents, "__file__", "unknown"))
+          except Exception as exc:
+              print("agents import error", type(exc).__name__, exc)
+          PY
+      - name: Upload quality diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-3-quality-diagnostics
+          path: |
+            ci_pip_check.txt
+            ci_pytest.txt
+          if-no-files-found: warn
+
   package:
     runs-on: windows-latest
     steps:
@@ -54,10 +82,24 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
+      - name: Upload package diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-3-package-diagnostics
+          path: ci_build_pip_check.txt
+          if-no-files-found: warn
+
       - name: Prepare exact education image assets
         run: python prepare_education_assets.py
       - name: Build Windows icon
         run: python build_icon.py
+      - name: Build dependency diagnostics
+        shell: powershell
+        run: |
+          python -m pip check *> ci_build_pip_check.txt
+          python -c "import agents,openai; print('agents', agents.__file__); print('openai', getattr(openai,'__version__','unknown'))"
+
       - name: Build EXE
         run: >-
           pyinstaller --noconfirm --clean --onefile --windowed
