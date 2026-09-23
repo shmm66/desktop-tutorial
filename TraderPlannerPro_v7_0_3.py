@@ -2838,10 +2838,29 @@ class App(tk.Tk):
         family_map.pack(fill="x",pady=(0,7))
         tk.Label(family_map,text="SMC ≠ ICT",bg=C["panel"],fg=C["gold"],
                  font=("Segoe UI",12,"bold")).pack(anchor="e",padx=14,pady=(10,3))
+        matrix=tk.Frame(family_map,bg=C["panel"]); matrix.pack(fill="x",padx=10,pady=(2,12))
+        matrix.columnconfigure(0,weight=1); matrix.columnconfigure(1,weight=1); matrix.columnconfigure(2,weight=1)
+        tracks=[
+            ("SMC • Framework",
+             "Market Structure\nHH/HL • LH/LL • BOS/CHoCH\nLiquidity • BSL/SSL • EQH/EQL\nOB • FVG • Sweeps",
+             C["accent"]),
+            ("ICT • Named Models",
+             "2022 Model\nSilver Bullet • Judas Swing\nAMD/Power of Three • OTE\nUnicorn • SMT",
+             C["violet"]),
+            ("Candlesticks • Separate",
+             "Bullish/Bearish Engulfing\nDoji • Hammer • Shooting Star\nMorning/Evening Star\nTweezer • Soldiers/Crows",
+             C["gold"]),
+        ]
+        for col,(head,body,fg) in enumerate(tracks):
+            card=tk.Frame(matrix,bg=C["panel2"],highlightbackground=C["line"],highlightthickness=1)
+            card.grid(row=0,column=col,sticky="nsew",padx=4)
+            tk.Label(card,text=head,bg=C["panel2"],fg=fg,font=("Segoe UI",11,"bold")).pack(fill="x",padx=10,pady=(10,5))
+            tk.Label(card,text=self.ui_text(body),bg=C["panel2"],fg=C["text"],font=("Segoe UI",9,"bold"),
+                     justify="right",anchor="e",wraplength=330).pack(fill="x",padx=10,pady=(0,11))
         tk.Label(
             family_map,
-            text=self.ui_text("SMC: ساختار بازار، نقدینگی، BOS/CHoCH، Order Block، FVG و ناحیه‌ها  •  ICT: مدل‌ها و اصطلاحات نام‌گذاری‌شده مانند 2022 Model، Silver Bullet، Judas Swing، AMD، OTE و Unicorn"),
-            bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold"),
+            text=self.ui_text("تطبیق بر اساس نام‌گذاری آموزشی همین آکادمی است؛ یک تصویر یا برچسب از مسیر ICT هرگز برای توضیح یک الگوی کندلی یا یک مسیر عمومی SMC به‌جای آن استفاده نمی‌شود."),
+            bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),
             wraplength=1180,justify="right"
         ).pack(fill="x",padx=14,pady=(0,10))
 
