@@ -42,7 +42,7 @@ FEEDS = [
     ("Google News • Forex", GOOGLE_FOREX_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/8.2.0"
+USER_AGENT = "TraderPlannerPro/8.4.0"
 NEWS_CACHE = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 

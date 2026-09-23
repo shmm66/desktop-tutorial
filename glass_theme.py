@@ -114,12 +114,25 @@ def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic") -
 
 
 def set_widget_glass(widget, opacity: float = 0.88) -> bool:
-    """Style a Tk surface as a glass layer without fragile per-widget alpha."""
+    """Apply real per-widget Windows translucency when pywinstyles exposes it.
+
+    Tkinter itself has no widget-level alpha. On Windows 11, pywinstyles can
+    apply opacity to individual Tk widgets, so the app uses that API and keeps
+    a crisp border as a safe fallback when it is unavailable.
+    """
     try:
-        _ = float(opacity)
+        value = max(0.35, min(1.0, float(opacity)))
         widget.configure(
             highlightthickness=max(int(widget.cget("highlightthickness")), 1)
         )
+        if is_windows():
+            import pywinstyles
+            setter = getattr(pywinstyles, "set_opacity", None)
+            if setter is not None:
+                try:
+                    setter(widget, value=value)
+                except TypeError:
+                    setter(widget, value)
         return True
     except Exception:
         return False

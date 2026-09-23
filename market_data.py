@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/8.2.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/8.4.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
