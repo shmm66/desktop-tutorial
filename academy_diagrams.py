@@ -368,6 +368,10 @@ def _single_pattern(c,P,title,kind):
         c.create_line(360,80,360,320,fill=P["muted"],width=3); c.create_rectangle(338,196,382,207,fill=P["muted"],outline=P["muted"])
 
 
+# Backward-compatible names used by earlier Academy regression checks.
+_smc_liquidity_bos = _smc_liquidity
+_ict_silver_bullet = _ict_silver
+
 def draw_candlestick(parent, title, palette):
     name=str(title).lower()
     if "bullish engulf" in name:
