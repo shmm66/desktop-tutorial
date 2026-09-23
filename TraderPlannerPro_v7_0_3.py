@@ -26,7 +26,7 @@ from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
-from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
+from news_data import fetch_market_news, cached_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 from google_oauth import google_status, login_google, logout_google, send_gmail, find_client_file
 from statement_report import create_statement
 
@@ -1153,9 +1153,19 @@ class App(tk.Tk):
                  font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
 
     def card(self, parent, padx=1):
-        frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
+        frame=tk.Frame(
+            parent,bg=C["panel"],highlightbackground=C["line"],
+            highlightthickness=max(1,padx),bd=0,relief="flat"
+        )
+        # Small highlight ridge makes the native Acrylic surface read as a glass card.
         try:
-            set_widget_glass(frame, 0.86)
+            gloss=tk.Frame(frame,bg=C["cyan"],height=2)
+            gloss.pack(fill="x",side="top")
+            frame._glass_gloss = gloss
+        except Exception:
+            pass
+        try:
+            set_widget_glass(frame, 0.84)
         except Exception:
             pass
         return frame
@@ -2452,18 +2462,29 @@ class App(tk.Tk):
             self.news_tree.delete(item)
         self.news_status.config(text="● " + self.tr("market_loading"), fg=C["gold"])
 
-        fallback=[
-            ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
-            ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
-            ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
-            ("CryptoSlate","Open CryptoSlate news terminal","https://cryptoslate.com/news-terminal/"),
-            ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
-        ]
-        self.news_items=[{"source":src,"published":"SOURCE","title":title,"link":url}
-                         for src,title,url in fallback]
-        for i,row in enumerate(self.news_items):
-            self.news_tree.insert("", "end", iid=f"source-{i}",
-                                  values=(row["source"],"SOURCE",row["title"]))
+        # Show the last successful feed immediately, then refresh it in the background.
+        cached_rows = cached_news(limit=28)
+        if cached_rows:
+            self.news_items = cached_rows
+            for i,row in enumerate(self.news_items):
+                self.news_tree.insert(
+                    "", "end", iid=str(i),
+                    values=(row.get("source","News"),row.get("published",""),row.get("title",""))
+                )
+            self.news_status.config(text=f"● {len(self.news_items)} cached headlines • refreshing…", fg=C["gold"])
+        else:
+            fallback=[
+                ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
+                ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
+                ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
+                ("CryptoSlate","Open CryptoSlate crypto terminal","https://cryptoslate.com/news-terminal/"),
+                ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
+            ]
+            self.news_items=[{"source":src,"published":"SOURCE","title":title,"link":url}
+                             for src,title,url in fallback]
+            for i,row in enumerate(self.news_items):
+                self.news_tree.insert("", "end", iid=f"source-{i}",
+                                      values=(row["source"],"SOURCE",row["title"]))
 
         def done(rows):
             if token != self._news_token or page_token != self._nav_token or self.cur != "news":
