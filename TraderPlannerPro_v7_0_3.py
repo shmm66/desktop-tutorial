@@ -1170,10 +1170,11 @@ class App(tk.Tk):
 
     def card(self, parent, padx=1):
         frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
-        try:
-            set_widget_glass(frame, 0.86)
-        except Exception:
-            pass
+        if getattr(self, "skin", "glass") in {"glass", "obsidian", "midnight"}:
+            try:
+                set_widget_glass(frame, 0.86)
+            except Exception:
+                pass
         return frame
 
     def btn(self, parent, text, cmd, primary=False, **kw):
