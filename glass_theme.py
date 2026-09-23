@@ -165,12 +165,18 @@ def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic") -
 
 
 def set_widget_glass(widget, opacity: float = 0.88) -> bool:
-    """Style a Tk surface as a glass layer without fragile per-widget alpha."""
+    """Apply a glass-style border plus real Windows widget opacity when supported."""
     try:
-        _ = float(opacity)
+        alpha = max(0.65, min(1.0, float(opacity)))
         widget.configure(
             highlightthickness=max(int(widget.cget("highlightthickness")), 1)
         )
+        if is_windows():
+            try:
+                import pywinstyles
+                pywinstyles.set_opacity(widget, value=alpha)
+            except Exception:
+                pass
         return True
     except Exception:
         return False
