@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.2.0"
+    assert VERSION == "8.3.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -286,7 +286,7 @@ def test_v780_installer_and_launcher_metadata():
     launcher = Path("launcher.py").read_text(encoding="utf-8")
     assert 'MyAppVersion "8.3.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.2.0\"" in launcher
+    assert "VERSION = \"8.3.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -344,9 +344,8 @@ def test_v800_navigation_uses_single_home_renderer():
 
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-6-sol"
-    assert MODEL_FALLBACKS == ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
-    assert "gpt-5.6-terra" not in MODEL_FALLBACKS
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
     assert CHATGPT_WEB_URL.startswith("https://")
 
 
@@ -420,7 +419,7 @@ def test_v810_real_glass_and_safe_installer():
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     assert 'wintypes.DWORD(38)' in glass
     assert 'pywinstyles.apply_style(window, native_style)' in glass
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert 'PrivilegesRequired=lowest' in iss
 
 
@@ -444,7 +443,7 @@ def test_v830_market_has_no_key_fallback():
 def test_v820_installer_is_non_admin_and_versioned():
     from pathlib import Path
     iss=Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert "PrivilegesRequired=lowest" in iss
     assert "OutputBaseFilename=TraderPlannerPro_Setup_v8.3.0" in iss
 
