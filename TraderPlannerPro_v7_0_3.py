@@ -2724,52 +2724,102 @@ class App(tk.Tk):
             reminders.pop(idx); save_db(); self.show("ai")
 
     def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
-        """Render one exact, family-aware educational visual with a trustworthy source link."""
-        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        box.pack(fill="x",padx=8,pady=(4,8))
-        kind=visual_kind or key
-        family_key="ict" if str(family).lower()=="ict" else ("smc" if str(family).lower()=="smc" else "candles")
-        family_text={
-            "smc":self.tr("smc_family"),
-            "ict":self.tr("ict_family"),
-            "candles":self.tr("candles")
+        """Show the exact mapped source asset first, then the clean local setup anatomy."""
+        kind = visual_kind or key
+        family_key = "ict" if str(family).lower() == "ict" else ("smc" if str(family).lower() == "smc" else "candles")
+        family_text = {
+            "smc": self.tr("smc_family"),
+            "ict": self.tr("ict_family"),
+            "candles": self.tr("candles"),
         }[family_key]
-        family_fg={"smc":C["accent"],"ict":C["violet"],"candles":C["gold"]}[family_key]
+        family_fg = {"smc": C["accent"], "ict": C["violet"], "candles": C["gold"]}[family_key]
 
-        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,5))
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,font=("Segoe UI",8,"bold"),
-                 padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
-                 font=("Segoe UI",14,"bold")).pack(side="right",padx=8)
+        box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        box.pack(fill="x", padx=8, pady=(4,8))
 
-        semantic=tk.Frame(box,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        semantic.pack(fill="x",padx=10,pady=(0,7))
-        tk.Label(semantic,text=self.tr("setup_anatomy"),bg=C["panel3"],fg=family_fg,
-                 font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,3))
-        tk.Label(semantic,text=self.ui_text(subtitle),bg=C["panel3"],fg=C["muted"],
-                 font=("Segoe UI",10),wraplength=1120,justify="right").pack(fill="x",padx=12,pady=(0,5))
+        header = tk.Frame(box, bg=C["panel3"])
+        header.pack(fill="x", padx=12, pady=(10,6))
+        tk.Label(
+            header, text=family_text, bg=C["soft"], fg=family_fg,
+            font=("Segoe UI",9,"bold"), padx=10, pady=5
+        ).pack(side="right")
+        tk.Label(
+            header, text=self.ui_text(title), bg=C["panel3"], fg=C["text"],
+            font=("Segoe UI",15,"bold")
+        ).pack(side="right", padx=9)
 
-        holder=tk.Frame(semantic,bg=C["panel3"]); holder.pack(fill="x",padx=4,pady=(0,7))
+        tk.Label(
+            box, text=self.ui_text(subtitle), bg=C["panel3"], fg=C["muted"],
+            font=("Segoe UI",10), wraplength=1100, justify="right", anchor="e"
+        ).pack(fill="x", padx=14, pady=(0,8))
+
+        # 1) Exact external source image, preserved byte-for-byte by the CI asset step.
+        source_asset = bundled_asset_for_visual(kind)
+        source_holder = tk.Frame(box, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        source_holder.pack(fill="x", padx=10, pady=(0,8))
+        tk.Label(
+            source_holder, text="SOURCE IMAGE • EXACT MAPPED VISUAL",
+            bg=C["panel3"], fg=family_fg, font=("Consolas",9,"bold")
+        ).pack(anchor="w", padx=12, pady=(8,4))
+
+        shown = False
+        if source_asset is not None:
+            try:
+                from PIL import Image, ImageTk
+                image = Image.open(source_asset).convert("RGB")
+                image.thumbnail((1120, 390), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(image)
+                img = tk.Label(source_holder, image=photo, bg=C["panel3"])
+                img.image = photo
+                img.pack(fill="x", padx=10, pady=(0,10))
+                shown = True
+            except Exception as exc:
+                tk.Label(
+                    source_holder, text=f"Source image unavailable in this build: {exc}",
+                    bg=C["panel3"], fg=C["danger"], font=("Segoe UI",9,"bold")
+                ).pack(padx=10,pady=12)
+        if not shown:
+            tk.Label(
+                source_holder,
+                text="The exact source image will appear after the education asset pack is prepared.",
+                bg=C["panel3"], fg=C["muted"], font=("Segoe UI",9,"bold"), pady=12
+            ).pack(fill="x")
+
+        # 2) A local, deterministic anatomy diagram with the strategy semantics.
+        anatomy_title = tk.Frame(box, bg=C["panel3"])
+        anatomy_title.pack(fill="x", padx=12, pady=(2,4))
+        tk.Label(
+            anatomy_title, text="SETUP ANATOMY • LOCAL TRAINING MAP",
+            bg=C["panel3"], fg=family_fg, font=("Consolas",9,"bold")
+        ).pack(anchor="w")
+        diagram = tk.Frame(box, bg=C["panel3"])
+        diagram.pack(fill="x", padx=4, pady=(0,8))
         try:
-            if family_key in ("smc","ict"):
-                draw_setup(holder,family_key,self.ui_text(title),C)
+            if family_key in ("smc", "ict"):
+                draw_setup(diagram, family_key, self.ui_text(title), C)
             else:
-                draw_candlestick(holder,self.ui_text(title),C)
+                draw_candlestick(diagram, self.ui_text(title), C)
         except Exception as exc:
-            tk.Label(holder,text=f"{self.tr('no_exact_image')}\n{exc}",bg=C["panel3"],fg=C["danger"],
-                     font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
+            tk.Label(
+                diagram, text=f"Training diagram error: {exc}",
+                bg=C["panel3"], fg=C["danger"], font=("Segoe UI",9,"bold"),
+                padx=18, pady=20
+            ).pack(fill="x")
 
-        source_title,source_url=source_for_visual(kind)
-        source=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        source.pack(fill="x",padx=10,pady=(0,8))
-        left=tk.Frame(source,bg=C["panel"]); left.pack(side="left",padx=10,pady=8)
-        tk.Label(left,text="SOURCE / FURTHER READING",bg=C["panel"],fg=C["cyan"],
+        source_title, source_url = source_for_visual(kind)
+        source = tk.Frame(box, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1)
+        source.pack(fill="x", padx=10, pady=(0,8))
+        left = tk.Frame(source, bg=C["panel"]); left.pack(side="left", padx=10, pady=8)
+        tk.Label(left, text="SOURCE / FURTHER READING", bg=C["panel"], fg=C["cyan"],
                  font=("Consolas",8,"bold")).pack(anchor="w")
-        self.btn(left,self.tr("open_source"),lambda u=source_url:self.open_webview(u,source_title)).pack(anchor="w",pady=(4,0))
-        tk.Label(source,text=self.ui_text(source_title),bg=C["panel"],fg=C["muted"],
-                 font=("Segoe UI",9,"bold"),wraplength=820,justify="right").pack(side="right",fill="x",expand=True,padx=12,pady=10)
-        tk.Label(source,text=self.ui_text("The diagram above is the app's exact teaching map; the link is the external source reference."),
-                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",8),wraplength=420,justify="right").pack(side="right",padx=12,pady=10)
+        self.btn(
+            left, self.tr("open_source"),
+            lambda u=source_url: self.open_webview(u, source_title)
+        ).pack(anchor="w", pady=(4,0))
+        tk.Label(
+            source, text=self.ui_text(source_title), bg=C["panel"], fg=C["muted"],
+            font=("Segoe UI",9,"bold"), wraplength=820, justify="right"
+        ).pack(side="right", fill="x", expand=True, padx=12, pady=10)
         return box
 
     def academy(self):
