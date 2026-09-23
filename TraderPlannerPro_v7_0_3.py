@@ -2778,7 +2778,7 @@ class App(tk.Tk):
         try:
             asset = bundled_asset_for_visual(kind)
             if asset is None:
-                target = Path(tempfile_path()) / "academy_source"
+                target = ROOT / "cache" / "academy_source"
                 asset = render_visual(target, kind)
             if asset and Path(asset).exists():
                 from PIL import Image, ImageTk
