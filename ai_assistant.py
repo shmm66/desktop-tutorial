@@ -10,9 +10,9 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-6-sol"
+DEFAULT_MODEL = "gpt-5.6-sol"
 REASONING_EFFORT = "xhigh"
-MODEL_FALLBACKS = ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
+MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-luna")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
@@ -30,7 +30,7 @@ def _post_json(url, payload, timeout=25):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.2"},
+        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.3"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -39,7 +39,7 @@ def _post_json(url, payload, timeout=25):
 
 def ollama_status():
     try:
-        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/7.8"})
+        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/8.3"})
         with urllib.request.urlopen(req, timeout=2.5) as response:
             data = json.loads(response.read().decode("utf-8"))
         models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict)]
@@ -87,15 +87,99 @@ def clear_openai_key():
         pass
 
 
+def agents_sdk_status():
+    """Return whether the OpenAI Agents SDK is importable."""
+    try:
+        from agents import Agent, Runner, RunConfig, set_default_openai_key  # noqa: F401
+        return True, ""
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+
+def _agents_sdk_respond(role, user_message, context, history, model):
+    """Run a real multi-agent handoff graph through the OpenAI Agents SDK."""
+    from agents import Agent, Runner, RunConfig, set_default_openai_key
+
+    api_key = _read_openai_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured.")
+    set_default_openai_key(api_key, use_for_tracing=False)
+
+    common = (
+        "You are part of Trader Planner Pro, a desktop trading-workflow assistant. "
+        "Never invent live prices or news. Never promise returns or personalized financial guarantees. "
+        "Keep broad Smart Money/SMC frameworks distinct from named ICT models. "
+        "Candlestick patterns are a separate technical-analysis family and must never be relabeled as ICT setups. "
+        "Use the supplied app context and recent conversation. Answer in the user's language when possible."
+    )
+    names = {
+        "form": "Form Coach",
+        "strategy": "Strategy Coach",
+        "psychology": "Trading Psychology Coach",
+        "planner": "Routine Coach",
+        "academy": "Academy Tutor",
+        "product": "Product Strategist",
+    }
+    specialists = []
+    for key, description in ROLES.items():
+        if key == "orchestrator":
+            continue
+        specialists.append(
+            Agent(
+                name=names.get(key, key.title()),
+                handoff_description=description,
+                instructions=common + "\nSPECIALIST MISSION:\n" + description,
+                model=model,
+            )
+        )
+    master = Agent(
+        name="Trader Planner Master Agent",
+        handoffs=specialists,
+        instructions=(
+            common
+            + "\nYou are the master router. Identify the user's intent, hand off to the most relevant specialist, "
+              "then synthesize specialist output when the request spans domains. Return one clear response with "
+              "assumptions, missing information and concrete next actions. Never claim tool access that is not in context."
+        ),
+        model=model,
+    )
+    recent = json.dumps(history[-8:], ensure_ascii=False)
+    prompt = (
+        "APP CONTEXT:\n" + str(context)
+        + "\n\nRECENT CHAT:\n" + recent
+        + "\n\nUSER QUESTION:\n" + user_message
+        + "\n\nPREFERRED SPECIALIST:\n" + role
+    )
+    result = asyncio.run(
+        Runner.run(
+            master,
+            prompt,
+            max_turns=8,
+            run_config=RunConfig(
+                model=model,
+                trace_include_sensitive_data=False,
+            ),
+        )
+    )
+    answer = str(getattr(result, "final_output", "") or "").strip()
+    if not answer:
+        raise RuntimeError("Agents SDK returned an empty response.")
+    return answer
+
+
 def cloud_status():
     key = _read_openai_key()
+    sdk_ok, sdk_error = agents_sdk_status()
     if not key:
-        return {"enabled": False, "model": DEFAULT_MODEL, "message": "Add an OpenAI API key or enable Ollama."}
+        return {"enabled": False, "agents_sdk": sdk_ok, "model": DEFAULT_MODEL,
+                "message": "Add an OpenAI API key or enable Ollama.", "sdk_error": sdk_error}
     try:
         from openai import OpenAI  # noqa: F401
-        return {"enabled": True, "model": DEFAULT_MODEL, "message": "Cloud agent routing is ready."}
-    except Exception:
-        return {"enabled": False, "model": DEFAULT_MODEL}
+        return {"enabled": True, "agents_sdk": sdk_ok, "model": DEFAULT_MODEL,
+                "message": "OpenAI cloud agent routing is ready.", "sdk_error": sdk_error}
+    except Exception as exc:
+        return {"enabled": False, "agents_sdk": sdk_ok, "model": DEFAULT_MODEL,
+                "message": f"OpenAI SDK unavailable: {exc}", "sdk_error": sdk_error}
 
 
 def _fallback(role, user_message, context):
@@ -173,11 +257,13 @@ class AIOrchestrator:
         return {
             "online": cloud["enabled"] or ollama_online,
             "cloud": cloud["enabled"],
+            "agents_sdk": cloud.get("agents_sdk", False),
             "ollama": ollama_online,
             "web": True,
             "models": ollama_models,
             "model": cloud["model"] if cloud["enabled"] else (ollama_models[0] if ollama_models else self.model),
             "last_error": self.last_error,
+            "message": cloud.get("message", ""),
         }
 
     def _cloud_respond(self, role, user_message, context):
@@ -226,7 +312,10 @@ class AIOrchestrator:
             answer = None
             self.last_error = ""
             try:
-                if cloud_status()["enabled"]:
+                cloud = cloud_status()
+                if cloud.get("enabled") and cloud.get("agents_sdk"):
+                    answer = _agents_sdk_respond(role, user_message, context, self.history, self.model)
+                elif cloud.get("enabled"):
                     answer = self._cloud_respond(role, user_message, context)
             except Exception as exc:
                 self.last_error = f"Cloud Agent: {type(exc).__name__}: {exc}"
