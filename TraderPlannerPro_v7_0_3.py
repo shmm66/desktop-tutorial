@@ -921,7 +921,7 @@ class App(tk.Tk):
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
         self.market_btn.pack(side="left", padx=4)
         self.global_home_btn = tk.Button(
-            status, text=self.tr("nav_home"), command=self.go_home,
+            status, text=self.tr("nav_home"), command=self._hard_home,
             bg=C["accent"], fg="#061019", activebackground=C["gold"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
         )
@@ -1134,7 +1134,7 @@ class App(tk.Tk):
         if sub:
             tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9)).pack(anchor="e", pady=(2,0))
         left_tools = tk.Frame(band, bg=C["bg"]); left_tools.pack(side="left", padx=2)
-        home_btn = tk.Button(left_tools, text=self.tr("home"), command=self.go_home,
+        home_btn = tk.Button(left_tools, text=self.tr("home"), command=self._hard_home,
                              bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
