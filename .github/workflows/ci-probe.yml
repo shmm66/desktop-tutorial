@@ -6,11 +6,11 @@ on:
 
 jobs:
   probe:
-    runs-on: windows-2022
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Verify runner
         shell: powershell
         run: |
           Write-Host "GitHub Windows runner is alive."
-          python --version
+          uname -a
