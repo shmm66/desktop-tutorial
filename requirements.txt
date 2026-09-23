@@ -11,3 +11,5 @@ google-api-python-client>=2.181,<3
 google-auth>=2.40,<3
 google-auth-oauthlib>=1.2,<2
 openai>=3,<4
+
+openai-agents>=0.2,<1
