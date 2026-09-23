@@ -10,9 +10,9 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-6-sol"
+DEFAULT_MODEL = "gpt-5.6-sol"
 REASONING_EFFORT = "xhigh"
-MODEL_FALLBACKS = ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
+MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gemma3:4b")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
@@ -30,7 +30,7 @@ def _post_json(url, payload, timeout=25):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.2"},
+        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.4"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -39,7 +39,7 @@ def _post_json(url, payload, timeout=25):
 
 def ollama_status():
     try:
-        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/7.8"})
+        req = urllib.request.Request(f"{OLLAMA_BASE}/tags", headers={"User-Agent": "TraderPlannerPro/8.4"})
         with urllib.request.urlopen(req, timeout=2.5) as response:
             data = json.loads(response.read().decode("utf-8"))
         models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict)]
@@ -103,7 +103,7 @@ def _fallback(role, user_message, context):
     if role == "orchestrator":
         return (
             "Master Agent\\n"
-            "I will break the request into context, setup, trigger, invalidation, target, risk and next action. "
+            "I will break the request into context, setup, trigger, invalidation, target, risk and next action. Ask me to inspect the current journal, explain an Academy model, fill a form, or propose product upgrades. "
             "I will keep SMC, ICT and candlestick terminology separate and only use supplied live-data context."
         )
     if role == "form":
@@ -164,6 +164,7 @@ class AIOrchestrator:
         self.model = model
         self.roles = ROLES
         self._cloud_agents = None
+        self.web_search_enabled = True
         self.last_error = ""
         self.history = []
 
@@ -174,7 +175,7 @@ class AIOrchestrator:
             "online": cloud["enabled"] or ollama_online,
             "cloud": cloud["enabled"],
             "ollama": ollama_online,
-            "web": True,
+            "web": self.web_search_enabled,
             "models": ollama_models,
             "model": cloud["model"] if cloud["enabled"] else (ollama_models[0] if ollama_models else self.model),
             "last_error": self.last_error,
@@ -197,15 +198,21 @@ class AIOrchestrator:
         )
         specialist = self.roles.get(role, self.roles["orchestrator"])
         recent = json.dumps(self.history[-8:], ensure_ascii=False)
-        response = client.responses.create(
-            model=self.model,
-            instructions=common + "\nSPECIALIST ROLE:\n" + specialist,
-            input=(
+        kwargs = {
+            "model": self.model,
+            "instructions": common + "\nSPECIALIST ROLE:\n" + specialist,
+            "input": (
                 "APP CONTEXT:\n" + context +
                 "\n\nRECENT CHAT:\n" + recent +
                 "\n\nUSER QUESTION:\n" + user_message
             ),
-        )
+        }
+        # The current Responses API supports built-in web search on flagship models.
+        # Keep it optional so an account/model that does not expose the tool still falls back cleanly.
+        if self.web_search_enabled:
+            kwargs["tools"] = [{"type": "web_search"}]
+        kwargs["reasoning"] = {"effort": REASONING_EFFORT}
+        response = client.responses.create(**kwargs)
         answer = str(getattr(response, "output_text", "") or "").strip()
         if not answer:
             raise RuntimeError("OpenAI returned an empty response.")
