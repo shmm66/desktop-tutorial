@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.2.0"
+VERSION = "8.4.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -297,7 +297,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 800, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"glass","ai_reminders":[]}}
+    return {"version": 840, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"glass","ai_reminders":[]}}
 
 def numeric(value):
     try:
@@ -338,7 +338,7 @@ def migrate_payload(old):
             p.setdefault("checklist", default_checklist())
             for item in p["checklist"]:
                 item.setdefault("id", str(uuid4())); item.setdefault("done", False)
-        base["version"] = 800
+        base["version"] = 840
         return base
     # V7.0.2 -> profile migration without data loss.
     legacy_profile = old.get("profile") if isinstance(old.get("profile"), dict) else {}
@@ -940,7 +940,7 @@ class App(tk.Tk):
         except Exception: pass
         self._quick_nav_buttons = {}
         nav_specs = [
-            ("home", self.tr("nav_home"), self.go_home),
+            ("home", self.tr("nav_home"), self._hard_home),
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
@@ -2712,13 +2712,34 @@ class App(tk.Tk):
 
         holder=tk.Frame(semantic,bg=C["panel3"]); holder.pack(fill="x",padx=4,pady=(0,7))
         try:
-            if family_key in ("smc","ict"):
+            exact = bundled_asset_for_visual(kind)
+            if exact:
+                from PIL import Image, ImageTk
+                image = Image.open(exact).convert("RGBA")
+                image.thumbnail((1160, 520), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(image)
+                label = tk.Label(holder, image=photo, bg=C["panel3"], bd=0, highlightthickness=0)
+                label.image = photo
+                label.pack(padx=10, pady=10, anchor="center")
+                self._academy_photo_refs = getattr(self, "_academy_photo_refs", [])
+                self._academy_photo_refs.append(photo)
+                if len(self._academy_photo_refs) > 80:
+                    self._academy_photo_refs = self._academy_photo_refs[-40:]
+                tk.Label(holder,text=self.tr("original_source"),bg=C["panel3"],fg=family_fg,
+                         font=("Segoe UI",8,"bold")).pack(pady=(0,8))
+            elif family_key in ("smc","ict"):
                 draw_setup(holder,family_key,self.ui_text(title),C)
             else:
                 draw_candlestick(holder,self.ui_text(title),C)
         except Exception as exc:
-            tk.Label(holder,text=f"{self.tr('no_exact_image')}\n{exc}",bg=C["panel3"],fg=C["danger"],
-                     font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
+            try:
+                if family_key in ("smc","ict"):
+                    draw_setup(holder,family_key,self.ui_text(title),C)
+                else:
+                    draw_candlestick(holder,self.ui_text(title),C)
+            except Exception:
+                tk.Label(holder,text=f"{self.tr('no_exact_image')}\n{exc}",bg=C["panel3"],fg=C["danger"],
+                         font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
 
         source_title,source_url=source_for_visual(kind)
         source=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
@@ -2749,7 +2770,7 @@ class App(tk.Tk):
                  font=("Segoe UI",12,"bold")).pack(anchor="e",padx=14,pady=(10,3))
         tk.Label(
             family_map,
-            text=self.ui_text("SMC: ساختار بازار، نقدینگی، BOS/CHoCH، Order Block، FVG و ناحیه‌ها  •  ICT: مدل‌ها و اصطلاحات نام‌گذاری‌شده مانند 2022 Model، Silver Bullet، Judas Swing، AMD، OTE و Unicorn"),
+            text=self.ui_text("SMC: چارچوب گسترده تحلیل ساختار، نقدینگی و نواحی است. ICT: مجموعه‌ای از مدل‌ها، زمان‌بندی‌ها و اصطلاحات نام‌گذاری‌شده است. اصطلاحات مشترک مانند FVG و Liquidity را با نام یک مدل اشتباه نگیرید. الگوهای کندلی نیز مستقل از هر دو خانواده هستند."),
             bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold"),
             wraplength=1180,justify="right"
         ).pack(fill="x",padx=14,pady=(0,10))
