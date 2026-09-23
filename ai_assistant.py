@@ -10,9 +10,9 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-5.6-sol"
-REASONING_EFFORT = "high"
-MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-luna")
+DEFAULT_MODEL = "gpt-6-sol"
+REASONING_EFFORT = "xhigh"
+MODEL_FALLBACKS = ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
@@ -30,7 +30,7 @@ def _post_json(url, payload, timeout=25):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.0"},
+        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.2"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -90,10 +90,10 @@ def clear_openai_key():
 def cloud_status():
     key = _read_openai_key()
     if not key:
-        return {"enabled": False, "model": DEFAULT_MODEL}
+        return {"enabled": False, "model": DEFAULT_MODEL, "message": "Add an OpenAI API key or enable Ollama."}
     try:
         import agents  # noqa: F401
-        return {"enabled": True, "model": DEFAULT_MODEL}
+        return {"enabled": True, "model": DEFAULT_MODEL, "message": "Cloud multi-agent routing is ready."}
     except Exception:
         return {"enabled": False, "model": DEFAULT_MODEL}
 
@@ -171,7 +171,7 @@ class AIOrchestrator:
         ollama_online, ollama_models = ollama_status()
         cloud = cloud_status()
         return {
-            "online": cloud["enabled"] or ollama_online,
+            "online": True,
             "cloud": cloud["enabled"],
             "ollama": ollama_online,
             "web": True,

@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/8.1.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/8.2.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
@@ -41,6 +41,7 @@ CRYPTO_ENDPOINT = (
 CRYPTO_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=25"
 KRAKEN_TICKER_ENDPOINT = "https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,SOLUSD,XRPUSD,ADAUSD,DOGEUSD,BNBUSD"
 COINBASE_PRODUCTS = [("BTC","BTC-USD"),("ETH","ETH-USD"),("SOL","SOL-USD"),("XRP","XRP-USD"),("ADA","ADA-USD"),("DOGE","DOGE-USD"),("BNB","BNB-USD")]
+COINCAP_ENDPOINT = "https://api.coincap.io/v2/assets?limit=20"
 BINANCE_TICKER_ENDPOINTS = [
     "https://data-api.binance.vision/api/v3/ticker/24hr",
     "https://api.binance.com/api/v3/ticker/24hr",
@@ -158,6 +159,29 @@ def _parallel_yahoo(symbols):
     return result
 
 
+def _crypto_from_coincap():
+    try:
+        data = _request_json(COINCAP_ENDPOINT, timeout=3.0)
+        rows = data.get("data") or []
+        wanted = {label: symbol.replace("-USD","").lower() for label, symbol in CRYPTO_FALLBACK}
+        out=[]
+        for row in rows:
+            symbol=str(row.get("symbol","")).upper()
+            label=next((name for name,code in CRYPTO_FALLBACK if code.startswith(symbol+"-")),None)
+            if not label:
+                continue
+            price=_safe_float(row.get("priceUsd"))
+            change=_safe_float(row.get("changePercent24Hr"))
+            if price is None:
+                continue
+            out.append({"symbol":label,"name":row.get("name",label),"price":price,"change":change})
+        order={label:i for i,(label,_) in enumerate(CRYPTO_FALLBACK)}
+        out.sort(key=lambda x: order.get(x["symbol"],999))
+        return out, "CoinCap public asset data" if len(out)>=5 else "unavailable"
+    except Exception:
+        return [], "unavailable"
+
+
 def _crypto_from_binance():
     for endpoint in BINANCE_TICKER_ENDPOINTS:
         try:
@@ -267,7 +291,12 @@ def _crypto_live():
     except Exception:
         pass
 
-    # Fast exchange fallback. Binance documents public ticker endpoints as unauthenticated market data. 
+    # Fast no-key aggregator fallback.
+    result, source = _crypto_from_coincap()
+    if result:
+        return result, source
+
+    # Fast exchange fallback. Binance exposes public ticker market data.
     result, source = _crypto_from_binance()
     if result:
         return result, source

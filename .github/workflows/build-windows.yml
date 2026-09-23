@@ -131,21 +131,21 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V8.1.0 Release
+      - name: Publish V8.2.0 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v8.1.0
-          name: Trader Planner Pro V8.1.0
+          tag_name: v8.2.0
+          name: Trader Planner Pro V8.2.0
           target_commitish: ${{ github.sha }}
           generate_release_notes: false
           body: |
-            ## Trader Planner Pro V8.1.0
+            ## Trader Planner Pro V8.2.0
 
-            Trader Planner Pro V8.1.0 — true Windows acrylic/glass surface, deferred Home navigation, generation-safe Crypto/Forex refresh, non-blank News workspace, embedded multi-agent AI chat, exact SMC/ICT Academy setup maps, Google Login + Gmail statement delivery, and hardened per-user installer behavior.
+            Trader Planner Pro V8.2.0 — native Windows Desktop Acrylic glass surface, synchronous Home navigation, persistent AI Command Center, flagship multi-agent routing, resilient no-key market feed fallbacks, and an Academy rebuilt around distinct SMC, ICT and candlestick visual semantics.
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v8.1.0.exe
+            installer/TraderPlannerPro_Setup_v8.2.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
