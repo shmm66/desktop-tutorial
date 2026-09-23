@@ -271,7 +271,7 @@ def _crypto_from_coinbase():
 
 
 def _crypto_live():
-    """Fetch crypto quotes concurrently so one blocked provider cannot starve the dashboard."""
+    """Race public crypto providers and accept the first healthy snapshot."""
     providers = [
         ("CoinGecko", lambda: _request_json(CRYPTO_ENDPOINT, timeout=3.0)),
         ("CoinCap", lambda: _crypto_from_coincap()),
@@ -280,42 +280,58 @@ def _crypto_live():
         ("Coinbase", lambda: _crypto_from_coinbase()),
     ]
 
-    def run_provider(name, fn):
+    def run_provider(name, fn_call):
         try:
-            raw = fn()
-            if name == "CoinGecko":
-                rows = raw
-                if isinstance(rows, list):
-                    result = []
-                    for row in rows[:10]:
-                        price = _safe_float(row.get("current_price"))
-                        if price is None:
-                            continue
-                        result.append({
-                            "symbol": str(row.get("symbol", "")).upper(),
-                            "name": row.get("name", ""),
-                            "price": price,
-                            "change": _safe_float(row.get("price_change_percentage_24h")),
-                        })
-                    return result, "CoinGecko"
-            return raw
+            raw = fn_call()
+            if name == "CoinGecko" and isinstance(raw, list):
+                result = []
+                for row in raw[:10]:
+                    price = _safe_float(row.get("current_price"))
+                    if price is None:
+                        continue
+                    result.append({
+                        "symbol": str(row.get("symbol", "")).upper(),
+                        "name": row.get("name", ""),
+                        "price": price,
+                        "change": _safe_float(row.get("price_change_percentage_24h")),
+                    })
+                return result, "CoinGecko"
+            if isinstance(raw, tuple) and len(raw) == 2:
+                return raw
+            return [], "unavailable"
         except Exception:
             return [], "unavailable"
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(providers), thread_name_prefix="TPCrypto") as pool:
-        futures = [pool.submit(run_provider, name, fn) for name, fn in providers]
-        # Prefer provider order, but do not wait longer than the dashboard deadline.
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=len(providers), thread_name_prefix="TPCrypto"
+    ) as pool:
+        futures = {
+            pool.submit(run_provider, name, fn_call): name
+            for name, fn_call in providers
+        }
+        # as_completed prevents a slow first provider from blocking a fast
+        # healthy provider, which was the main source of the old "Loading..." symptom.
         deadline = time.monotonic() + 5.8
-        for future in futures:
+        pending = set(futures)
+        while pending:
             remaining = max(0.05, deadline - time.monotonic())
-            try:
-                result, source = future.result(timeout=remaining)
-            except Exception:
-                continue
-            if result and len(result) >= 5:
-                return result, source
+            if remaining <= 0:
+                break
+            done, pending = concurrent.futures.wait(
+                pending,
+                timeout=remaining,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            if not done:
+                break
+            for future in done:
+                try:
+                    result, source = future.result(timeout=0.1)
+                except Exception:
+                    continue
+                if result and len(result) >= 5:
+                    return result, source
 
-    # One last independent public aggregate feed.
     try:
         rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=2.5)
         result = []
