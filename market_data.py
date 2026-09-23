@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/8.2.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/8.3.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
@@ -270,49 +270,29 @@ def _crypto_from_coinbase():
     return rows, "Coinbase Exchange public market data" if len(rows) >= 4 else "unavailable"
 
 
-def _crypto_live():
-    # Primary ranking by market cap.
+def _crypto_from_coingecko():
     try:
-        rows = _request_json(CRYPTO_ENDPOINT, timeout=3.0)
-        if isinstance(rows, list) and rows:
-            result = []
-            for row in rows[:10]:
-                price = _safe_float(row.get("current_price"))
-                if price is None:
-                    continue
+        rows = _request_json(CRYPTO_ENDPOINT, timeout=3.2)
+        if not isinstance(rows, list):
+            return [], "unavailable"
+        result = []
+        for row in rows[:10]:
+            price = _safe_float(row.get("current_price"))
+            if price is not None:
                 result.append({
                     "symbol": str(row.get("symbol", "")).upper(),
                     "name": row.get("name", ""),
                     "price": price,
                     "change": _safe_float(row.get("price_change_percentage_24h")),
                 })
-            if len(result) >= 5:
-                return result, "CoinGecko"
+        return (result, "CoinGecko") if len(result) >= 5 else ([], "unavailable")
     except Exception:
-        pass
+        return [], "unavailable"
 
-    # Fast no-key aggregator fallback.
-    result, source = _crypto_from_coincap()
-    if result:
-        return result, source
 
-    # Fast exchange fallback. Binance exposes public ticker market data.
-    result, source = _crypto_from_binance()
-    if result:
-        return result, source
-
-    # Exchange fallback.
-    result, source = _crypto_from_kraken()
-    if result:
-        return result, source
-
-    result, source = _crypto_from_coinbase()
-    if result:
-        return result, source
-
-    # Aggregated fallback.
+def _crypto_from_coinpaprika():
     try:
-        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=3.0)
+        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=3.2)
         result = []
         for row in (rows or []):
             quote = ((row.get("quotes") or {}).get("USD") or {})
@@ -327,13 +307,39 @@ def _crypto_live():
             })
             if len(result) >= 10:
                 break
-        if result:
-            return result, "CoinPaprika"
+        return (result, "CoinPaprika") if result else ([], "unavailable")
     except Exception:
-        pass
+        return [], "unavailable"
 
-    result = _parallel_yahoo(CRYPTO_FALLBACK)
-    return result, "Yahoo Finance" if result else "unavailable"
+
+def _crypto_live():
+    # Run independent public sources concurrently so a blocked endpoint cannot
+    # consume the full refresh window before a working source gets a chance.
+    sources = (
+        _crypto_from_coingecko,
+        _crypto_from_coincap,
+        _crypto_from_binance,
+        _crypto_from_kraken,
+        _crypto_from_coinbase,
+        _crypto_from_coinpaprika,
+        lambda: (_parallel_yahoo(CRYPTO_FALLBACK), "Yahoo Finance"),
+    )
+    deadline = time.monotonic() + 5.0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as pool:
+        futures = [pool.submit(fn) for fn in sources]
+        for future in concurrent.futures.as_completed(futures, timeout=5.0):
+            try:
+                result, source = future.result()
+            except Exception:
+                continue
+            if result and len(result) >= 4:
+                for other in futures:
+                    if other is not future:
+                        other.cancel()
+                return result, source
+            if time.monotonic() >= deadline:
+                break
+    return [], "unavailable"
 
 
 def _free_fx_rates():
@@ -416,21 +422,35 @@ def _forex_free_fallback():
 
 
 def _forex_live():
-    # Preferred source: live Yahoo chart quotes. If blocked/unavailable,
-    # supplement with a no-key FX reference feed so the dashboard still shows
-    # usable market context instead of a permanent loading state.
-    result = _parallel_yahoo(FOREX_SYMBOLS)
+    # Run the main quote and no-key reference feed concurrently. This makes
+    # Forex Home useful even when Yahoo is blocked by a corporate/network proxy.
+    result = []
+    fallback = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        f_yahoo = pool.submit(_parallel_yahoo, FOREX_SYMBOLS)
+        f_rates = pool.submit(_forex_free_fallback)
+        f_metals = pool.submit(_croncopia_metals)
+        try:
+            result = f_yahoo.result(timeout=4.5)
+        except Exception:
+            result = []
+        try:
+            fallback = f_rates.result(timeout=2.5)
+        except Exception:
+            fallback = []
+        try:
+            metal_prices = f_metals.result(timeout=2.5)
+        except Exception:
+            metal_prices = {}
     if len(result) >= 5:
         return result, "Yahoo Finance"
-    fallback = _forex_free_fallback()
     by_label = {row["symbol"]: row for row in result}
     for row in fallback:
         by_label.setdefault(row["symbol"], row)
-    metal_prices = _croncopia_metals()
-    for label, price in metal_prices.items():
+    for label, price in (metal_prices or {}).items():
         by_label.setdefault(label, {"symbol": label, "name": label, "price": price, "change": None})
     merged = [by_label[label] for label, _ in FOREX_SYMBOLS if label in by_label]
-    return merged, ("Yahoo Finance + no-key FX/metals fallback" if merged else "unavailable")
+    return merged, ("Yahoo + no-key FX/metals fallback" if merged else "unavailable")
 
 
 def _global_indicators():
