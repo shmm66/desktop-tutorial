@@ -286,7 +286,7 @@ def test_v780_installer_and_launcher_metadata():
     launcher = Path("launcher.py").read_text(encoding="utf-8")
     assert 'MyAppVersion "8.2.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.1.0\"" in launcher
+    assert "VERSION = \"8.2.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -338,13 +338,13 @@ def test_v800_navigation_uses_single_home_renderer():
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "self.show(\"home\")" in source
     assert "self.after_idle(self._hard_home)" not in source
-    assert "self.after(30, self.market_data.refresh_now)" in source
+    assert "self.after(50, self.market_data.refresh_now)" in source
     assert 'status = "loading"' in source or '["status"] = "loading"' in source
 
 
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert DEFAULT_MODEL == "gpt-6-sol"
     assert MODEL_FALLBACKS == ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
     assert "gpt-5.6-terra" not in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
@@ -376,7 +376,7 @@ def test_v810_navigation_is_deferred_and_market_is_generation_safe():
     from pathlib import Path
     from market_data import MarketDataService
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert 'self.after_idle(self._hard_home)' in source
+    assert 'self.after_idle(self._hard_home)' not in source
     assert 'cached = cached_market_payload(market)' in source
     assert 'if str(payload.get("market")) != str(self.market):' in source
     service = MarketDataService()
@@ -420,7 +420,7 @@ def test_v810_real_glass_and_safe_installer():
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     assert 'wintypes.DWORD(38)' in glass
     assert 'pywinstyles.apply_style(window, native_style)' in glass
-    assert 'MyAppVersion "8.1.0"' in iss
+    assert 'MyAppVersion "8.2.0"' in iss
     assert 'PrivilegesRequired=lowest' in iss
 
 
