@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test/build dependencies
-        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client
       - name: Syntax check
         run: |
           python -m py_compile TraderPlannerPro_v7_0_3.py
@@ -51,7 +51,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build dependencies
-        run: python -m pip install --upgrade pip
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
       - name: Prepare exact education image assets
         run: python prepare_education_assets.py
@@ -77,7 +79,6 @@ jobs:
           --hidden-import uuid
           --collect-all tzdata
           --collect-all webview
-          --collect-all agents
           --collect-all matplotlib
           --collect-all reportlab
           --hidden-import webview.platforms.edgechromium
@@ -111,31 +112,42 @@ jobs:
         shell: powershell
         run: |
           Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-          $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $installer) { throw "Installer EXE was not produced." }
+          $installer = Get-ChildItem "$PWD\installer" -File -Filter 'TraderPlannerPro_Setup_v8.3.0.exe' | Select-Object -First 1
+          if (-not $installer) { throw "Expected installer EXE was not produced." }
           $testRoot = Join-Path $env:TEMP 'TraderPlannerPro-CI-Test'
           if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Path $testRoot | Out-Null
           $installDir = Join-Path $testRoot 'App'
-          $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$installDir") -Wait -PassThru
-          if ($install.ExitCode -ne 0) { throw "Installer failed with exit code $($install.ExitCode)" }
+          $logFile = Join-Path $testRoot 'install.log'
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/LOG=$logFile", "/DIR=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) {
+            if (Test-Path $logFile) { Get-Content $logFile | Write-Host }
+            throw "Installer failed with exit code $($install.ExitCode)"
+          }
           $installedExe = Join-Path $installDir 'TraderPlannerPro.exe'
           if (-not (Test-Path $installedExe)) { throw "Installed EXE not found." }
           $p = Start-Process -FilePath $installedExe -PassThru
-          Start-Sleep -Seconds 8
-          if ($p.HasExited) { throw "Installed EXE exited during startup." }
+          Start-Sleep -Seconds 12
+          if ($p.HasExited) {
+            throw "Installed EXE exited during startup with code $($p.ExitCode)."
+          }
           Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           $uninstaller = Join-Path $installDir 'unins000.exe'
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller not found." }
-          $un = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
-          if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
+          $unLog = Join-Path $testRoot 'uninstall.log'
+          $un = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/LOG=$unLog") -Wait -PassThru
+          if ($un.ExitCode -ne 0) {
+            if (Test-Path $unLog) { Get-Content $unLog | Write-Host }
+            throw "Uninstaller failed with exit code $($un.ExitCode)"
+          }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
+          if (Test-Path $uninstaller) { throw "Uninstaller still exists after uninstall." }
 
-      - name: Publish V8.2.0 Release
+      - name: Publish V8.3.0 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v8.2.0
+          tag_name: v8.3.0
           name: Trader Planner Pro V8.2.0
           target_commitish: ${{ github.sha }}
           generate_release_notes: false
@@ -146,6 +158,6 @@ jobs:
 
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v8.2.0.exe
+            installer/TraderPlannerPro_Setup_v8.3.0.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
