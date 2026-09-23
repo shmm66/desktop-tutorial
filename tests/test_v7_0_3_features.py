@@ -489,3 +489,12 @@ def test_v830_installer_does_not_reuse_previous_install_directory():
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     assert "UsePreviousAppDir=no" in iss
     assert 'MyAppVersion "8.3.0"' in iss
+
+
+def test_v830_offline_ai_knowledge_agent_retrieves_curated_academy():
+    from ai_assistant import _academy_knowledge_answer, _fallback
+    result = _academy_knowledge_answer("bullish engulfing")
+    assert result is not None
+    assert result["kind"] in {"candle", "glossary"}
+    answer = _fallback("strategy", "Bullish Engulfing", "")
+    assert "candlestick" in answer.lower() or "کندلی" in answer
