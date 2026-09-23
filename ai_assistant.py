@@ -198,9 +198,14 @@ def _academy_knowledge_answer(query: str):
         if any(token and token in blob.lower() for token in (q, q.replace("?", ""), " ".join(q.split()[:3]))):
             candidates.append(("strategy", item))
 
-    for name, en, fa in CANDLE_PLAYBOOK:
-        if q in name.lower() or q in en.lower() or q in fa.lower():
-            candidates.append(("candle", {"name_en": name, "summary_en": en, "summary_fa": fa}))
+    for name_en, name_fa, summary_fa in CANDLE_PLAYBOOK:
+        if q in name_en.lower() or q in name_fa.lower() or q in summary_fa.lower():
+            candidates.append(("candle", {
+                "name_en": name_en,
+                "name_fa": name_fa,
+                "summary_fa": summary_fa,
+                "summary_en": summary_fa,
+            }))
 
     for item in GLOSSARY:
         blob = " ".join(str(item.get(k, "")) for k in ("term", "fa", "en", "meaning_en", "meaning_fa", "usage_en", "usage_fa"))
@@ -229,7 +234,7 @@ def _academy_knowledge_answer(query: str):
         return {
             "kind": "candle",
             "title": item.get("name_en", ""),
-            "fa_title": item.get("name_en", ""),
+            "fa_title": item.get("name_fa", item.get("name_en", "")),
             "summary": item.get("summary_en", ""),
             "summary_fa": item.get("summary_fa", ""),
             "steps": [],
