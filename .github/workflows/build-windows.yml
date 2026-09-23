@@ -12,6 +12,36 @@ permissions:
   contents: write
 
 jobs:
+  diagnose:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Capture dependency resolution diagnostics
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip 2>&1 | Tee-Object -FilePath ci_bootstrap.txt
+          python -m pip install -r requirements.txt pyinstaller 2>&1 | Tee-Object -FilePath ci_requirements_install.txt
+          $rc = $LASTEXITCODE
+          python -m pip check 2>&1 | Tee-Object -FilePath ci_pip_check.txt
+          python -c "import openai; print('openai', getattr(openai,'__version__','unknown'))" 2>&1 | Tee-Object -FilePath ci_openai.txt
+          python -c "import agents; print('agents', agents.__file__)" 2>&1 | Tee-Object -FilePath ci_agents.txt
+          if ($rc -ne 0) { Write-Host "pip install failed with exit code $rc" }
+          exit 0
+      - name: Upload dependency diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-3-dependency-diagnostics
+          path: |
+            ci_bootstrap.txt
+            ci_requirements_install.txt
+            ci_pip_check.txt
+            ci_openai.txt
+            ci_agents.txt
+          if-no-files-found: warn
+
   quality:
     runs-on: windows-2022
     steps:
