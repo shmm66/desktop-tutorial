@@ -1239,7 +1239,7 @@ class App(tk.Tk):
             "status": "unavailable", "source": "unavailable", "message": ""
         }
         save_db()
-        self.go_home()
+        self._hard_home()
         return "break"
 
     def change_market(self):
