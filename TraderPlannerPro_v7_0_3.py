@@ -2252,6 +2252,7 @@ class App(tk.Tk):
             pass
 
     def open_webview(self, url, title="Trader Planner Pro"):
+        """Open an embedded web terminal, with a deterministic browser fallback."""
         try:
             if getattr(sys, "frozen", False):
                 cmd = [sys.executable, "--webview", url, title]
@@ -2259,7 +2260,20 @@ class App(tk.Tk):
                 launcher = Path(__file__).with_name("launcher.py")
                 cmd = [sys.executable, str(launcher), "--webview", url, title]
             creationflags = 0x08000000 if sys.platform.startswith("win") else 0
-            subprocess.Popen(cmd, creationflags=creationflags)
+            proc = subprocess.Popen(cmd, creationflags=creationflags)
+
+            def watchdog():
+                try:
+                    if proc.poll() is not None:
+                        webbrowser.open(url)
+                    else:
+                        self.after(1800, watchdog)
+                except Exception:
+                    try:
+                        webbrowser.open(url)
+                    except Exception:
+                        pass
+            self.after(2200, watchdog)
         except Exception:
             webbrowser.open(url)
 
