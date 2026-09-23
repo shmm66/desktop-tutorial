@@ -68,8 +68,8 @@ def _native_backdrop(window, dark: bool, acrylic: bool = True) -> bool:
 def _pywinstyles_fallback(window, dark: bool, style: str) -> bool:
     try:
         import pywinstyles
-        native = style if style in {"acrylic", "mica", "transparent"} else "acrylic"
-        pywinstyles.apply_style(window, native)
+        native_style = style if style in {"acrylic", "mica", "transparent"} else "acrylic"
+        pywinstyles.apply_style(window, native_style)
         if hasattr(pywinstyles, "change_header_color"):
             pywinstyles.change_header_color(window, "#06111D" if dark else "#EAF4F7")
         if hasattr(pywinstyles, "change_title_color"):
