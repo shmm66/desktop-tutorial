@@ -21,3 +21,7 @@ Create a Google OAuth Desktop application, download `credentials.json`, then sel
 
 ## Windows build
 GitHub Actions builds both `TraderPlannerPro.exe` and `TraderPlannerPro_Setup.exe` as artifacts after a push to `main` or a manual workflow run.
+
+
+## V8.2.0 build verification
+Windows EXE/installer pipeline verification stamp.
