@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.2.0"
+VERSION = "8.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -596,12 +596,22 @@ class App(tk.Tk):
         self.after(50, self.market_data.refresh_now)
         self.focus_force()
 
-    def go_home(self, _event=None):
-        """Global Home action that works from every page and market mode."""
+    def _home_click(self):
+        """Single UI entry point for every Home button."""
         try:
             self._hard_home()
         except Exception as exc:
-            self._show_page_error("home", exc)
+            try:
+                self.cur = "home"
+                self._nav_token += 1
+                self._render_page("home", self._nav_token)
+            except Exception:
+                self._show_page_error("home", exc)
+        return None
+
+    def go_home(self, _event=None):
+        """Global Home action that works from every page and market mode."""
+        self._home_click()
         return "break"
 
     def close_app(self):
@@ -921,7 +931,7 @@ class App(tk.Tk):
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
         self.market_btn.pack(side="left", padx=4)
         self.global_home_btn = tk.Button(
-            status, text=self.tr("nav_home"), command=self.go_home,
+            status, text=self.tr("nav_home"), command=self._home_click,
             bg=C["accent"], fg="#061019", activebackground=C["gold"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
         )
@@ -940,7 +950,7 @@ class App(tk.Tk):
         except Exception: pass
         self._quick_nav_buttons = {}
         nav_specs = [
-            ("home", self.tr("nav_home"), self.go_home),
+            ("home", self.tr("nav_home"), self._home_click),
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
@@ -1134,7 +1144,7 @@ class App(tk.Tk):
         if sub:
             tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9)).pack(anchor="e", pady=(2,0))
         left_tools = tk.Frame(band, bg=C["bg"]); left_tools.pack(side="left", padx=2)
-        home_btn = tk.Button(left_tools, text=self.tr("home"), command=self.go_home,
+        home_btn = tk.Button(left_tools, text=self.tr("home"), command=self._home_click,
                              bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
@@ -2401,7 +2411,7 @@ class App(tk.Tk):
         build_forex(forex_tab)
 
         shortcuts=tk.Frame(self.content,bg=C["bg"]); shortcuts.pack(fill="x",pady=(4,8))
-        self.btn(shortcuts,self.tr("home_shortcut"),self.go_home).pack(side="left")
+        self.btn(shortcuts,self.tr("home_shortcut"),self._home_click).pack(side="left")
 
     def news(self):
         self.heading(self.tr("news_title"), self.tr("news_sub"))
