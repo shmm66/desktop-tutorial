@@ -1974,11 +1974,15 @@ class App(tk.Tk):
 
         state=self.ai.status()
         model_text=state.get("model", self.ai.model)
-        state_text=("LIVE CLOUD AGENT" if state.get("cloud") else
-                    "LOCAL OLLAMA" if state.get("ollama") else "OFFLINE ASSISTANT")
+        state_text=("FLAGSHIP MULTI-AGENT" if state.get("cloud") and state.get("agents_sdk") else
+                    "LIVE CLOUD AGENT" if state.get("cloud") else
+                    "LOCAL OLLAMA" if state.get("ollama") else "BUILT-IN ASSISTANT")
         state_fg=C["accent"] if state.get("cloud") else C["cyan"] if state.get("ollama") else C["gold"]
         tk.Label(header,text=f"{state_text} • {model_text}",bg=C["panel3"],fg=state_fg,
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left",padx=10)
+        if state.get("cloud") and state.get("agents_sdk"):
+            tk.Label(header,text="ROUTER → FORM • STRATEGY • PSYCHOLOGY • ACADEMY • PRODUCT",
+                     bg=C["panel3"],fg=C["muted"],font=("Consolas",7)).pack(side="left",padx=4)
 
         tools_row=tk.Frame(win,bg=C["bg"]); tools_row.pack(fill="x",padx=14,pady=(0,7))
         role_var=tk.StringVar(value="Master Agent")
