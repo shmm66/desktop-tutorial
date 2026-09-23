@@ -4,9 +4,6 @@ on:
   pull_request:
     branches: [ main ]
 
-permissions:
-  contents: write
-
 jobs:
   bootstrap:
     runs-on: windows-2022
@@ -17,11 +14,7 @@ jobs:
         shell: powershell
         run: |
           'checkout-ok' | Out-File bootstrap-marker.txt -Encoding utf8
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add bootstrap-marker.txt
-          git commit -m 'ci: checkout checkpoint [skip ci]'
-          git push origin HEAD:${{ github.head_ref }}
+          git rev-parse HEAD | Out-File bootstrap-head.txt -Encoding utf8
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -30,10 +23,11 @@ jobs:
         shell: powershell
         run: |
           python --version | Out-File bootstrap-python.txt -Encoding utf8
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add bootstrap-python.txt
-          git commit -m 'ci: python checkpoint [skip ci]'
-          git push origin HEAD:${{ github.head_ref }}
-      - name: Print pip
-        run: python -m pip --version
+          python -m pip --version | Out-File bootstrap-pip.txt -Encoding utf8
+      - name: Publish bootstrap diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-2-0-bootstrap-diagnostics
+          path: bootstrap-*.txt
+          if-no-files-found: ignore
