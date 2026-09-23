@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.2.0"
+    assert VERSION == "8.3.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -284,9 +284,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.2.0\"" in launcher
+    assert "VERSION = \"8.3.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -297,7 +297,7 @@ def test_v780_news_webview_has_fallback():
 
 def test_v800_ai_uses_supported_master_model():
     from ai_assistant import DEFAULT_MODEL, ROLES
-    assert DEFAULT_MODEL == "gpt-6-sol"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert "academy" in ROLES
     assert "product" in ROLES
 
@@ -344,9 +344,8 @@ def test_v800_navigation_uses_single_home_renderer():
 
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-6-sol"
-    assert MODEL_FALLBACKS == ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
-    assert "gpt-5.6-terra" not in MODEL_FALLBACKS
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
     assert CHATGPT_WEB_URL.startswith("https://")
 
 
@@ -420,11 +419,11 @@ def test_v810_real_glass_and_safe_installer():
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     assert 'wintypes.DWORD(38)' in glass
     assert 'pywinstyles.apply_style(window, native_style)' in glass
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert 'PrivilegesRequired=lowest' in iss
 
 
-def test_v820_home_is_synchronous_and_ai_is_globally_launchable():
+def test_v830_home_is_synchronous_and_ai_is_globally_launchable():
     from pathlib import Path
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def go_home(self, _event=None):" in source
@@ -435,7 +434,7 @@ def test_v820_home_is_synchronous_and_ai_is_globally_launchable():
     assert "tk.Toplevel(self)" in source
 
 
-def test_v820_market_has_no_key_fallback():
+def test_v830_market_has_no_key_fallback():
     from market_data import COINCAP_ENDPOINT, _crypto_from_coincap
     assert "coincap.io/v2/assets" in COINCAP_ENDPOINT
     assert callable(_crypto_from_coincap)
@@ -444,9 +443,9 @@ def test_v820_market_has_no_key_fallback():
 def test_v820_installer_is_non_admin_and_versioned():
     from pathlib import Path
     iss=Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert "PrivilegesRequired=lowest" in iss
-    assert "OutputBaseFilename=TraderPlannerPro_Setup_v8.2.0" in iss
+    assert "OutputBaseFilename=TraderPlannerPro_Setup_v8.3.0" in iss
 
 
 def test_v820_academy_dispatch_has_exact_models():
@@ -455,3 +454,28 @@ def test_v820_academy_dispatch_has_exact_models():
     source=inspect.getsource(draw_setup)
     for token in ("_smc_liquidity", "_smc_ob_fvg", "_smc_breaker", "_ict_2022", "_ict_silver", "_ict_unicorn", "_ict_ote", "_ict_amd", "_ict_judas", "_two_instruments"):
         assert token in source
+
+
+def test_v830_ai_and_build_contracts():
+    from pathlib import Path
+    from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert "gpt-5.6-sol" in MODEL_FALLBACKS
+    ai = Path("ai_assistant.py").read_text(encoding="utf-8")
+    assert 'tools=[{"type": "web_search"}]' in ai
+    assert 'reasoning={"effort": REASONING_EFFORT}' in ai
+
+def test_v830_navigation_invalidates_async_pages():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "self._news_token += 1" in source
+    assert "page_token != self._nav_token" in source
+    assert 'self.cur != "home"' in source
+    assert 'def _apply_market_data(self, payload, page_token=None, market=None):' in source
+
+def test_v830_academy_renders_source_asset_before_local_map():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert 'bundled_asset_for_visual(kind)' in source
+    assert "SOURCE IMAGE • EXACT MAPPED VISUAL" in source
+    assert "SETUP ANATOMY • LOCAL TRAINING MAP" in source

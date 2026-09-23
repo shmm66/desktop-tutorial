@@ -10,9 +10,9 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-6-sol"
+DEFAULT_MODEL = "gpt-5.6-sol"
 REASONING_EFFORT = "xhigh"
-MODEL_FALLBACKS = ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
+MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
@@ -30,7 +30,7 @@ def _post_json(url, payload, timeout=25):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.2"},
+        headers={"Content-Type": "application/json", "User-Agent": "TraderPlannerPro/8.3"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -197,19 +197,32 @@ class AIOrchestrator:
         )
         specialist = self.roles.get(role, self.roles["orchestrator"])
         recent = json.dumps(self.history[-8:], ensure_ascii=False)
-        response = client.responses.create(
-            model=self.model,
-            instructions=common + "\nSPECIALIST ROLE:\n" + specialist,
-            input=(
-                "APP CONTEXT:\n" + context +
-                "\n\nRECENT CHAT:\n" + recent +
-                "\n\nUSER QUESTION:\n" + user_message
-            ),
-        )
-        answer = str(getattr(response, "output_text", "") or "").strip()
-        if not answer:
-            raise RuntimeError("OpenAI returned an empty response.")
-        return answer
+        last_exc = None
+        models = []
+        for model in (self.model,) + tuple(m for m in MODEL_FALLBACKS if m != self.model):
+            if model not in models:
+                models.append(model)
+        for model in models:
+            try:
+                response = client.responses.create(
+                    model=model,
+                    reasoning={"effort": REASONING_EFFORT},
+                    tools=[{"type": "web_search"}],
+                    instructions=common + "\nSPECIALIST ROLE:\n" + specialist,
+                    input=(
+                        "APP CONTEXT:\n" + context +
+                        "\n\nRECENT CHAT:\n" + recent +
+                        "\n\nUSER QUESTION:\n" + user_message
+                    ),
+                )
+                answer = str(getattr(response, "output_text", "") or "").strip()
+                if answer:
+                    self.model = model
+                    return answer
+                last_exc = RuntimeError(f"OpenAI returned an empty response for {model}.")
+            except Exception as exc:
+                last_exc = exc
+        raise last_exc or RuntimeError("OpenAI request failed.")
 
     def respond(self, role, user_message, context="", callback=None):
         role = role if role in self.roles else "form"

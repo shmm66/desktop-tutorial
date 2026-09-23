@@ -26,12 +26,12 @@ from glass_theme import apply_glass, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
-from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
+from news_data import fetch_market_news, cached_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 from google_oauth import google_status, login_google, logout_google, send_gmail, find_client_file
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.2.0"
+VERSION = "8.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -1047,6 +1047,12 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
+        # Every navigation action invalidates UI callbacks from the previous page.
+        self._news_token += 1
+        if self._news_timeout_job is not None:
+            try: self.after_cancel(self._news_timeout_job)
+            except Exception: pass
+            self._news_timeout_job = None
         allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
             key="home"
@@ -1147,9 +1153,19 @@ class App(tk.Tk):
                  font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
 
     def card(self, parent, padx=1):
-        frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
+        frame=tk.Frame(
+            parent,bg=C["panel"],highlightbackground=C["line"],
+            highlightthickness=max(1,padx),bd=0,relief="flat"
+        )
+        # Small highlight ridge makes the native Acrylic surface read as a glass card.
         try:
-            set_widget_glass(frame, 0.86)
+            gloss=tk.Frame(frame,bg=C["cyan"],height=2)
+            gloss.pack(fill="x",side="top")
+            frame._glass_gloss = gloss
+        except Exception:
+            pass
+        try:
+            set_widget_glass(frame, 0.84)
         except Exception:
             pass
         return frame
@@ -1466,21 +1482,28 @@ class App(tk.Tk):
         self.ticker_job = self.after(45, self._animate_ticker)
 
     def _market_data_callback(self, payload):
-        if str(payload.get("market")) != str(self.market):
+        market = str(payload.get("market"))
+        page_token = self._nav_token
+        if market != str(self.market) or self.cur != "home":
             return
         try:
-            self.after(0, lambda p=payload: self._apply_market_data(p))
+            self.after(0, lambda p=payload, t=page_token, m=market: self._apply_market_data(p, t, m))
         except Exception:
             pass
 
-    def _apply_market_data(self, payload):
-        if str(payload.get("market")) != str(self.market):
+    def _apply_market_data(self, payload, page_token=None, market=None):
+        if page_token is not None and page_token != self._nav_token:
+            return
+        if market is not None and market != str(self.market):
+            return
+        if str(payload.get("market")) != str(self.market) or self.cur != "home":
+            return
+        if not hasattr(self, "ticker_canvas") or not self.ticker_canvas.winfo_exists():
             return
         self.market_data_payload = payload
-        if self.cur == "home":
-            self.ticker_offset = 0
-            self.render_market_ticker(payload)
-            self.render_market_indicators(payload)
+        self.ticker_offset = 0
+        self.render_market_ticker(payload)
+        self.render_market_indicators(payload)
 
     def draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
@@ -2426,10 +2449,11 @@ class App(tk.Tk):
         self.refresh_news()
 
     def refresh_news(self):
-        if not hasattr(self, "news_tree"):
+        if not hasattr(self, "news_tree") or not self.news_tree.winfo_exists():
             return
         self._news_token += 1
         token = self._news_token
+        page_token = self._nav_token
         if self._news_timeout_job:
             try: self.after_cancel(self._news_timeout_job)
             except Exception: pass
@@ -2438,37 +2462,52 @@ class App(tk.Tk):
             self.news_tree.delete(item)
         self.news_status.config(text="● " + self.tr("market_loading"), fg=C["gold"])
 
-        fallback=[
-            ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
-            ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
-            ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
-            ("CryptoSlate","Open CryptoSlate news terminal","https://cryptoslate.com/news-terminal/"),
-            ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
-        ]
-        self.news_items=[{"source":src,"published":"SOURCE","title":title,"link":url}
-                         for src,title,url in fallback]
-        for i,row in enumerate(self.news_items):
-            self.news_tree.insert("", "end", iid=f"source-{i}",
-                                  values=(row["source"],"SOURCE",row["title"]))
+        # Show the last successful feed immediately, then refresh it in the background.
+        cached_rows = cached_news(limit=28)
+        if cached_rows:
+            self.news_items = cached_rows
+            for i,row in enumerate(self.news_items):
+                self.news_tree.insert(
+                    "", "end", iid=str(i),
+                    values=(row.get("source","News"),row.get("published",""),row.get("title",""))
+                )
+            self.news_status.config(text=f"● {len(self.news_items)} cached headlines • refreshing…", fg=C["gold"])
+        else:
+            fallback=[
+                ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
+                ("Cointelegraph","Open Cointelegraph crypto terminal","https://cointelegraph.com/"),
+                ("Decrypt","Open Decrypt crypto terminal","https://decrypt.co/"),
+                ("CryptoSlate","Open CryptoSlate crypto terminal","https://cryptoslate.com/news-terminal/"),
+                ("Forex Factory","Open Forex Factory economic calendar",FOREX_FACTORY),
+            ]
+            self.news_items=[{"source":src,"published":"SOURCE","title":title,"link":url}
+                             for src,title,url in fallback]
+            for i,row in enumerate(self.news_items):
+                self.news_tree.insert("", "end", iid=f"source-{i}",
+                                      values=(row["source"],"SOURCE",row["title"]))
 
         def done(rows):
-            if token != self._news_token:
+            if token != self._news_token or page_token != self._nav_token or self.cur != "news":
                 return
             try:
-                self.after(0, lambda r=rows,t=token: self._apply_news(r,t))
+                self.after(0, lambda r=rows,t=token,p=page_token: self._apply_news(r,t,p))
             except Exception:
                 pass
         fetch_market_news(done, include_forex=True)
-        self._news_timeout_job=self.after(10000,lambda t=token:self._news_timeout(t))
+        self._news_timeout_job=self.after(10000,lambda t=token,p=page_token:self._news_timeout(t,p))
 
-    def _news_timeout(self, token):
+    def _news_timeout(self, token, page_token):
         self._news_timeout_job=None
-        if token != self._news_token or not hasattr(self,"news_tree"):
+        if token != self._news_token or page_token != self._nav_token or self.cur != "news" or not hasattr(self,"news_tree"):
             return
         self.news_status.config(text="● "+self.tr("news_fallback"),fg=C["gold"])
 
-    def _apply_news(self, rows, token=None):
+    def _apply_news(self, rows, token=None, page_token=None):
         if token is not None and token != self._news_token:
+            return
+        if page_token is not None and page_token != self._nav_token:
+            return
+        if self.cur != "news":
             return
         self.news_items=rows or []
         if not hasattr(self,"news_tree"): return
@@ -2685,52 +2724,102 @@ class App(tk.Tk):
             reminders.pop(idx); save_db(); self.show("ai")
 
     def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
-        """Render one exact, family-aware educational visual with a trustworthy source link."""
-        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        box.pack(fill="x",padx=8,pady=(4,8))
-        kind=visual_kind or key
-        family_key="ict" if str(family).lower()=="ict" else ("smc" if str(family).lower()=="smc" else "candles")
-        family_text={
-            "smc":self.tr("smc_family"),
-            "ict":self.tr("ict_family"),
-            "candles":self.tr("candles")
+        """Show the exact mapped source asset first, then the clean local setup anatomy."""
+        kind = visual_kind or key
+        family_key = "ict" if str(family).lower() == "ict" else ("smc" if str(family).lower() == "smc" else "candles")
+        family_text = {
+            "smc": self.tr("smc_family"),
+            "ict": self.tr("ict_family"),
+            "candles": self.tr("candles"),
         }[family_key]
-        family_fg={"smc":C["accent"],"ict":C["violet"],"candles":C["gold"]}[family_key]
+        family_fg = {"smc": C["accent"], "ict": C["violet"], "candles": C["gold"]}[family_key]
 
-        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,5))
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,font=("Segoe UI",8,"bold"),
-                 padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
-                 font=("Segoe UI",14,"bold")).pack(side="right",padx=8)
+        box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        box.pack(fill="x", padx=8, pady=(4,8))
 
-        semantic=tk.Frame(box,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        semantic.pack(fill="x",padx=10,pady=(0,7))
-        tk.Label(semantic,text=self.tr("setup_anatomy"),bg=C["panel3"],fg=family_fg,
-                 font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,3))
-        tk.Label(semantic,text=self.ui_text(subtitle),bg=C["panel3"],fg=C["muted"],
-                 font=("Segoe UI",10),wraplength=1120,justify="right").pack(fill="x",padx=12,pady=(0,5))
+        header = tk.Frame(box, bg=C["panel3"])
+        header.pack(fill="x", padx=12, pady=(10,6))
+        tk.Label(
+            header, text=family_text, bg=C["soft"], fg=family_fg,
+            font=("Segoe UI",9,"bold"), padx=10, pady=5
+        ).pack(side="right")
+        tk.Label(
+            header, text=self.ui_text(title), bg=C["panel3"], fg=C["text"],
+            font=("Segoe UI",15,"bold")
+        ).pack(side="right", padx=9)
 
-        holder=tk.Frame(semantic,bg=C["panel3"]); holder.pack(fill="x",padx=4,pady=(0,7))
+        tk.Label(
+            box, text=self.ui_text(subtitle), bg=C["panel3"], fg=C["muted"],
+            font=("Segoe UI",10), wraplength=1100, justify="right", anchor="e"
+        ).pack(fill="x", padx=14, pady=(0,8))
+
+        # 1) Exact external source image, preserved byte-for-byte by the CI asset step.
+        source_asset = bundled_asset_for_visual(kind)
+        source_holder = tk.Frame(box, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        source_holder.pack(fill="x", padx=10, pady=(0,8))
+        tk.Label(
+            source_holder, text="SOURCE IMAGE • EXACT MAPPED VISUAL",
+            bg=C["panel3"], fg=family_fg, font=("Consolas",9,"bold")
+        ).pack(anchor="w", padx=12, pady=(8,4))
+
+        shown = False
+        if source_asset is not None:
+            try:
+                from PIL import Image, ImageTk
+                image = Image.open(source_asset).convert("RGB")
+                image.thumbnail((1120, 390), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(image)
+                img = tk.Label(source_holder, image=photo, bg=C["panel3"])
+                img.image = photo
+                img.pack(fill="x", padx=10, pady=(0,10))
+                shown = True
+            except Exception as exc:
+                tk.Label(
+                    source_holder, text=f"Source image unavailable in this build: {exc}",
+                    bg=C["panel3"], fg=C["danger"], font=("Segoe UI",9,"bold")
+                ).pack(padx=10,pady=12)
+        if not shown:
+            tk.Label(
+                source_holder,
+                text="The exact source image will appear after the education asset pack is prepared.",
+                bg=C["panel3"], fg=C["muted"], font=("Segoe UI",9,"bold"), pady=12
+            ).pack(fill="x")
+
+        # 2) A local, deterministic anatomy diagram with the strategy semantics.
+        anatomy_title = tk.Frame(box, bg=C["panel3"])
+        anatomy_title.pack(fill="x", padx=12, pady=(2,4))
+        tk.Label(
+            anatomy_title, text="SETUP ANATOMY • LOCAL TRAINING MAP",
+            bg=C["panel3"], fg=family_fg, font=("Consolas",9,"bold")
+        ).pack(anchor="w")
+        diagram = tk.Frame(box, bg=C["panel3"])
+        diagram.pack(fill="x", padx=4, pady=(0,8))
         try:
-            if family_key in ("smc","ict"):
-                draw_setup(holder,family_key,self.ui_text(title),C)
+            if family_key in ("smc", "ict"):
+                draw_setup(diagram, family_key, self.ui_text(title), C)
             else:
-                draw_candlestick(holder,self.ui_text(title),C)
+                draw_candlestick(diagram, self.ui_text(title), C)
         except Exception as exc:
-            tk.Label(holder,text=f"{self.tr('no_exact_image')}\n{exc}",bg=C["panel3"],fg=C["danger"],
-                     font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
+            tk.Label(
+                diagram, text=f"Training diagram error: {exc}",
+                bg=C["panel3"], fg=C["danger"], font=("Segoe UI",9,"bold"),
+                padx=18, pady=20
+            ).pack(fill="x")
 
-        source_title,source_url=source_for_visual(kind)
-        source=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        source.pack(fill="x",padx=10,pady=(0,8))
-        left=tk.Frame(source,bg=C["panel"]); left.pack(side="left",padx=10,pady=8)
-        tk.Label(left,text="SOURCE / FURTHER READING",bg=C["panel"],fg=C["cyan"],
+        source_title, source_url = source_for_visual(kind)
+        source = tk.Frame(box, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1)
+        source.pack(fill="x", padx=10, pady=(0,8))
+        left = tk.Frame(source, bg=C["panel"]); left.pack(side="left", padx=10, pady=8)
+        tk.Label(left, text="SOURCE / FURTHER READING", bg=C["panel"], fg=C["cyan"],
                  font=("Consolas",8,"bold")).pack(anchor="w")
-        self.btn(left,self.tr("open_source"),lambda u=source_url:self.open_webview(u,source_title)).pack(anchor="w",pady=(4,0))
-        tk.Label(source,text=self.ui_text(source_title),bg=C["panel"],fg=C["muted"],
-                 font=("Segoe UI",9,"bold"),wraplength=820,justify="right").pack(side="right",fill="x",expand=True,padx=12,pady=10)
-        tk.Label(source,text=self.ui_text("The diagram above is the app's exact teaching map; the link is the external source reference."),
-                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",8),wraplength=420,justify="right").pack(side="right",padx=12,pady=10)
+        self.btn(
+            left, self.tr("open_source"),
+            lambda u=source_url: self.open_webview(u, source_title)
+        ).pack(anchor="w", pady=(4,0))
+        tk.Label(
+            source, text=self.ui_text(source_title), bg=C["panel"], fg=C["muted"],
+            font=("Segoe UI",9,"bold"), wraplength=820, justify="right"
+        ).pack(side="right", fill="x", expand=True, padx=12, pady=10)
         return box
 
     def academy(self):
@@ -2771,16 +2860,64 @@ class App(tk.Tk):
         tab_ict=tk.Frame(nb,bg=C["bg"])
         tab_candle=tk.Frame(nb,bg=C["bg"])
         tab_gloss=tk.Frame(nb,bg=C["bg"])
+        tab_compare=tk.Frame(nb,bg=C["bg"])
         nb.add(tab_smc,text=self.tr("smc"))
         nb.add(tab_ict,text=self.tr("ict"))
         nb.add(tab_candle,text=self.tr("candles"))
         nb.add(tab_gloss,text=self.tr("glossary"))
+        nb.add(tab_compare,text=self.ui_text("SMC ≠ ICT"))
         self._academy_notebook=nb
 
         self._build_strategy_tab(tab_smc, SMART_MONEY_STRATEGIES, "smc")
         self._build_strategy_tab(tab_ict, ICT_STRATEGIES, "ict")
         self._build_candle_tab(tab_candle)
         self._build_glossary_tab(tab_gloss)
+        self._build_comparison_tab(tab_compare)
+
+    def _build_comparison_tab(self,parent):
+        intro=self.card(parent); intro.pack(fill="x",padx=10,pady=(10,7))
+        tk.Label(intro,text=self.ui_text("SMC ≠ ICT"),bg=C["panel"],fg=C["gold"],
+                 font=("Segoe UI",18,"bold")).pack(anchor="e",padx=18,pady=(12,4))
+        tk.Label(intro,text=self.ui_text(
+            "Teaching boundary: broad SMC concepts cover structure, liquidity and reaction zones; "
+            "ICT is presented through its named models and timing frameworks. A generic SMC workflow "
+            "must not be relabeled as an ICT model."
+        ),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=1100,justify="right").pack(
+            fill="x",padx=18,pady=(0,12)
+        )
+        columns=tk.Frame(parent,bg=C["bg"]); columns.pack(fill="both",expand=True,padx=10,pady=4)
+        smc=self.card(columns); smc.pack(side="left",fill="both",expand=True,padx=(0,5))
+        ict=self.card(columns); ict.pack(side="left",fill="both",expand=True,padx=(5,0))
+        smc_rows=[
+            ("FAMILY","Broad Smart Money / SMC framework"),
+            ("CORE","Market Structure • Liquidity • BOS/CHoCH • Displacement"),
+            ("ZONES","Order Block • FVG • Breaker • Reaction zones"),
+            ("FLOW","Context → liquidity event → confirmation → zone → retest"),
+            ("BOUNDARY","A generic sweep+BOS or OB+FVG setup is not automatically a named ICT model."),
+        ]
+        ict_rows=[
+            ("FAMILY","Named ICT models and frameworks"),
+            ("MODELS","2022 Model • Silver Bullet • Unicorn • OTE • AMD • Judas Swing • SMT"),
+            ("TIMING","Killzones / defined windows when required by the selected model"),
+            ("FLOW","Use the exact named-model sequence, location and trigger rules."),
+            ("BOUNDARY","Bullish/Bearish Engulfing belongs to the candlestick library, not the ICT setup library."),
+        ]
+        for box,heading,rows,fg in ((smc,"SMART MONEY / SMC",smc_rows,C["accent"]),(ict,"ICT",ict_rows,C["violet"])):
+            tk.Label(box,text=heading,bg=C["panel"],fg=fg,font=("Segoe UI",15,"bold")).pack(anchor="e",padx=18,pady=(14,10))
+            for k,v in rows:
+                row=tk.Frame(box,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
+                row.pack(fill="x",padx=14,pady=4)
+                tk.Label(row,text=k,bg=C["panel3"],fg=fg,font=("Consolas",8,"bold"),
+                         width=17,anchor="w").pack(side="left",padx=8,pady=9)
+                tk.Label(row,text=self.ui_text(v),bg=C["panel3"],fg=C["text"],font=("Segoe UI",9),
+                         wraplength=420,justify="right",anchor="e").pack(side="right",fill="x",expand=True,padx=8,pady=9)
+        note=self.card(parent); note.pack(fill="x",padx=10,pady=(7,10))
+        tk.Label(note,text=self.ui_text(
+            "Every Academy card now carries a family badge, an exact mapped source visual when bundled, "
+            "a deterministic local setup map, and a source link."
+        ),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold"),wraplength=1100,justify="right").pack(
+            fill="x",padx=18,pady=12
+        )
 
     def _build_strategy_tab(self,parent,items,family):
         outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8,showhandle=False)
