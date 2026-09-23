@@ -42,7 +42,7 @@ FEEDS = [
     ("Google News • Forex", GOOGLE_FOREX_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/8.2.0"
+USER_AGENT = "TraderPlannerPro/8.3.0"
 NEWS_CACHE = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 
@@ -195,6 +195,16 @@ def fetch_all_news(limit=24, include_forex=False):
         cached = json.loads(NEWS_CACHE.read_text(encoding="utf-8"))
         if isinstance(cached, list):
             return cached[:limit]
+    except (OSError, ValueError, TypeError):
+        pass
+    return []
+
+
+def cached_news(limit=28):
+    try:
+        rows = json.loads(NEWS_CACHE.read_text(encoding="utf-8"))
+        if isinstance(rows, list):
+            return rows[:limit]
     except (OSError, ValueError, TypeError):
         pass
     return []
