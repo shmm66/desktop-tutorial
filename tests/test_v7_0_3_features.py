@@ -328,7 +328,7 @@ def test_v79_navigation_and_glass_hooks_present():
     from pathlib import Path
     text = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def _hard_home(self):" in text
-    assert "command=self.go_home" in text
+    assert "command=self._home_click" in text
     assert "apply_glass(self" in text
     assert "set_widget_glass(top" in text
 
@@ -344,7 +344,7 @@ def test_v800_navigation_uses_single_home_renderer():
 
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-6-sol"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-luna")
     assert "gpt-6-sol" not in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
@@ -444,7 +444,7 @@ def test_v820_market_has_no_key_fallback():
 def test_v820_installer_is_non_admin_and_versioned():
     from pathlib import Path
     iss=Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert "PrivilegesRequired=lowest" in iss
     assert "OutputBaseFilename=TraderPlannerPro_Setup_v8.3.0" in iss
 
