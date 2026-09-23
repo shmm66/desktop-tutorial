@@ -25,3 +25,6 @@ GitHub Actions builds both `TraderPlannerPro.exe` and `TraderPlannerPro_Setup.ex
 
 ## V8.2.0 build verification
 Windows EXE/installer pipeline verification stamp.
+
+
+V8.2.0 final verification trigger.
