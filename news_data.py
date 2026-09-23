@@ -19,12 +19,19 @@ GOOGLE_CRYPTO_RSS = (
     "https://news.google.com/rss/search?"
     "q=(bitcoin+OR+ethereum+OR+crypto+OR+blockchain)+when:1d&hl=en-US&gl=US&ceid=US:en"
 )
+GOOGLE_FOREX_RSS = (
+    "https://news.google.com/rss/search?"
+    "q=(forex+OR+EURUSD+OR+GBPUSD+OR+USDJPY+OR+Federal+Reserve)+when:1d&hl=en-US&gl=US&ceid=US:en"
+)
 FOREX_FACTORY = "https://www.forexfactory.com/calendar"
 FOREX_FACTORY_FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
 COINDESK_HOME = "https://www.coindesk.com/"
 CRYPTO_NEWS_HOME = "https://cryptoslate.com/news-terminal/"
 
-FOREX_FEEDS = [("Forex Factory", FOREX_FACTORY_FEED)]
+FOREX_FEEDS = [
+    ("Forex Factory", FOREX_FACTORY_FEED),
+    ("Google News • Forex", GOOGLE_FOREX_RSS),
+]
 
 FEEDS = [
     ("CoinDesk", COINDESK_RSS),
@@ -32,9 +39,10 @@ FEEDS = [
     ("Decrypt", DECRYPT_RSS),
     ("CryptoSlate", CRYPTOSLATE_RSS),
     ("Google News • Crypto", GOOGLE_CRYPTO_RSS),
+    ("Google News • Forex", GOOGLE_FOREX_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/8.1.0"
+USER_AGENT = "TraderPlannerPro/8.2.0"
 NEWS_CACHE = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 
