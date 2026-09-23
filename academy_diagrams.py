@@ -219,6 +219,46 @@ def _ict_judas(c,P):
     _label(c,600,388,"The first move alone is not the whole model; the timing and reversal sequence matter.",P["text"],size=9)
 
 
+def _smc_fvg(c,P):
+    _title(c,P,"SMC • Fair Value Gap","Three-candle imbalance reference. Keep the gap boundaries explicit.")
+    _candles(c,True,x0=120,step=150)
+    c.create_line(258,176,458,176,fill=P["green"],width=3,dash=(7,5))
+    c.create_line(258,230,458,230,fill=P["green"],width=3,dash=(7,5))
+    _zone(c,258,176,458,230,"#153B32",P["green"],"FVG • GAP",P)
+    _label(c,335,153,"CANDLE 1 → CANDLE 2 → CANDLE 3",P["text"],size=9)
+    _label(c,600,388,"The common FVG definition is a three-candle imbalance; this is not an Order Block.",P["text"],size=9)
+
+
+def _smc_ob(c,P):
+    _title(c,P,"SMC • Order Block","Zone definition: last opposing candle/area associated with the displacement leg.")
+    _candles(c,True,x0=130,step=110)
+    _zone(c,355,190,470,270,"#3A2229",P["red"],"BULLISH OB",P)
+    _arrow(c,485,265,640,120,P["green"],"DISPLACEMENT")
+    _arrow(c,940,120,780,210,P["blue"],"RETEST")
+    _label(c,600,388,"OB ≠ FVG. Validate the block with the structural/displacement context used in your rules.",P["text"],size=9)
+
+
+def _smc_structure(c,P):
+    _title(c,P,"SMC • Market Structure / BOS","Swing sequence first; BOS is the break of a relevant structural swing under a defined rule.")
+    pts=[(85,285),(180,220),(275,250),(370,165),(465,205),(560,110),(655,150),(750,78),(845,122)]
+    _line(c,[v for p in pts for v in p],P["blue"],4)
+    c.create_line(370,165,610,165,fill=P["gold"],dash=(7,5),width=2)
+    _label(c,380,145,"PRIOR SWING HIGH",P["gold"],anchor="w",size=8)
+    _arrow(c,610,165,650,145,P["green"],"BOS")
+    _label(c,600,388,"BOS must use a fixed swing and confirmation rule; a wick-only break is not automatically the same rule as a close.",P["text"],size=9)
+
+
+def _smc_liquidity_only(c,P):
+    _title(c,P,"SMC • Liquidity","Chart concept: obvious highs/lows, equal levels and session extremes can be tracked as liquidity references.")
+    _candles(c,False,x0=90,step=76)
+    for y,label,col in [(110,"BUY-SIDE / ABOVE HIGHS",P["gold"]),(285,"SELL-SIDE / BELOW LOWS",P["gold"])]:
+        c.create_line(55,y,1060,y,fill=col,dash=(8,5),width=2)
+        _label(c,64,y-14 if y<200 else y+14,label,col,anchor="w",size=8)
+    c.create_line(345,95,345,300,fill=P["red"],width=3)
+    _label(c,345,324,"SWEEP / RAID",P["red"],size=8)
+    _label(c,600,388,"Liquidity is a chart hypothesis about where orders may cluster; price must confirm the reaction.",P["text"],size=9)
+
+
 def draw_setup(parent, family, model, palette):
     P=_palette(palette)
     c=_canvas(parent)
@@ -229,11 +269,17 @@ def draw_setup(parent, family, model, palette):
         if "liquidity sweep" in title:
             _smc_liquidity(c,P)
         elif "order block" in title:
-            _smc_ob_fvg(c,P)
+            _smc_ob_fvg(c,P) if "fvg" in title else _smc_ob(c,P)
+        elif "fair value gap" in title or title=="fvg":
+            _smc_fvg(c,P)
         elif "breaker" in title:
             _smc_breaker(c,P)
         elif "choch" in title or "mss" in title:
             _smc_shift(c,P)
+        elif "bos" in title or "market structure" in title or title in {"structure","smc overview"}:
+            _smc_structure(c,P)
+        elif "liquidity" in title or "buy-side liquidity" in title or "sell-side liquidity" in title:
+            _smc_liquidity_only(c,P)
         else:
             _smc_flow(c,P)
     else:
