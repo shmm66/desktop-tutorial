@@ -22,7 +22,7 @@ from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
 from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key, bundled_asset_for_visual
 from academy_diagrams import draw_setup, draw_candlestick
-from glass_theme import apply_glass, set_widget_glass
+from glass_theme import apply_glass, set_widget_glass, set_transparent_client
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
@@ -667,7 +667,11 @@ class App(tk.Tk):
         palette = dict(THEMES[effective])
         palette.update(SKINS[skin][effective])
         C.update(palette)
-        self.configure(bg=C["bg"])
+        try:
+            set_transparent_client(self, enabled=(skin == "glass"))
+        except Exception:
+            pass
+        self.configure(bg="#010307" if skin == "glass" else C["bg"])
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
                              rowheight=38, borderwidth=0, font=("Segoe UI", 10))
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
@@ -707,8 +711,9 @@ class App(tk.Tk):
         if not hasattr(self, "topbar"):
             return
         try:
-            self.topbar.configure(bg=C["panel"], highlightbackground=C["line"])
-            self.menu.configure(bg=C["panel"], highlightbackground=C["line"])
+            shell_bg = "#010307" if getattr(self, "skin", "") == "glass" else C["panel"]
+            self.topbar.configure(bg=shell_bg, highlightbackground=C["line"])
+            self.menu.configure(bg=shell_bg, highlightbackground=C["line"])
         except Exception:
             pass
         for widget in (self.topbar, self.content, self.menu, getattr(self, "brand_frame", None),
@@ -716,7 +721,8 @@ class App(tk.Tk):
             if widget is None:
                 continue
             try:
-                widget.configure(bg=C["panel"] if widget is not self.content else C["bg"])
+                shell_bg = "#010307" if getattr(self, "skin", "") == "glass" else C["panel"]
+                widget.configure(bg=shell_bg if widget is not self.content else ("#010307" if getattr(self, "skin", "") == "glass" else C["bg"]))
             except Exception:
                 pass
         for widget in self.menu.winfo_children():
@@ -753,7 +759,7 @@ class App(tk.Tk):
         if hasattr(self, "date_label"):
             self.date_label.configure(bg=C["panel3"], fg=C["muted"])
         if hasattr(self, "quickbar"):
-            self.quickbar.configure(bg=C["bg"], highlightbackground=C["line"])
+            self.quickbar.configure(bg="#010307" if getattr(self, "skin", "") == "glass" else C["bg"], highlightbackground=C["line"])
         for button in getattr(self, "_quick_nav_buttons", {}).values():
             try:
                 button.configure(bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019")
