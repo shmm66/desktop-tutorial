@@ -33,24 +33,52 @@ def show_splash():
     root.after(850, root.destroy)
     root.mainloop()
 
-def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--webview":
-        from webview_runner import main as webview_main
-        webview_main()
-        return
-    show_splash()
-    from TraderPlannerPro_v7_0_3 import App
-    app=App()
+def _write_startup_error(exc):
     try:
-        from PIL import Image,ImageTk
-        from logo_3d import create_logo_image
-        p=Path(tempfile.gettempdir())/"TraderPlannerPro_3D"/"app_icon.png"
-        create_logo_image(p,256)
-        icon=ImageTk.PhotoImage(Image.open(p).convert("RGBA").resize((64,64)))
-        app.iconphoto(True,icon); app._app_icon=icon
+        log_dir=Path.home()/ "TraderPlannerPro"
+        log_dir.mkdir(parents=True,exist_ok=True)
+        (log_dir/"startup.log").write_text(
+            f"Trader Planner Pro {VERSION} startup failure\n\n{type(exc).__name__}: {exc}\n",
+            encoding="utf-8"
+        )
     except Exception:
         pass
-    app.mainloop()
+
+
+def main():
+    try:
+        if len(sys.argv) > 1 and sys.argv[1] == "--webview":
+            from webview_runner import main as webview_main
+            webview_main()
+            return
+        show_splash()
+        from TraderPlannerPro_v7_0_3 import App
+        app=App()
+        try:
+            from PIL import Image,ImageTk
+            from logo_3d import create_logo_image
+            p=Path(tempfile.gettempdir())/"TraderPlannerPro_3D"/"app_icon.png"
+            create_logo_image(p,256)
+            icon=ImageTk.PhotoImage(Image.open(p).convert("RGBA").resize((64,64)))
+            app.iconphoto(True,icon); app._app_icon=icon
+        except Exception:
+            pass
+        app.mainloop()
+    except Exception as exc:
+        _write_startup_error(exc)
+        try:
+            root=tk.Tk(); root.withdraw()
+            from tkinter import messagebox
+            messagebox.showerror(
+                f"{APP} — Startup error",
+                f"{exc}\n\nA diagnostic log was saved to:\n{Path.home()/ 'TraderPlannerPro' / 'startup.log'}"
+            )
+            root.destroy()
+        except Exception:
+            pass
+        raise
+
+
 
 if __name__=="__main__":
     main()
