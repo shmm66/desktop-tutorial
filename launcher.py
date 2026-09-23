@@ -1,3 +1,4 @@
+# CI RELEASE STAMP: V8.2.0
 import tkinter as tk
 from pathlib import Path
 import tempfile
