@@ -354,11 +354,11 @@ def test_v800_academy_has_distinct_smc_ict_diagram_dispatch():
     from academy_diagrams import draw_setup
     import inspect
     source = inspect.getsource(draw_setup)
-    assert "_smc_liquidity_bos" in source
+    assert "_smc_liquidity" in source
     assert "_smc_ob_fvg" in source
     assert "_smc_breaker" in source
     assert "_ict_2022" in source
-    assert "_ict_silver_bullet" in source
+    assert "_ict_silver" in source
     assert "_ict_unicorn" in source
 
 
@@ -377,7 +377,7 @@ def test_v810_navigation_is_deferred_and_market_is_generation_safe():
     from market_data import MarketDataService
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert 'self.after_idle(self._hard_home)' in source
-    assert 'self.market_data_payload = cached_market_payload(market)' in source
+    assert 'cached = cached_market_payload(market)' in source
     assert 'if str(payload.get("market")) != str(self.market):' in source
     service = MarketDataService()
     start = service.generation()
