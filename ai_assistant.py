@@ -92,8 +92,8 @@ def cloud_status():
     if not key:
         return {"enabled": False, "model": DEFAULT_MODEL, "message": "Add an OpenAI API key or enable Ollama."}
     try:
-        import agents  # noqa: F401
-        return {"enabled": True, "model": DEFAULT_MODEL, "message": "Cloud multi-agent routing is ready."}
+        from openai import OpenAI  # noqa: F401
+        return {"enabled": True, "model": DEFAULT_MODEL, "message": "Cloud agent routing is ready."}
     except Exception:
         return {"enabled": False, "model": DEFAULT_MODEL}
 
@@ -171,7 +171,7 @@ class AIOrchestrator:
         ollama_online, ollama_models = ollama_status()
         cloud = cloud_status()
         return {
-            "online": True,
+            "online": cloud["enabled"] or ollama_online,
             "cloud": cloud["enabled"],
             "ollama": ollama_online,
             "web": True,
@@ -180,78 +180,36 @@ class AIOrchestrator:
             "last_error": self.last_error,
         }
 
-    def _build_cloud_agents(self):
-        if self._cloud_agents is not None:
-            return self._cloud_agents
-        from agents import Agent
-
-        common = (
-            "You are inside Trader Planner Pro, a trading journal/academy desktop app. "
-            "Never promise returns or invent market data. "
-            "Use the supplied app context. Be precise. "
-            "Keep broad Smart Money/SMC concepts distinct from named ICT models. "
-            "Candlestick patterns must not be relabeled as ICT setups. "
-        )
-        try:
-            from agents import ModelSettings
-            from openai.types.shared import Reasoning
-            model_settings = ModelSettings(
-                reasoning=Reasoning(effort=REASONING_EFFORT),
-                verbosity="low",
-            )
-        except Exception:
-            model_settings = None
-
-        specialists = {}
-        for key, instruction in ROLES.items():
-            if key == "orchestrator":
-                continue
-            kwargs = {
-                "name": key.replace("_", " ").title() + " Agent",
-                "model": self.model,
-                "instructions": common + instruction,
-            }
-            if model_settings is not None:
-                kwargs["model_settings"] = model_settings
-            specialists[key] = Agent(**kwargs)
-
-        triage_kwargs = {
-            "name":"Trader Planner Master Agent",
-            "model":self.model,
-            "instructions":(
-                common
-                + "Route the request to the most appropriate specialist. "
-                  "You may hand off form, strategy, psychology, planner, academy, or product requests. "
-                  "For product requests, propose concrete improvements and explain why they help workflow. "
-                  "Return one clear, practical answer with no made-up facts."
-            ),
-            "handoffs":list(specialists.values()),
-        }
-        if model_settings is not None:
-            triage_kwargs["model_settings"] = model_settings
-        triage = Agent(**triage_kwargs)
-        specialists["orchestrator"] = triage
-        self._cloud_agents = specialists
-        return specialists
-
     def _cloud_respond(self, role, user_message, context):
         api_key = _read_openai_key()
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured.")
-        os.environ["OPENAI_API_KEY"] = api_key
-        from agents import Runner
+        from openai import OpenAI
 
-        agents_map = self._build_cloud_agents()
-        agent = agents_map.get("orchestrator") if role in {"orchestrator", "product"} else agents_map.get(role, agents_map["orchestrator"])
-        recent = json.dumps(self.history[-8:], ensure_ascii=False)
-        result = asyncio.run(
-            Runner.run(
-                agent,
-                f"APP CONTEXT:\n{context}\n\nRECENT CHAT:\n{recent}\n\nUSER QUESTION:\n{user_message}",
-                max_turns=8,
-            )
+        client = OpenAI(api_key=api_key, timeout=45.0)
+        common = (
+            "You are Trader Planner Pro's master trading assistant. "
+            "Operate as a precise agent: inspect the supplied app context, identify the user intent, "
+            "apply the selected specialist role, and return a practical answer. "
+            "Never invent market data, never promise returns, and never give personalized financial guarantees. "
+            "Keep broad Smart Money/SMC concepts distinct from named ICT models. "
+            "Candlestick patterns must never be relabeled as ICT setups. "
         )
-        return str(result.final_output or "").strip()
+        specialist = self.roles.get(role, self.roles["orchestrator"])
+        recent = json.dumps(self.history[-8:], ensure_ascii=False)
+        response = client.responses.create(
+            model=self.model,
+            instructions=common + "\nSPECIALIST ROLE:\n" + specialist,
+            input=(
+                "APP CONTEXT:\n" + context +
+                "\n\nRECENT CHAT:\n" + recent +
+                "\n\nUSER QUESTION:\n" + user_message
+            ),
+        )
+        answer = str(getattr(response, "output_text", "") or "").strip()
+        if not answer:
+            raise RuntimeError("OpenAI returned an empty response.")
+        return answer
 
     def respond(self, role, user_message, context="", callback=None):
         role = role if role in self.roles else "form"
