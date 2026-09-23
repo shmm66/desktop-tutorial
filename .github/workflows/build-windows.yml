@@ -143,7 +143,7 @@ jobs:
           body: |
             ## Trader Planner Pro V8.3.0
 
-            Trader Planner Pro V8.2.0 — native Windows Desktop Acrylic glass surface, synchronous Home navigation, persistent AI Command Center, flagship multi-agent routing, resilient no-key market feed fallbacks, and an Academy rebuilt around distinct SMC, ICT and candlestick visual semantics.
+            Trader Planner Pro V8.3.0 — native Windows Desktop Acrylic glass surface, synchronous Home navigation, persistent AI Command Center, flagship multi-agent routing, resilient no-key market feed fallbacks, and an Academy rebuilt around distinct SMC, ICT and candlestick visual semantics.
 
           files: |
             dist/TraderPlannerPro.exe
