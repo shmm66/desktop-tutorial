@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/8.2.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/8.3.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
@@ -271,48 +271,53 @@ def _crypto_from_coinbase():
 
 
 def _crypto_live():
-    # Primary ranking by market cap.
+    """Fetch crypto quotes concurrently so one blocked provider cannot starve the dashboard."""
+    providers = [
+        ("CoinGecko", lambda: _request_json(CRYPTO_ENDPOINT, timeout=3.0)),
+        ("CoinCap", lambda: _crypto_from_coincap()),
+        ("Binance", lambda: _crypto_from_binance()),
+        ("Kraken", lambda: _crypto_from_kraken()),
+        ("Coinbase", lambda: _crypto_from_coinbase()),
+    ]
+
+    def run_provider(name, fn):
+        try:
+            raw = fn()
+            if name == "CoinGecko":
+                rows = raw
+                if isinstance(rows, list):
+                    result = []
+                    for row in rows[:10]:
+                        price = _safe_float(row.get("current_price"))
+                        if price is None:
+                            continue
+                        result.append({
+                            "symbol": str(row.get("symbol", "")).upper(),
+                            "name": row.get("name", ""),
+                            "price": price,
+                            "change": _safe_float(row.get("price_change_percentage_24h")),
+                        })
+                    return result, "CoinGecko"
+            return raw
+        except Exception:
+            return [], "unavailable"
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(providers), thread_name_prefix="TPCrypto") as pool:
+        futures = [pool.submit(run_provider, name, fn) for name, fn in providers]
+        # Prefer provider order, but do not wait longer than the dashboard deadline.
+        deadline = time.monotonic() + 5.8
+        for future in futures:
+            remaining = max(0.05, deadline - time.monotonic())
+            try:
+                result, source = future.result(timeout=remaining)
+            except Exception:
+                continue
+            if result and len(result) >= 5:
+                return result, source
+
+    # One last independent public aggregate feed.
     try:
-        rows = _request_json(CRYPTO_ENDPOINT, timeout=3.0)
-        if isinstance(rows, list) and rows:
-            result = []
-            for row in rows[:10]:
-                price = _safe_float(row.get("current_price"))
-                if price is None:
-                    continue
-                result.append({
-                    "symbol": str(row.get("symbol", "")).upper(),
-                    "name": row.get("name", ""),
-                    "price": price,
-                    "change": _safe_float(row.get("price_change_percentage_24h")),
-                })
-            if len(result) >= 5:
-                return result, "CoinGecko"
-    except Exception:
-        pass
-
-    # Fast no-key aggregator fallback.
-    result, source = _crypto_from_coincap()
-    if result:
-        return result, source
-
-    # Fast exchange fallback. Binance exposes public ticker market data.
-    result, source = _crypto_from_binance()
-    if result:
-        return result, source
-
-    # Exchange fallback.
-    result, source = _crypto_from_kraken()
-    if result:
-        return result, source
-
-    result, source = _crypto_from_coinbase()
-    if result:
-        return result, source
-
-    # Aggregated fallback.
-    try:
-        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=3.0)
+        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=2.5)
         result = []
         for row in (rows or []):
             quote = ((row.get("quotes") or {}).get("USD") or {})
@@ -327,14 +332,12 @@ def _crypto_live():
             })
             if len(result) >= 10:
                 break
-        if result:
+        if len(result) >= 5:
             return result, "CoinPaprika"
     except Exception:
         pass
 
-    result = _parallel_yahoo(CRYPTO_FALLBACK)
-    return result, "Yahoo Finance" if result else "unavailable"
-
+    return [], "unavailable"
 
 def _free_fx_rates():
     for endpoint in EXCHANGE_RATE_ENDPOINTS:
@@ -511,7 +514,7 @@ def fetch_market(mode: str):
 
     # Do not let one blocked endpoint keep the desktop in a perpetual spinner.
     # Quotes get a hard overall deadline; secondary indicators are best-effort.
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="TPMarket")
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=6, thread_name_prefix="TPMarket")
     item_future = executor.submit(_forex_live if market == "Forex" else _crypto_live)
     indicator_futures = {
         "global": executor.submit(_global_indicators),
@@ -521,7 +524,7 @@ def fetch_market(mode: str):
 
     items, source = [], "unavailable"
     try:
-        items, source = item_future.result(timeout=7.0)
+        items, source = item_future.result(timeout=6.0)
     except Exception:
         try:
             item_future.cancel()
@@ -531,7 +534,7 @@ def fetch_market(mode: str):
     indicators = {}
     for key, future in indicator_futures.items():
         try:
-            value = future.result(timeout=1.25)
+            value = future.result(timeout=1.5)
             if key == "global" and isinstance(value, dict):
                 indicators.update(value)
             elif key == "fear":
