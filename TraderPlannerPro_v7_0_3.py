@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.2.0"
+VERSION = "8.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -1047,6 +1047,12 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
+        # Every navigation action invalidates UI callbacks from the previous page.
+        self._news_token += 1
+        if self._news_timeout_job is not None:
+            try: self.after_cancel(self._news_timeout_job)
+            except Exception: pass
+            self._news_timeout_job = None
         allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","settings"}
         if key not in allowed:
             key="home"
@@ -1466,21 +1472,28 @@ class App(tk.Tk):
         self.ticker_job = self.after(45, self._animate_ticker)
 
     def _market_data_callback(self, payload):
-        if str(payload.get("market")) != str(self.market):
+        market = str(payload.get("market"))
+        page_token = self._nav_token
+        if market != str(self.market) or self.cur != "home":
             return
         try:
-            self.after(0, lambda p=payload: self._apply_market_data(p))
+            self.after(0, lambda p=payload, t=page_token, m=market: self._apply_market_data(p, t, m))
         except Exception:
             pass
 
-    def _apply_market_data(self, payload):
-        if str(payload.get("market")) != str(self.market):
+    def _apply_market_data(self, payload, page_token=None, market=None):
+        if page_token is not None and page_token != self._nav_token:
+            return
+        if market is not None and market != str(self.market):
+            return
+        if str(payload.get("market")) != str(self.market) or self.cur != "home":
+            return
+        if not hasattr(self, "ticker_canvas") or not self.ticker_canvas.winfo_exists():
             return
         self.market_data_payload = payload
-        if self.cur == "home":
-            self.ticker_offset = 0
-            self.render_market_ticker(payload)
-            self.render_market_indicators(payload)
+        self.ticker_offset = 0
+        self.render_market_ticker(payload)
+        self.render_market_indicators(payload)
 
     def draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
@@ -2426,10 +2439,11 @@ class App(tk.Tk):
         self.refresh_news()
 
     def refresh_news(self):
-        if not hasattr(self, "news_tree"):
+        if not hasattr(self, "news_tree") or not self.news_tree.winfo_exists():
             return
         self._news_token += 1
         token = self._news_token
+        page_token = self._nav_token
         if self._news_timeout_job:
             try: self.after_cancel(self._news_timeout_job)
             except Exception: pass
@@ -2452,23 +2466,27 @@ class App(tk.Tk):
                                   values=(row["source"],"SOURCE",row["title"]))
 
         def done(rows):
-            if token != self._news_token:
+            if token != self._news_token or page_token != self._nav_token or self.cur != "news":
                 return
             try:
-                self.after(0, lambda r=rows,t=token: self._apply_news(r,t))
+                self.after(0, lambda r=rows,t=token,p=page_token: self._apply_news(r,t,p))
             except Exception:
                 pass
         fetch_market_news(done, include_forex=True)
-        self._news_timeout_job=self.after(10000,lambda t=token:self._news_timeout(t))
+        self._news_timeout_job=self.after(10000,lambda t=token,p=page_token:self._news_timeout(t,p))
 
-    def _news_timeout(self, token):
+    def _news_timeout(self, token, page_token):
         self._news_timeout_job=None
-        if token != self._news_token or not hasattr(self,"news_tree"):
+        if token != self._news_token or page_token != self._nav_token or self.cur != "news" or not hasattr(self,"news_tree"):
             return
         self.news_status.config(text="● "+self.tr("news_fallback"),fg=C["gold"])
 
-    def _apply_news(self, rows, token=None):
+    def _apply_news(self, rows, token=None, page_token=None):
         if token is not None and token != self._news_token:
+            return
+        if page_token is not None and page_token != self._nav_token:
+            return
+        if self.cur != "news":
             return
         self.news_items=rows or []
         if not hasattr(self,"news_tree"): return
