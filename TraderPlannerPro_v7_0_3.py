@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.1.0"
+VERSION = "8.2.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -553,40 +553,55 @@ class App(tk.Tk):
         self.go_home()
         return "break"
 
-    def _hard_home(self):
-        """Return to Home through the same guarded renderer used by every page."""
+    def _cancel_navigation_jobs(self):
+        for job_name in ("session_clock_job", "ticker_job", "market_timeout_job", "_nav_job"):
+            job = getattr(self, job_name, None)
+            if job is not None:
+                try:
+                    self.after_cancel(job)
+                except Exception:
+                    pass
+                setattr(self, job_name, None)
+
+    def _close_menu_immediately(self):
         try:
             self._cancel_menu_hide()
-            self.menu_open = False
-            try:
-                self.menu.place_configure(x=-304)
-            except Exception:
-                pass
-            for job_name in ("session_clock_job", "ticker_job", "market_timeout_job"):
-                job = getattr(self, job_name, None)
-                if job is not None:
-                    try:
-                        self.after_cancel(job)
-                    except Exception:
-                        pass
-                    setattr(self, job_name, None)
-            self.session_clock_widgets = []
-            self.market = active_profile().get("market", "Crypto")
-            self.market_data.set_market(self.market)
-            self.market_data_payload = cached_market_payload(self.market)
-            self.cur = "home"
-            self.show("home")
-            self.after(30, self.market_data.refresh_now)
-            self.focus_force()
+        except Exception:
+            pass
+        self.menu_open = False
+        try:
+            self.menu.place_configure(x=-304)
+        except Exception:
+            pass
+
+    def _hard_home(self):
+        """Synchronous Home renderer. No after_idle widget destruction."""
+        self._close_menu_immediately()
+        self._cancel_navigation_jobs()
+        self.session_clock_widgets = []
+        self.market = active_profile().get("market", "Crypto")
+        try:
+            self.market_btn.config(text=self.market)
+        except Exception:
+            pass
+        self.market_data.set_market(self.market)
+        cached = cached_market_payload(self.market)
+        self.market_data_payload = cached if isinstance(cached, dict) else {
+            "market": self.market, "items": [], "indicators": {},
+            "status": "unavailable", "source": "unavailable", "message": ""
+        }
+        self.cur = "home"
+        self._nav_token += 1
+        self._render_page("home", self._nav_token)
+        self.after(50, self.market_data.refresh_now)
+        self.focus_force()
+
+    def go_home(self, _event=None):
+        """Global Home action that works from every page and market mode."""
+        try:
+            self._hard_home()
         except Exception as exc:
             self._show_page_error("home", exc)
-
-    def go_home(self):
-        """Single deferred Home action; never destroys the clicked widget in-place."""
-        try:
-            self.after_idle(self._hard_home)
-        except Exception:
-            self._hard_home()
         return "break"
 
     def close_app(self):
@@ -595,11 +610,17 @@ class App(tk.Tk):
                 self.market_data.stop()
         except Exception:
             pass
-        for job_name in ("session_clock_job", "ticker_job", "menu_hide_job", "theme_auto_job", "reminder_job", "market_timeout_job"):
+        for job_name in ("session_clock_job", "ticker_job", "menu_hide_job", "theme_auto_job", "reminder_job", "market_timeout_job", "_nav_job"):
             job = getattr(self, job_name, None)
             if job:
                 try: self.after_cancel(job)
                 except Exception: pass
+        try:
+            win=getattr(self, "ai_chat_window", None)
+            if win is not None and win.winfo_exists():
+                win.destroy()
+        except Exception:
+            pass
         self.destroy()
 
     def _parse_hhmm(self, value, fallback="08:00"):
@@ -906,7 +927,7 @@ class App(tk.Tk):
         )
         self.global_home_btn.pack(side="left", padx=4)
         self.global_ai_btn = tk.Button(
-            status, text=self.tr("ai_chat"), command=lambda: self.go("ai"),
+            status, text=self.tr("ai_chat"), command=self.open_ai_chat,
             bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
         )
@@ -923,7 +944,7 @@ class App(tk.Tk):
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
-            ("ai", self.tr("ai_chat"), self.go_ai),
+            ("ai", self.tr("ai_chat"), self.open_ai_chat),
             ("news", self.tr("news"), lambda: self.go("news")),
             ("calculators", self.tr("calculators"), lambda: self.go("calculators")),
         ]
@@ -946,7 +967,7 @@ class App(tk.Tk):
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","settings"):
-            cmd = lambda k=key: self.go(k)
+            cmd = self.open_ai_chat if key == "ai" else (lambda k=key: self.go(k))
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
@@ -1212,9 +1233,13 @@ class App(tk.Tk):
         except Exception:
             pass
         self.market_data.set_market(market)
-        self.market_data_payload = cached_market_payload(market)
+        cached = cached_market_payload(market)
+        self.market_data_payload = cached if isinstance(cached, dict) else {
+            "market": market, "items": [], "indicators": {},
+            "status": "unavailable", "source": "unavailable", "message": ""
+        }
         save_db()
-        self.after(10, self._hard_home)
+        self.go_home()
         return "break"
 
     def change_market(self):
@@ -1291,7 +1316,7 @@ class App(tk.Tk):
         self.btn(actions, self.tr("new_trade"), self.add_trade, True).pack(side="right")
         self.btn(actions, self.tr("crypto_calc"), lambda:self.open_calculator("Crypto")).pack(side="left", padx=3)
         self.btn(actions, self.tr("forex_calc"), lambda:self.open_calculator("Forex")).pack(side="left", padx=3)
-        self.btn(actions, self.tr("ai"), self.go_ai).pack(side="left", padx=3)
+        self.btn(actions, self.tr("ai"), self.open_ai_chat).pack(side="left", padx=3)
         self.btn(actions, self.tr("news"), lambda:self.show("news")).pack(side="left", padx=3)
         self.btn(actions, self.tr("email_statement"), self.email_statement).pack(side="left", padx=3)
 
@@ -1901,7 +1926,154 @@ class App(tk.Tk):
         self.translate_widget_tree(dlg)
 
     def open_ai_chat(self):
-        return self.go("ai")
+        """Persistent AI Command Center available globally without leaving the current page."""
+        try:
+            if self.ai_chat_window is not None and self.ai_chat_window.winfo_exists():
+                self.ai_chat_window.deiconify()
+                self.ai_chat_window.lift()
+                self.ai_chat_window.focus_force()
+                if self.ai_chat_input is not None and self.ai_chat_input.winfo_exists():
+                    self.ai_chat_input.focus_set()
+                return "break"
+        except Exception:
+            pass
+
+        win = tk.Toplevel(self)
+        self.ai_chat_window = win
+        win.title(f"{APP} • AI Command Center")
+        win.geometry("980x760")
+        win.minsize(820, 620)
+        win.configure(bg=C["bg"])
+        try:
+            apply_glass(win, dark=self._effective_theme()=="dark", style="acrylic")
+        except Exception:
+            pass
+
+        header=tk.Frame(win,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
+        header.pack(fill="x",padx=14,pady=(14,8),ipady=8)
+        tk.Label(header,text="AI COMMAND CENTER",bg=C["panel"],fg=C["accent"],
+                 font=("Segoe UI",15,"bold")).pack(side="right",padx=14)
+        tk.Label(header,text=self.tr("ai_sub"),bg=C["panel"],fg=C["muted"],
+                 font=("Segoe UI",9)).pack(side="right",padx=8)
+
+        state=self.ai.status()
+        model_text=state.get("model", self.ai.model)
+        state_text=("LIVE CLOUD AGENT" if state.get("cloud") else
+                    "LOCAL OLLAMA" if state.get("ollama") else "OFFLINE ASSISTANT")
+        state_fg=C["accent"] if state.get("cloud") else C["cyan"] if state.get("ollama") else C["gold"]
+        tk.Label(header,text=f"{state_text} • {model_text}",bg=C["panel3"],fg=state_fg,
+                 font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left",padx=10)
+
+        tools_row=tk.Frame(win,bg=C["bg"]); tools_row.pack(fill="x",padx=14,pady=(0,7))
+        role_var=tk.StringVar(value="Master Agent")
+        role_labels={
+            "Master Agent":"orchestrator","Form Coach":"form","Strategy Coach":"strategy",
+            "Psychology Coach":"psychology","Routine Coach":"planner",
+            "Academy Tutor":"academy","Product Strategist":"product"
+        }
+        role_combo=ttk.Combobox(tools_row,textvariable=role_var,state="readonly",
+                               values=list(role_labels.keys()),width=22,justify="right")
+        role_combo.pack(side="right",padx=4)
+        tk.Label(tools_row,text=self.tr("ai_role"),bg=C["bg"],fg=C["muted"],
+                 font=("Segoe UI",9,"bold")).pack(side="right",padx=4)
+
+        self.btn(tools_row,"WEB AI",
+                 lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • Web AI")).pack(side="left",padx=3)
+        self.btn(tools_row,"OPENAI KEY",lambda:self.show("settings")).pack(side="left",padx=3)
+        self.btn(tools_row,"CLEAR",self._clear_float_ai_chat).pack(side="left",padx=3)
+
+        quick=tk.Frame(win,bg=C["bg"]); quick.pack(fill="x",padx=14,pady=(0,6))
+        quick_specs=[
+            ("FORM","Help me fill today's Trading Plan and Checklist from my current journal."),
+            ("STRATEGY","Explain the selected strategy as context, setup, trigger, invalidation and target."),
+            ("PSYCHOLOGY","Run a two-minute pre-trade discipline check for FOMO and revenge trading."),
+            ("PRODUCT","Act as the product strategist and suggest three concrete UX improvements for Trader Planner Pro."),
+        ]
+
+        shell=self.card(win); shell.pack(fill="both",expand=True,padx=14,pady=(0,7))
+        chat=tk.Text(shell,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
+                     wrap="word",relief="flat",font=("Segoe UI",11),padx=16,pady=14)
+        chat.pack(fill="both",expand=True,padx=7,pady=7)
+        chat.insert("1.0",self.tr("ai_welcome")+"\n\n")
+        chat.configure(state="disabled")
+
+        input_row=tk.Frame(win,bg=C["bg"]); input_row.pack(fill="x",padx=14,pady=(0,10))
+        input_box=tk.Entry(input_row,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
+                           relief="flat",font=("Segoe UI",12),justify="right")
+        input_box.pack(side="right",fill="x",expand=True,padx=5,ipady=11)
+        self.btn(input_row,"SEND",
+                 lambda:self._send_float_ai(None,role_var,role_labels,chat,input_box),
+                 True).pack(side="left",padx=5)
+        input_box.bind("<Return>",lambda e:self._send_float_ai(None,role_var,role_labels,chat,input_box))
+
+        # Build quick prompts after chat exists so callbacks capture valid widgets.
+        for label,prompt_text in quick_specs:
+            self.btn(quick,label,
+                     lambda p=prompt_text:self._send_float_ai(p,role_var,role_labels,chat,input_box)).pack(side="left",padx=3)
+
+        self.ai_chat_text=chat
+        self.ai_chat_input=input_box
+        self._float_role_var=role_var
+        win.protocol("WM_DELETE_WINDOW",lambda:self._close_float_ai(win))
+        input_box.focus_set()
+        return "break"
+
+    def _send_float_ai(self,message,role_var,role_labels,chat,input_box):
+        msg=(message if message is not None else input_box.get()).strip()
+        if not msg:
+            return
+        if input_box.winfo_exists():
+            input_box.delete(0,"end")
+        try:
+            chat.configure(state="normal")
+            chat.insert("end",f"You: {msg}\n\n")
+            wait_start=chat.index("end-1c")
+            chat.insert("end","Assistant: …\n\n")
+            chat.configure(state="disabled")
+            chat.see("end")
+        except Exception:
+            return
+        role=role_labels.get(role_var.get(),"orchestrator")
+        context=self._ai_context()
+        self.ai.respond(role,msg,context,
+            lambda answer:self.after(0,lambda:self._replace_float_ai_wait(chat,wait_start,answer)))
+
+    def _replace_float_ai_wait(self,chat,start,answer):
+        try:
+            chat.configure(state="normal")
+            end=chat.index(f"{start} lineend + 1c")
+            chat.delete(start,end)
+            chat.insert(start,f"Assistant: {answer}\n\n")
+            chat.configure(state="disabled")
+            chat.see("end")
+        except Exception:
+            try:
+                chat.configure(state="normal")
+                chat.insert("end",f"Assistant: {answer}\n\n")
+                chat.configure(state="disabled")
+            except Exception:
+                pass
+
+    def _clear_float_ai_chat(self):
+        chat=self.ai_chat_text
+        if chat is None or not chat.winfo_exists():
+            return
+        try:
+            chat.configure(state="normal")
+            chat.delete("1.0","end")
+            chat.insert("1.0",self.tr("ai_welcome")+"\n\n")
+            chat.configure(state="disabled")
+        except Exception:
+            pass
+
+    def _close_float_ai(self,win):
+        try:
+            if win.winfo_exists():
+                win.destroy()
+        finally:
+            self.ai_chat_window=None
+            self.ai_chat_text=None
+            self.ai_chat_input=None
 
     def _ai_context(self):
         p=active_profile()
@@ -2132,7 +2304,8 @@ class App(tk.Tk):
         tk.Label(ai_box,text=self.tr("ai_agent_roles"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
         tk.Label(ai_box,text=self.tr("ai_cloud_note"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),wraplength=1080,justify="right").pack(anchor="e",padx=18,pady=(0,10))
         ai_status=self.ai.status()
-        status_text=self.tr("ai_cloud_ready") if ai_status.get("cloud") else self.tr("ai_cloud_missing")
+        status_text=(f"{self.tr('ai_cloud_ready')} • {ai_status.get('model', self.ai.model)}"
+                     if ai_status.get("cloud") else self.tr("ai_cloud_missing"))
         tk.Label(ai_box,text=status_text,bg=C["panel3"],fg=C["accent"] if ai_status.get("cloud") else C["gold"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(anchor="e",padx=18,pady=4)
         ai_row=tk.Frame(ai_box,bg=C["panel"]); ai_row.pack(fill="x",padx=18,pady=8)
         ai_key=tk.StringVar()
@@ -2352,13 +2525,13 @@ class App(tk.Tk):
         role_combo.pack(side="right",padx=6)
         status=self.ai.status()
         if status.get("cloud"):
-            status_text="CLOUD MASTER AGENT • GPT-5.6-SOL • HIGH REASONING"
+            status_text=f"CLOUD MASTER AGENT • {status.get('model', self.ai.model)} • HIGH REASONING"
             status_fg=C["accent"]
         elif status.get("ollama"):
-            status_text="LOCAL OLLAMA • READY"
+            status_text=f"LOCAL OLLAMA • {status.get('model', 'READY')}"
             status_fg=C["cyan"]
         else:
-            status_text="BUILT-IN TRADER AGENT • READY | CLOUD/OLLAMA OPTIONAL"
+            status_text="BUILT-IN TRADER AGENT • READY | LIVE AI: CONNECT OPENAI OR OLLAMA"
             status_fg=C["gold"]
         tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
