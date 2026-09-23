@@ -212,6 +212,36 @@ REMOTE_IMAGES.update({
     "timing": REMOTE_IMAGES["ict_judas"],
 })
  
+VISUAL_FAMILY = {
+    "smc_overview": "smc", "smc_liquidity": "smc", "order_block": "smc",
+    "fvg": "smc", "breaker": "smc", "technical": "smc",
+    "ict_2022": "ict", "ict_silver_bullet": "ict", "ict_amd": "ict",
+    "ict_judas": "ict", "ict_ote": "ict", "unicorn": "ict", "smt": "ict",
+    "candlestick": "candles", "bullish_engulfing": "candles", "bearish_engulfing": "candles",
+    "doji": "candles", "hammer": "candles", "shooting_star": "candles",
+    "morning_star": "candles", "evening_star": "candles", "tweezer_top": "candles",
+    "tweezer_bottom": "candles", "three_white_soldiers": "candles", "three_black_crows": "candles",
+    "marubozu": "candles", "spinning_top": "candles", "long_legged_doji": "candles",
+}
+
+
+def validate_visual_mapping(key: str, family: str) -> bool:
+    expected = {"smc": "smc", "ict": "ict", "candles": "candles"}.get(str(family).lower())
+    return bool(expected and VISUAL_FAMILY.get(str(key).lower()) == expected)
+
+
+def safe_visual_key(key: str, family: str) -> str:
+    normalized = str(key or "").lower()
+    family_key = str(family or "").lower()
+    if validate_visual_mapping(normalized, family_key):
+        return normalized
+    return {
+        "smc": "smc_overview",
+        "ict": "ict_2022",
+        "candles": "candlestick",
+    }.get(family_key, "candlestick")
+
+
 PATTERN_VISUALS = {
     "pin bar / rejection candle": "candlestick",
     "bullish engulfing": "bullish_engulfing",

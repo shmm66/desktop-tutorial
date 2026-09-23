@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "TraderPlannerPro"
 CACHE_PATH = ROOT / "market_cache.json"
-USER_AGENT = "TraderPlannerPro/8.2.0 (+https://github.com/shmm66/desktop-tutorial)"
+USER_AGENT = "TraderPlannerPro/8.3.0 (+https://github.com/shmm66/desktop-tutorial)"
 
 CRYPTO_FALLBACK = [
     ("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("USDT", "USDT-USD"),
@@ -271,48 +271,69 @@ def _crypto_from_coinbase():
 
 
 def _crypto_live():
-    # Primary ranking by market cap.
-    try:
-        rows = _request_json(CRYPTO_ENDPOINT, timeout=3.0)
-        if isinstance(rows, list) and rows:
-            result = []
-            for row in rows[:10]:
-                price = _safe_float(row.get("current_price"))
-                if price is None:
-                    continue
-                result.append({
-                    "symbol": str(row.get("symbol", "")).upper(),
-                    "name": row.get("name", ""),
-                    "price": price,
-                    "change": _safe_float(row.get("price_change_percentage_24h")),
-                })
-            if len(result) >= 5:
+    """Race public crypto providers and accept the first healthy snapshot."""
+    providers = [
+        ("CoinGecko", lambda: _request_json(CRYPTO_ENDPOINT, timeout=3.0)),
+        ("CoinCap", lambda: _crypto_from_coincap()),
+        ("Binance", lambda: _crypto_from_binance()),
+        ("Kraken", lambda: _crypto_from_kraken()),
+        ("Coinbase", lambda: _crypto_from_coinbase()),
+    ]
+
+    def run_provider(name, fn_call):
+        try:
+            raw = fn_call()
+            if name == "CoinGecko" and isinstance(raw, list):
+                result = []
+                for row in raw[:10]:
+                    price = _safe_float(row.get("current_price"))
+                    if price is None:
+                        continue
+                    result.append({
+                        "symbol": str(row.get("symbol", "")).upper(),
+                        "name": row.get("name", ""),
+                        "price": price,
+                        "change": _safe_float(row.get("price_change_percentage_24h")),
+                    })
                 return result, "CoinGecko"
-    except Exception:
-        pass
+            if isinstance(raw, tuple) and len(raw) == 2:
+                return raw
+            return [], "unavailable"
+        except Exception:
+            return [], "unavailable"
 
-    # Fast no-key aggregator fallback.
-    result, source = _crypto_from_coincap()
-    if result:
-        return result, source
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=len(providers), thread_name_prefix="TPCrypto"
+    ) as pool:
+        futures = {
+            pool.submit(run_provider, name, fn_call): name
+            for name, fn_call in providers
+        }
+        # as_completed prevents a slow first provider from blocking a fast
+        # healthy provider, which was the main source of the old "Loading..." symptom.
+        deadline = time.monotonic() + 5.8
+        pending = set(futures)
+        while pending:
+            remaining = max(0.05, deadline - time.monotonic())
+            if remaining <= 0:
+                break
+            done, pending = concurrent.futures.wait(
+                pending,
+                timeout=remaining,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            if not done:
+                break
+            for future in done:
+                try:
+                    result, source = future.result(timeout=0.1)
+                except Exception:
+                    continue
+                if result and len(result) >= 5:
+                    return result, source
 
-    # Fast exchange fallback. Binance exposes public ticker market data.
-    result, source = _crypto_from_binance()
-    if result:
-        return result, source
-
-    # Exchange fallback.
-    result, source = _crypto_from_kraken()
-    if result:
-        return result, source
-
-    result, source = _crypto_from_coinbase()
-    if result:
-        return result, source
-
-    # Aggregated fallback.
     try:
-        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=3.0)
+        rows = _request_json(CRYPTO_FALLBACK_ENDPOINT, timeout=2.5)
         result = []
         for row in (rows or []):
             quote = ((row.get("quotes") or {}).get("USD") or {})
@@ -327,14 +348,12 @@ def _crypto_live():
             })
             if len(result) >= 10:
                 break
-        if result:
+        if len(result) >= 5:
             return result, "CoinPaprika"
     except Exception:
         pass
 
-    result = _parallel_yahoo(CRYPTO_FALLBACK)
-    return result, "Yahoo Finance" if result else "unavailable"
-
+    return [], "unavailable"
 
 def _free_fx_rates():
     for endpoint in EXCHANGE_RATE_ENDPOINTS:
@@ -509,9 +528,11 @@ def fetch_market(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    # Do not let one blocked endpoint keep the desktop in a perpetual spinner.
-    # Quotes get a hard overall deadline; secondary indicators are best-effort.
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="TPMarket")
+    # UI deadline: return a usable live/cache/unavailable state quickly rather
+    # than holding the Home renderer behind slow public endpoints.
+    executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=8, thread_name_prefix="TPMarket"
+    )
     item_future = executor.submit(_forex_live if market == "Forex" else _crypto_live)
     indicator_futures = {
         "global": executor.submit(_global_indicators),
@@ -521,7 +542,7 @@ def fetch_market(mode: str):
 
     items, source = [], "unavailable"
     try:
-        items, source = item_future.result(timeout=7.0)
+        items, source = item_future.result(timeout=4.2)
     except Exception:
         try:
             item_future.cancel()
@@ -529,22 +550,34 @@ def fetch_market(mode: str):
             pass
 
     indicators = {}
-    for key, future in indicator_futures.items():
-        try:
-            value = future.result(timeout=1.25)
+    deadline = time.monotonic() + 1.8
+    pending = set(indicator_futures.values())
+    future_to_key = {future: key for key, future in indicator_futures.items()}
+    while pending and time.monotonic() < deadline:
+        done, pending = concurrent.futures.wait(
+            pending,
+            timeout=max(0.05, deadline - time.monotonic()),
+            return_when=concurrent.futures.FIRST_COMPLETED,
+        )
+        if not done:
+            break
+        for future in done:
+            key = future_to_key[future]
+            try:
+                value = future.result(timeout=0.1)
+            except Exception:
+                value = None
             if key == "global" and isinstance(value, dict):
                 indicators.update(value)
             elif key == "fear":
                 indicators["fear_greed"] = value
             elif key == "vix":
                 indicators["vix"] = value
-        except Exception:
-            if key == "fear":
-                indicators["fear_greed"] = None
-            elif key == "vix":
-                indicators["vix"] = None
 
+    indicators.setdefault("fear_greed", None)
+    indicators.setdefault("vix", None)
     indicators["market_regime"] = "LIVE" if items else "OFFLINE"
+
     try:
         executor.shutdown(wait=False, cancel_futures=True)
     except Exception:
@@ -568,12 +601,14 @@ def fetch_market(mode: str):
 
     cached = _read_cache()
     if cached.get("market") == market and isinstance(cached.get("items"), list) and cached.get("items"):
+        merged_indicators = dict(cached.get("indicators") or {})
+        merged_indicators.update({k: v for k, v in indicators.items() if v is not None})
         return {
             "market": market,
             "updated_at": cached.get("updated_at"),
             "source": cached.get("source") or "cache",
             "items": cached.get("items", []),
-            "indicators": cached.get("indicators", indicators),
+            "indicators": merged_indicators,
             "status": "cache",
             "message": "Live feed unavailable; showing last saved market snapshot.",
         }

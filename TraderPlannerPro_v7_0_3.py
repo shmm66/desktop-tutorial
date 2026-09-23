@@ -20,9 +20,9 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
 from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
-from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key, bundled_asset_for_visual
+from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key, bundled_asset_for_visual, safe_visual_key, validate_visual_mapping
 from academy_diagrams import draw_setup, draw_candlestick
-from glass_theme import apply_glass, set_widget_glass
+from glass_theme import apply_glass, set_widget_glass, set_transparent_client
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from ai_assistant import AIOrchestrator
@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.2.0"
+VERSION = "8.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -596,12 +596,22 @@ class App(tk.Tk):
         self.after(50, self.market_data.refresh_now)
         self.focus_force()
 
-    def go_home(self, _event=None):
-        """Global Home action that works from every page and market mode."""
+    def _home_click(self):
+        """Single UI entry point for every Home button."""
         try:
             self._hard_home()
         except Exception as exc:
-            self._show_page_error("home", exc)
+            try:
+                self.cur = "home"
+                self._nav_token += 1
+                self._render_page("home", self._nav_token)
+            except Exception:
+                self._show_page_error("home", exc)
+        return None
+
+    def go_home(self, _event=None):
+        """Global Home action that works from every page and market mode."""
+        self._home_click()
         return "break"
 
     def close_app(self):
@@ -657,7 +667,11 @@ class App(tk.Tk):
         palette = dict(THEMES[effective])
         palette.update(SKINS[skin][effective])
         C.update(palette)
-        self.configure(bg=C["bg"])
+        try:
+            set_transparent_client(self, enabled=(skin == "glass"))
+        except Exception:
+            pass
+        self.configure(bg="#010307" if skin == "glass" else C["bg"])
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
                              rowheight=38, borderwidth=0, font=("Segoe UI", 10))
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
@@ -697,8 +711,9 @@ class App(tk.Tk):
         if not hasattr(self, "topbar"):
             return
         try:
-            self.topbar.configure(bg=C["panel"], highlightbackground=C["line"])
-            self.menu.configure(bg=C["panel"], highlightbackground=C["line"])
+            shell_bg = "#010307" if getattr(self, "skin", "") == "glass" else C["panel"]
+            self.topbar.configure(bg=shell_bg, highlightbackground=C["line"])
+            self.menu.configure(bg=shell_bg, highlightbackground=C["line"])
         except Exception:
             pass
         for widget in (self.topbar, self.content, self.menu, getattr(self, "brand_frame", None),
@@ -706,7 +721,8 @@ class App(tk.Tk):
             if widget is None:
                 continue
             try:
-                widget.configure(bg=C["panel"] if widget is not self.content else C["bg"])
+                shell_bg = "#010307" if getattr(self, "skin", "") == "glass" else C["panel"]
+                widget.configure(bg=shell_bg if widget is not self.content else ("#010307" if getattr(self, "skin", "") == "glass" else C["bg"]))
             except Exception:
                 pass
         for widget in self.menu.winfo_children():
@@ -723,12 +739,12 @@ class App(tk.Tk):
                 button.configure(bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"])
             except Exception:
                 pass
-        for widget_name in ("menu_button", "market_btn", "global_home_btn", "global_ai_btn"):
+        for widget_name in ("menu_button", "market_btn", "global_home_btn", "global_ai_btn", "global_google_btn"):
             widget = getattr(self, widget_name, None)
             if widget:
                 try:
                     widget.configure(bg=C["panel2"] if widget_name == "menu_button" else C["soft"], fg=C["text"],
-                                      activebackground=C["accent"] if widget_name in ("menu_button","global_home_btn","global_ai_btn") else C["gold"],
+                                      activebackground=C["accent"] if widget_name in ("menu_button","global_home_btn","global_ai_btn","global_google_btn") else C["gold"],
                                       activeforeground="#061019")
                 except Exception:
                     pass
@@ -743,7 +759,7 @@ class App(tk.Tk):
         if hasattr(self, "date_label"):
             self.date_label.configure(bg=C["panel3"], fg=C["muted"])
         if hasattr(self, "quickbar"):
-            self.quickbar.configure(bg=C["bg"], highlightbackground=C["line"])
+            self.quickbar.configure(bg="#010307" if getattr(self, "skin", "") == "glass" else C["bg"], highlightbackground=C["line"])
         for button in getattr(self, "_quick_nav_buttons", {}).values():
             try:
                 button.configure(bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019")
@@ -921,7 +937,7 @@ class App(tk.Tk):
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
         self.market_btn.pack(side="left", padx=4)
         self.global_home_btn = tk.Button(
-            status, text=self.tr("nav_home"), command=self.go_home,
+            status, text=self.tr("nav_home"), command=self._home_click,
             bg=C["accent"], fg="#061019", activebackground=C["gold"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
         )
@@ -932,6 +948,12 @@ class App(tk.Tk):
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
         )
         self.global_ai_btn.pack(side="left", padx=4)
+        self.global_google_btn = tk.Button(
+            status, text="Google", command=self._global_google_action,
+            bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
+            relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
+        )
+        self.global_google_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
 
         self.quickbar = tk.Frame(self, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
@@ -940,7 +962,7 @@ class App(tk.Tk):
         except Exception: pass
         self._quick_nav_buttons = {}
         nav_specs = [
-            ("home", self.tr("nav_home"), self.go_home),
+            ("home", self.tr("nav_home"), self._home_click),
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
@@ -1134,7 +1156,7 @@ class App(tk.Tk):
         if sub:
             tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9)).pack(anchor="e", pady=(2,0))
         left_tools = tk.Frame(band, bg=C["bg"]); left_tools.pack(side="left", padx=2)
-        home_btn = tk.Button(left_tools, text=self.tr("home"), command=self.go_home,
+        home_btn = tk.Button(left_tools, text=self.tr("home"), command=self._home_click,
                              bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
@@ -1148,10 +1170,11 @@ class App(tk.Tk):
 
     def card(self, parent, padx=1):
         frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
-        try:
-            set_widget_glass(frame, 0.86)
-        except Exception:
-            pass
+        if getattr(self, "skin", "glass") in {"glass", "obsidian", "midnight"}:
+            try:
+                set_widget_glass(frame, 0.86)
+            except Exception:
+                pass
         return frame
 
     def btn(self, parent, text, cmd, primary=False, **kw):
@@ -1925,6 +1948,21 @@ class App(tk.Tk):
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
         self.translate_widget_tree(dlg)
 
+    def _global_google_action(self):
+        """Compact Google entry point: sign in if configured, otherwise open credential picker."""
+        status = google_status()
+        if status.get("connected"):
+            self.go("settings")
+            return "break"
+        try:
+            if find_client_file(DB.get("settings", {}).get("google_credentials_path", "")):
+                self._google_login_ui()
+            else:
+                self._pick_google_credentials()
+        except Exception as exc:
+            messagebox.showerror(self.tr("google_account"), str(exc), parent=self)
+        return "break"
+
     def open_ai_chat(self):
         """Persistent AI Command Center available globally without leaving the current page."""
         try:
@@ -1958,11 +1996,15 @@ class App(tk.Tk):
 
         state=self.ai.status()
         model_text=state.get("model", self.ai.model)
-        state_text=("LIVE CLOUD AGENT" if state.get("cloud") else
-                    "LOCAL OLLAMA" if state.get("ollama") else "OFFLINE ASSISTANT")
+        state_text=("FLAGSHIP MULTI-AGENT" if state.get("cloud") and state.get("agents_sdk") else
+                    "LIVE CLOUD AGENT" if state.get("cloud") else
+                    "LOCAL OLLAMA" if state.get("ollama") else "BUILT-IN ASSISTANT")
         state_fg=C["accent"] if state.get("cloud") else C["cyan"] if state.get("ollama") else C["gold"]
         tk.Label(header,text=f"{state_text} • {model_text}",bg=C["panel3"],fg=state_fg,
                  font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left",padx=10)
+        if state.get("cloud") and state.get("agents_sdk"):
+            tk.Label(header,text="ROUTER → FORM • STRATEGY • PSYCHOLOGY • ACADEMY • PRODUCT",
+                     bg=C["panel3"],fg=C["muted"],font=("Consolas",7)).pack(side="left",padx=4)
 
         tools_row=tk.Frame(win,bg=C["bg"]); tools_row.pack(fill="x",padx=14,pady=(0,7))
         role_var=tk.StringVar(value="Master Agent")
@@ -2232,6 +2274,7 @@ class App(tk.Tk):
             pass
 
     def open_webview(self, url, title="Trader Planner Pro"):
+        """Open an embedded web terminal, with a deterministic browser fallback."""
         try:
             if getattr(sys, "frozen", False):
                 cmd = [sys.executable, "--webview", url, title]
@@ -2239,7 +2282,20 @@ class App(tk.Tk):
                 launcher = Path(__file__).with_name("launcher.py")
                 cmd = [sys.executable, str(launcher), "--webview", url, title]
             creationflags = 0x08000000 if sys.platform.startswith("win") else 0
-            subprocess.Popen(cmd, creationflags=creationflags)
+            proc = subprocess.Popen(cmd, creationflags=creationflags)
+
+            def watchdog():
+                try:
+                    if proc.poll() is not None:
+                        webbrowser.open(url)
+                    else:
+                        self.after(1800, watchdog)
+                except Exception:
+                    try:
+                        webbrowser.open(url)
+                    except Exception:
+                        pass
+            self.after(2200, watchdog)
         except Exception:
             webbrowser.open(url)
 
@@ -2401,7 +2457,7 @@ class App(tk.Tk):
         build_forex(forex_tab)
 
         shortcuts=tk.Frame(self.content,bg=C["bg"]); shortcuts.pack(fill="x",pady=(4,8))
-        self.btn(shortcuts,self.tr("home_shortcut"),self.go_home).pack(side="left")
+        self.btn(shortcuts,self.tr("home_shortcut"),self._home_click).pack(side="left")
 
     def news(self):
         self.heading(self.tr("news_title"), self.tr("news_sub"))
@@ -2685,52 +2741,138 @@ class App(tk.Tk):
             reminders.pop(idx); save_db(); self.show("ai")
 
     def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
-        """Render one exact, family-aware educational visual with a trustworthy source link."""
-        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        box.pack(fill="x",padx=8,pady=(4,8))
-        kind=visual_kind or key
-        family_key="ict" if str(family).lower()=="ict" else ("smc" if str(family).lower()=="smc" else "candles")
-        family_text={
-            "smc":self.tr("smc_family"),
-            "ict":self.tr("ict_family"),
-            "candles":self.tr("candles")
+        """Render a source-first, family-aware Academy visual with a structured anatomy map."""
+        box = tk.Frame(parent, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        box.pack(fill="x", padx=8, pady=(4, 10))
+
+        raw_kind = visual_kind or key
+        family_key = "ict" if str(family).lower() == "ict" else ("smc" if str(family).lower() == "smc" else "candles")
+        requested_kind = str(raw_kind or "").lower()
+        kind = safe_visual_key(requested_kind, family_key)
+        mapping_ok = validate_visual_mapping(kind, family_key)
+        family_text = {
+            "smc": self.tr("smc_family"),
+            "ict": self.tr("ict_family"),
+            "candles": self.tr("candles"),
         }[family_key]
-        family_fg={"smc":C["accent"],"ict":C["violet"],"candles":C["gold"]}[family_key]
+        family_fg = {"smc": C["accent"], "ict": C["violet"], "candles": C["gold"]}[family_key]
 
-        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,5))
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,font=("Segoe UI",8,"bold"),
-                 padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
-                 font=("Segoe UI",14,"bold")).pack(side="right",padx=8)
+        header = tk.Frame(box, bg=C["panel3"])
+        header.pack(fill="x", padx=14, pady=(12, 6))
+        tk.Label(
+            header, text=family_text, bg=C["soft"], fg=family_fg,
+            font=("Segoe UI", 9, "bold"), padx=11, pady=5
+        ).pack(side="right")
+        tk.Label(
+            header, text=self.ui_text(title), bg=C["panel3"], fg=C["text"],
+            font=("Segoe UI", 16, "bold"), anchor="e"
+        ).pack(side="right", padx=10)
 
-        semantic=tk.Frame(box,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        semantic.pack(fill="x",padx=10,pady=(0,7))
-        tk.Label(semantic,text=self.tr("setup_anatomy"),bg=C["panel3"],fg=family_fg,
-                 font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,3))
-        tk.Label(semantic,text=self.ui_text(subtitle),bg=C["panel3"],fg=C["muted"],
-                 font=("Segoe UI",10),wraplength=1120,justify="right").pack(fill="x",padx=12,pady=(0,5))
+        semantic = tk.Frame(box, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
+        semantic.pack(fill="x", padx=12, pady=(0, 8))
 
-        holder=tk.Frame(semantic,bg=C["panel3"]); holder.pack(fill="x",padx=4,pady=(0,7))
+        anatomy_bar = tk.Frame(semantic, bg=C["panel2"])
+        anatomy_bar.pack(fill="x", padx=1, pady=1)
+        tk.Label(
+            anatomy_bar, text=self.tr("setup_anatomy"), bg=C["panel2"], fg=family_fg,
+            font=("Consolas", 9, "bold")
+        ).pack(side="right", padx=12, pady=7)
+
+        tk.Label(
+            semantic, text=self.ui_text(subtitle), bg=C["panel3"], fg=C["muted"],
+            font=("Segoe UI", 10), wraplength=1120, justify="right", anchor="e"
+        ).pack(fill="x", padx=14, pady=(8, 9))
+
+        # Source image first: this is the exact bundled image mapped to the concept.
+        source_frame = tk.Frame(semantic, bg=C["soft"], highlightbackground=C["line"], highlightthickness=1)
+        source_frame.pack(fill="x", padx=10, pady=(0, 8))
+        source_header = tk.Frame(source_frame, bg=C["soft"])
+        source_header.pack(fill="x")
+        tk.Label(
+            source_header, text=self.tr("source_chart"),
+            bg=C["soft"], fg=C["cyan"], font=("Consolas", 9, "bold")
+        ).pack(side="left", padx=10, pady=7)
+        tk.Label(
+            source_header, text=self.tr("original_source"),
+            bg=C["soft"], fg=C["muted"], font=("Segoe UI", 9, "bold")
+        ).pack(side="right", padx=10, pady=7)
+
+        image_holder = tk.Frame(source_frame, bg=C["soft"])
+        image_holder.pack(fill="x", padx=8, pady=(0, 8))
+        photo = None
         try:
-            if family_key in ("smc","ict"):
-                draw_setup(holder,family_key,self.ui_text(title),C)
+            asset = bundled_asset_for_visual(kind) if mapping_ok else None
+            if asset is None:
+                target = ROOT / "cache" / "academy_source"
+                asset = render_visual(target, kind)
+            if asset and Path(asset).exists():
+                from PIL import Image, ImageTk
+                im = Image.open(asset).convert("RGBA")
+                max_w, max_h = 1120, 430
+                ratio = min(max_w / max(1, im.width), max_h / max(1, im.height), 1.0)
+                if ratio < 1:
+                    im = im.resize((max(1, int(im.width * ratio)), max(1, int(im.height * ratio))), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(im)
+                image_label = tk.Label(image_holder, image=photo, bg=C["soft"], bd=0)
+                image_label.image = photo
+                image_label.pack(anchor="center")
             else:
-                draw_candlestick(holder,self.ui_text(title),C)
+                raise FileNotFoundError(f"Bundled Academy image missing for '{kind}'")
         except Exception as exc:
-            tk.Label(holder,text=f"{self.tr('no_exact_image')}\n{exc}",bg=C["panel3"],fg=C["danger"],
-                     font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
+            tk.Label(
+                image_holder, text=f"{self.tr('no_exact_image')}\n{exc}",
+                bg=C["soft"], fg=C["danger"], font=("Segoe UI", 9, "bold"),
+                padx=20, pady=24, justify="center", wraplength=1060
+            ).pack(fill="x")
 
-        source_title,source_url=source_for_visual(kind)
-        source=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        source.pack(fill="x",padx=10,pady=(0,8))
-        left=tk.Frame(source,bg=C["panel"]); left.pack(side="left",padx=10,pady=8)
-        tk.Label(left,text="SOURCE / FURTHER READING",bg=C["panel"],fg=C["cyan"],
-                 font=("Consolas",8,"bold")).pack(anchor="w")
-        self.btn(left,self.tr("open_source"),lambda u=source_url:self.open_webview(u,source_title)).pack(anchor="w",pady=(4,0))
-        tk.Label(source,text=self.ui_text(source_title),bg=C["panel"],fg=C["muted"],
-                 font=("Segoe UI",9,"bold"),wraplength=820,justify="right").pack(side="right",fill="x",expand=True,padx=12,pady=10)
-        tk.Label(source,text=self.ui_text("The diagram above is the app's exact teaching map; the link is the external source reference."),
-                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",8),wraplength=420,justify="right").pack(side="right",padx=12,pady=10)
+        # Internal anatomy map: deterministic and concept-specific, never presented as the source image.
+        map_holder = tk.Frame(semantic, bg=C["panel3"])
+        map_holder.pack(fill="x", padx=4, pady=(0, 8))
+        tk.Label(
+            map_holder, text=self.ui_text("INTERNAL SETUP MAP"),
+            bg=C["panel3"], fg=family_fg, font=("Consolas", 8, "bold")
+        ).pack(anchor="w", padx=8, pady=(3, 4))
+        try:
+            if family_key in ("smc", "ict"):
+                draw_setup(map_holder, family_key, self.ui_text(title), C)
+            else:
+                draw_candlestick(map_holder, self.ui_text(title), C)
+        except Exception as exc:
+            tk.Label(
+                map_holder, text=str(exc), bg=C["panel3"], fg=C["danger"],
+                font=("Segoe UI", 9), padx=12, pady=12
+            ).pack(fill="x")
+
+        source_title, source_url = source_for_visual(kind)
+        source = tk.Frame(box, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1)
+        source.pack(fill="x", padx=12, pady=(0, 10))
+        left = tk.Frame(source, bg=C["panel"])
+        left.pack(side="left", padx=10, pady=8)
+        tk.Label(
+            left, text="SOURCE / FURTHER READING", bg=C["panel"], fg=C["cyan"],
+            font=("Consolas", 8, "bold")
+        ).pack(anchor="w")
+        self.btn(
+            left, self.tr("open_source"),
+            lambda u=source_url, t=source_title: self.open_webview(u, t)
+        ).pack(anchor="w", pady=(4, 0))
+        tk.Label(
+            source, text=self.ui_text(source_title), bg=C["panel"], fg=C["muted"],
+            font=("Segoe UI", 9, "bold"), wraplength=760, justify="right"
+        ).pack(side="right", fill="x", expand=True, padx=12, pady=9)
+        tk.Label(
+            source, text=self.ui_text("The source image above is bundled from the mapped reference; "
+                                      "the internal map below is generated by the app and is not the source image."),
+            bg=C["panel"], fg=C["muted"], font=("Segoe UI", 8), wraplength=390, justify="right"
+        ).pack(side="right", padx=12, pady=9)
+        if requested_kind != kind:
+            note = self.ui_text(
+                "Visual mapping was normalized to the selected family to prevent a cross-family mismatch."
+            )
+            tk.Label(
+                box, text=note, bg=C["panel"], fg=C["gold"],
+                font=("Segoe UI", 8, "bold"), wraplength=1030, justify="right"
+            ).pack(fill="x", padx=14, pady=(0, 10))
         return box
 
     def academy(self):
@@ -2747,10 +2889,29 @@ class App(tk.Tk):
         family_map.pack(fill="x",pady=(0,7))
         tk.Label(family_map,text="SMC ≠ ICT",bg=C["panel"],fg=C["gold"],
                  font=("Segoe UI",12,"bold")).pack(anchor="e",padx=14,pady=(10,3))
+        matrix=tk.Frame(family_map,bg=C["panel"]); matrix.pack(fill="x",padx=10,pady=(2,12))
+        matrix.columnconfigure(0,weight=1); matrix.columnconfigure(1,weight=1); matrix.columnconfigure(2,weight=1)
+        tracks=[
+            ("SMC • Framework",
+             "Market Structure\nHH/HL • LH/LL • BOS/CHoCH\nLiquidity • BSL/SSL • EQH/EQL\nOB • FVG • Sweeps",
+             C["accent"]),
+            ("ICT • Named Models",
+             "2022 Model\nSilver Bullet • Judas Swing\nAMD/Power of Three • OTE\nUnicorn • SMT",
+             C["violet"]),
+            ("Candlesticks • Separate",
+             "Bullish/Bearish Engulfing\nDoji • Hammer • Shooting Star\nMorning/Evening Star\nTweezer • Soldiers/Crows",
+             C["gold"]),
+        ]
+        for col,(head,body,fg) in enumerate(tracks):
+            card=tk.Frame(matrix,bg=C["panel2"],highlightbackground=C["line"],highlightthickness=1)
+            card.grid(row=0,column=col,sticky="nsew",padx=4)
+            tk.Label(card,text=head,bg=C["panel2"],fg=fg,font=("Segoe UI",11,"bold")).pack(fill="x",padx=10,pady=(10,5))
+            tk.Label(card,text=self.ui_text(body),bg=C["panel2"],fg=C["text"],font=("Segoe UI",9,"bold"),
+                     justify="right",anchor="e",wraplength=330).pack(fill="x",padx=10,pady=(0,11))
         tk.Label(
             family_map,
-            text=self.ui_text("SMC: ساختار بازار، نقدینگی، BOS/CHoCH، Order Block، FVG و ناحیه‌ها  •  ICT: مدل‌ها و اصطلاحات نام‌گذاری‌شده مانند 2022 Model، Silver Bullet، Judas Swing، AMD، OTE و Unicorn"),
-            bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold"),
+            text=self.ui_text("تطبیق بر اساس نام‌گذاری آموزشی همین آکادمی است؛ یک تصویر یا برچسب از مسیر ICT هرگز برای توضیح یک الگوی کندلی یا یک مسیر عمومی SMC به‌جای آن استفاده نمی‌شود."),
+            bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),
             wraplength=1180,justify="right"
         ).pack(fill="x",padx=14,pady=(0,10))
 

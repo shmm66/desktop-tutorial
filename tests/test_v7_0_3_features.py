@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.2.0"
+    assert VERSION == "8.3.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -284,9 +284,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.2.0\"" in launcher
+    assert "VERSION = \"8.3.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -297,7 +297,7 @@ def test_v780_news_webview_has_fallback():
 
 def test_v800_ai_uses_supported_master_model():
     from ai_assistant import DEFAULT_MODEL, ROLES
-    assert DEFAULT_MODEL == "gpt-6-sol"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert "academy" in ROLES
     assert "product" in ROLES
 
@@ -328,7 +328,7 @@ def test_v79_navigation_and_glass_hooks_present():
     from pathlib import Path
     text = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def _hard_home(self):" in text
-    assert "command=self.go_home" in text
+    assert "command=self._home_click" in text
     assert "apply_glass(self" in text
     assert "set_widget_glass(top" in text
 
@@ -344,9 +344,9 @@ def test_v800_navigation_uses_single_home_renderer():
 
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-6-sol"
-    assert MODEL_FALLBACKS == ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
-    assert "gpt-5.6-terra" not in MODEL_FALLBACKS
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-luna")
+    assert "gpt-6-sol" not in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
 
 
@@ -420,7 +420,7 @@ def test_v810_real_glass_and_safe_installer():
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     assert 'wintypes.DWORD(38)' in glass
     assert 'pywinstyles.apply_style(window, native_style)' in glass
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert 'PrivilegesRequired=lowest' in iss
 
 
@@ -444,9 +444,9 @@ def test_v820_market_has_no_key_fallback():
 def test_v820_installer_is_non_admin_and_versioned():
     from pathlib import Path
     iss=Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "8.3.0"' in iss
     assert "PrivilegesRequired=lowest" in iss
-    assert "OutputBaseFilename=TraderPlannerPro_Setup_v8.2.0" in iss
+    assert "OutputBaseFilename=TraderPlannerPro_Setup_v8.3.0" in iss
 
 
 def test_v820_academy_dispatch_has_exact_models():
@@ -455,3 +455,55 @@ def test_v820_academy_dispatch_has_exact_models():
     source=inspect.getsource(draw_setup)
     for token in ("_smc_liquidity", "_smc_ob_fvg", "_smc_breaker", "_ict_2022", "_ict_silver", "_ict_unicorn", "_ict_ote", "_ict_amd", "_ict_judas", "_two_instruments"):
         assert token in source
+
+
+def test_v830_agents_sdk_and_source_first_academy():
+    from pathlib import Path
+    from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, agents_sdk_status
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-luna")
+    assert callable(agents_sdk_status)
+    assert "bundled_asset_for_visual" in source
+    assert "INTERNAL SETUP MAP" in source
+
+
+def test_v830_academy_has_distinct_named_family_maps():
+    from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES
+    smc = {x["name_en"] for x in SMART_MONEY_STRATEGIES}
+    ict = {x["name_en"] for x in ICT_STRATEGIES}
+    assert smc.isdisjoint(ict)
+    assert "1) ICT 2022 Model" in ict
+    assert "1) Liquidity Sweep + BOS" in smc
+
+
+def test_v830_market_engine_has_parallel_crypto_providers():
+    from pathlib import Path
+    source = Path("market_data.py").read_text(encoding="utf-8")
+    assert "ThreadPoolExecutor" in source
+    assert "CoinGecko" in source and "Coinbase" in source and "Kraken" in source
+
+
+def test_v830_installer_does_not_reuse_previous_install_directory():
+    from pathlib import Path
+    iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
+    assert "UsePreviousAppDir=no" in iss
+    assert 'MyAppVersion "8.3.0"' in iss
+
+
+def test_v830_offline_ai_knowledge_agent_retrieves_curated_academy():
+    from ai_assistant import _academy_knowledge_answer, _fallback
+    result = _academy_knowledge_answer("bullish engulfing")
+    assert result is not None
+    assert result["kind"] in {"candle", "glossary"}
+    answer = _fallback("strategy", "Bullish Engulfing", "")
+    assert "candlestick" in answer.lower() or "کندلی" in answer
+
+
+def test_v830_visual_family_guard_blocks_mismatches():
+    from academy_visuals import validate_visual_mapping, safe_visual_key
+    assert validate_visual_mapping("bullish_engulfing", "candles")
+    assert validate_visual_mapping("ict_2022", "ict")
+    assert validate_visual_mapping("smc_liquidity", "smc")
+    assert not validate_visual_mapping("ict_2022", "candles")
+    assert safe_visual_key("ict_2022", "candles") == "candlestick"

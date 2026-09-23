@@ -9,6 +9,56 @@ def is_windows() -> bool:
     return sys.platform.startswith("win")
 
 
+def _set_legacy_acrylic(window, dark: bool) -> bool:
+    """Use the Win32 Acrylic composition path when available."""
+    if not is_windows():
+        return False
+    try:
+        class ACCENT_POLICY(ctypes.Structure):
+            _fields_ = [
+                ("AccentState", wintypes.DWORD),
+                ("AccentFlags", wintypes.DWORD),
+                ("GradientColor", wintypes.DWORD),
+                ("AnimationId", wintypes.DWORD),
+            ]
+
+        class WINDOW_COMPOSITION_ATTRIBUTES(ctypes.Structure):
+            _fields_ = [
+                ("Attribute", wintypes.DWORD),
+                ("Data", ctypes.POINTER(ACCENT_POLICY)),
+                ("SizeOfData", wintypes.ULONG),
+            ]
+
+        hwnd = wintypes.HWND(window.winfo_id())
+        policy = ACCENT_POLICY()
+        policy.AccentState = 4
+        policy.AccentFlags = 0
+        alpha = 0xE6 if dark else 0xD9
+        red, green, blue = ((10, 17, 28) if dark else (239, 246, 250))
+        policy.GradientColor = (alpha << 24) | (blue << 16) | (green << 8) | red
+        data = WINDOW_COMPOSITION_ATTRIBUTES()
+        data.Attribute = 19
+        data.Data = ctypes.pointer(policy)
+        data.SizeOfData = ctypes.sizeof(policy)
+        result = ctypes.windll.user32.SetWindowCompositionAttribute(
+            hwnd, ctypes.byref(data)
+        )
+        return bool(result)
+    except Exception:
+        return False
+
+
+def set_transparent_client(window, enabled: bool = True, transparent_color: str = "#010307") -> bool:
+    """Make selected Tk background surfaces color-key transparent on Windows."""
+    if not is_windows():
+        return False
+    try:
+        window.wm_attributes("-transparentcolor", transparent_color if enabled else "")
+        return True
+    except Exception:
+        return False
+
+
 def _set_dwm_backdrop(window, dark: bool, acrylic: bool = True) -> bool:
     """Apply the Windows 11 system material to the entire native window."""
     if not is_windows():
@@ -97,8 +147,9 @@ def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
                 pass
 
             native_ok = _set_dwm_backdrop(window, dark=dark, acrylic=(style != "mica"))
+            legacy_ok = _set_legacy_acrylic(window, dark=dark) if style == "acrylic" else False
             pywin_ok = _apply_pywinstyles(window, dark=dark, style=style)
-            return native_ok or pywin_ok
+            return native_ok or legacy_ok or pywin_ok
         except Exception:
             return False
 
@@ -114,12 +165,23 @@ def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic") -
 
 
 def set_widget_glass(widget, opacity: float = 0.88) -> bool:
-    """Style a Tk surface as a glass layer without fragile per-widget alpha."""
+    """Apply translucent widget chrome on Windows while preserving readable content."""
     try:
-        _ = float(opacity)
+        alpha = max(0.68, min(0.94, float(opacity)))
         widget.configure(
             highlightthickness=max(int(widget.cget("highlightthickness")), 1)
         )
+        if is_windows():
+            try:
+                import pywinstyles
+                # Make the widget's own background color transparent first so
+                # the native Acrylic backdrop can show through the empty card.
+                bg = str(widget.cget("bg"))
+                if bg:
+                    pywinstyles.set_opacity(widget, color=bg)
+                pywinstyles.set_opacity(widget, value=alpha)
+            except Exception:
+                pass
         return True
     except Exception:
         return False

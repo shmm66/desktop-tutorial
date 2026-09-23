@@ -10,4 +10,7 @@ tzdata>=2025.2
 google-api-python-client>=2.181,<3
 google-auth>=2.40,<3
 google-auth-oauthlib>=1.2,<2
-openai>=3,<4
+openai==3.16.2
+
+openai-agents==0.22.3
+pydantic>=2.12.2,<3

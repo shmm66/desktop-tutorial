@@ -42,7 +42,7 @@ FEEDS = [
     ("Google News • Forex", GOOGLE_FOREX_RSS),
 ]
 
-USER_AGENT = "TraderPlannerPro/8.2.0"
+USER_AGENT = "TraderPlannerPro/8.3.0"
 NEWS_CACHE = Path.home() / "TraderPlannerPro" / "news_cache.json"
 
 
@@ -160,7 +160,7 @@ def fetch_all_news(limit=24, include_forex=False):
         for source, url in feeds
     }
     # Never wait indefinitely for a broken RSS endpoint.
-    done, _ = concurrent.futures.wait(jobs, timeout=9.0)
+    done, _ = concurrent.futures.wait(jobs, timeout=7.0)
     for job in done:
         try:
             results.extend(job.result(timeout=0.1))
