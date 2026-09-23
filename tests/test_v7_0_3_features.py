@@ -498,3 +498,12 @@ def test_v830_offline_ai_knowledge_agent_retrieves_curated_academy():
     assert result["kind"] in {"candle", "glossary"}
     answer = _fallback("strategy", "Bullish Engulfing", "")
     assert "candlestick" in answer.lower() or "کندلی" in answer
+
+
+def test_v830_visual_family_guard_blocks_mismatches():
+    from academy_visuals import validate_visual_mapping, safe_visual_key
+    assert validate_visual_mapping("bullish_engulfing", "candles")
+    assert validate_visual_mapping("ict_2022", "ict")
+    assert validate_visual_mapping("smc_liquidity", "smc")
+    assert not validate_visual_mapping("ict_2022", "candles")
+    assert safe_visual_key("ict_2022", "candles") == "candlestick"
