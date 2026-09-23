@@ -165,15 +165,20 @@ def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic") -
 
 
 def set_widget_glass(widget, opacity: float = 0.88) -> bool:
-    """Apply a glass-style border plus real Windows widget opacity when supported."""
+    """Apply translucent widget chrome on Windows while preserving readable content."""
     try:
-        alpha = max(0.65, min(1.0, float(opacity)))
+        alpha = max(0.68, min(0.94, float(opacity)))
         widget.configure(
             highlightthickness=max(int(widget.cget("highlightthickness")), 1)
         )
         if is_windows():
             try:
                 import pywinstyles
+                # Make the widget's own background color transparent first so
+                # the native Acrylic backdrop can show through the empty card.
+                bg = str(widget.cget("bg"))
+                if bg:
+                    pywinstyles.set_opacity(widget, color=bg)
                 pywinstyles.set_opacity(widget, value=alpha)
             except Exception:
                 pass
