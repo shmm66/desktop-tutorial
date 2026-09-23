@@ -528,9 +528,11 @@ def fetch_market(mode: str):
     market = "Forex" if str(mode).lower() == "forex" else "Crypto"
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    # Do not let one blocked endpoint keep the desktop in a perpetual spinner.
-    # Quotes get a hard overall deadline; secondary indicators are best-effort.
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=6, thread_name_prefix="TPMarket")
+    # UI deadline: return a usable live/cache/unavailable state quickly rather
+    # than holding the Home renderer behind slow public endpoints.
+    executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=8, thread_name_prefix="TPMarket"
+    )
     item_future = executor.submit(_forex_live if market == "Forex" else _crypto_live)
     indicator_futures = {
         "global": executor.submit(_global_indicators),
@@ -540,7 +542,7 @@ def fetch_market(mode: str):
 
     items, source = [], "unavailable"
     try:
-        items, source = item_future.result(timeout=6.0)
+        items, source = item_future.result(timeout=4.2)
     except Exception:
         try:
             item_future.cancel()
@@ -548,22 +550,34 @@ def fetch_market(mode: str):
             pass
 
     indicators = {}
-    for key, future in indicator_futures.items():
-        try:
-            value = future.result(timeout=1.5)
+    deadline = time.monotonic() + 1.8
+    pending = set(indicator_futures.values())
+    future_to_key = {future: key for key, future in indicator_futures.items()}
+    while pending and time.monotonic() < deadline:
+        done, pending = concurrent.futures.wait(
+            pending,
+            timeout=max(0.05, deadline - time.monotonic()),
+            return_when=concurrent.futures.FIRST_COMPLETED,
+        )
+        if not done:
+            break
+        for future in done:
+            key = future_to_key[future]
+            try:
+                value = future.result(timeout=0.1)
+            except Exception:
+                value = None
             if key == "global" and isinstance(value, dict):
                 indicators.update(value)
             elif key == "fear":
                 indicators["fear_greed"] = value
             elif key == "vix":
                 indicators["vix"] = value
-        except Exception:
-            if key == "fear":
-                indicators["fear_greed"] = None
-            elif key == "vix":
-                indicators["vix"] = None
 
+    indicators.setdefault("fear_greed", None)
+    indicators.setdefault("vix", None)
     indicators["market_regime"] = "LIVE" if items else "OFFLINE"
+
     try:
         executor.shutdown(wait=False, cancel_futures=True)
     except Exception:
@@ -587,12 +601,14 @@ def fetch_market(mode: str):
 
     cached = _read_cache()
     if cached.get("market") == market and isinstance(cached.get("items"), list) and cached.get("items"):
+        merged_indicators = dict(cached.get("indicators") or {})
+        merged_indicators.update({k: v for k, v in indicators.items() if v is not None})
         return {
             "market": market,
             "updated_at": cached.get("updated_at"),
             "source": cached.get("source") or "cache",
             "items": cached.get("items", []),
-            "indicators": cached.get("indicators", indicators),
+            "indicators": merged_indicators,
             "status": "cache",
             "message": "Live feed unavailable; showing last saved market snapshot.",
         }
