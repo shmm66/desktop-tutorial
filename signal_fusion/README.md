@@ -16,3 +16,6 @@ Important: the star is a confluence classification, not a win-probability score.
 - ★★★ three or more agree and overlap
 
 The app uses confirmed candles for signals and does not execute trades.
+
+## CI build verification
+The GitHub Actions workflow builds a Windows one-file executable named `SignalFusion.exe` and publishes it as the `SignalFusion-Windows` workflow artifact.
