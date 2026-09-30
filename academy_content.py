@@ -281,3 +281,19 @@ GLOSSARY = [
 
 ACADEMY_NOTE_FA = "این بخش برای آموزش و ساخت قوانین قابل‌تست است؛ برچسب‌های SMC/ICT روی نمودار، به‌تنهایی اثبات رفتار نهادی یا تضمین نتیجه نیستند."
 ACADEMY_NOTE_EN = "This section is for learning and building testable rules; SMC/ICT labels alone do not prove institutional intent or guarantee outcomes."
+
+
+ACADEMY_FAMILY_RULES = {
+    "SMC": {
+        "title": "Smart Money Concepts — framework",
+        "note": "Broad framework: structure, liquidity, displacement, BOS/CHoCH, OB/FVG and reaction zones.",
+    },
+    "ICT": {
+        "title": "ICT — named models and terminology",
+        "note": "Named models such as 2022 Model, Silver Bullet, Unicorn, Judas Swing, AMD and OTE. Do not relabel a generic SMC workflow as a named ICT model.",
+    },
+    "CANDLE": {
+        "title": "Candlestick — pattern analysis",
+        "note": "Candlestick patterns are a separate technical-analysis family. Engulfing, Doji, Hammer and similar patterns are not ICT setups by themselves.",
+    },
+}
