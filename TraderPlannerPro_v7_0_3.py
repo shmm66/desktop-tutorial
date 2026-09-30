@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.2.0"
+VERSION = "8.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -531,8 +531,9 @@ class App(tk.Tk):
         self.apply_theme(initial=True)
         self.bind_all("<Home>", self._home_shortcut)
         self.bind_all("<Alt-Home>", lambda e: self.go_home())
-        self.bind_all("<Control-K>", lambda e: self.open_ai_chat())
-        self.bind_all("<F2>", lambda e: self.open_ai_chat())
+        self.bind_all("<Control-K>", lambda e: self.go_ai())
+        self.bind_all("<F2>", lambda e: self.go_ai())
+        self.bind_all("<Control-H>", lambda e: self.go_home())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
         self.bind("<Motion>", self._shell_motion, add="+")
@@ -574,6 +575,17 @@ class App(tk.Tk):
         except Exception:
             pass
 
+    def _ensure_home_timeout(self, delay=6500):
+        """Keep a single market timeout alive whenever Home is visible."""
+        if self.market_timeout_job is not None:
+            try:
+                self.after_cancel(self.market_timeout_job)
+            except Exception:
+                pass
+            self.market_timeout_job = None
+        if getattr(self, "cur", None) == "home":
+            self.market_timeout_job = self.after(int(delay), self._market_loading_timeout)
+
     def _hard_home(self):
         """Synchronous Home renderer. No after_idle widget destruction."""
         self._close_menu_immediately()
@@ -593,8 +605,9 @@ class App(tk.Tk):
         self.cur = "home"
         self._nav_token += 1
         self._render_page("home", self._nav_token)
+        self._ensure_home_timeout()
         self.after(50, self.market_data.refresh_now)
-        self.focus_force()
+        self.after(1, self.focus_force)
 
     def go_home(self, _event=None):
         """Global Home action that works from every page and market mode."""
@@ -770,7 +783,7 @@ class App(tk.Tk):
                 }
             self._apply_market_data(self.market_data_payload)
         if self.cur == "home":
-            self.market_timeout_job = self.after(7000, self._market_loading_timeout)
+            self._ensure_home_timeout(6500)
 
     def check_reminders(self):
         self.reminder_job = None
@@ -927,7 +940,7 @@ class App(tk.Tk):
         )
         self.global_home_btn.pack(side="left", padx=4)
         self.global_ai_btn = tk.Button(
-            status, text=self.tr("ai_chat"), command=self.open_ai_chat,
+            status, text=self.tr("ai_chat"), command=self.go_ai,
             bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
             relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
         )
@@ -944,7 +957,7 @@ class App(tk.Tk):
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
-            ("ai", self.tr("ai_chat"), self.open_ai_chat),
+            ("ai", self.tr("ai_chat"), self.go_ai),
             ("news", self.tr("news"), lambda: self.go("news")),
             ("calculators", self.tr("calculators"), lambda: self.go("calculators")),
         ]
@@ -967,7 +980,7 @@ class App(tk.Tk):
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
         for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","settings"):
-            cmd = self.open_ai_chat if key == "ai" else (lambda k=key: self.go(k))
+            cmd = self.go_ai if key == "ai" else (lambda k=key: self.go(k))
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
@@ -1278,6 +1291,7 @@ class App(tk.Tk):
         self.indicator_row = tk.Frame(self.content, bg=C["bg"]); self.indicator_row.pack(fill="x", pady=(0,7))
         self.render_market_indicators(self.market_data_payload)
         self.market_data.set_market(self.market)
+        self._ensure_home_timeout(6500)
         self.after(30, self.market_data.refresh_now)
 
         session_wrap = tk.Frame(self.content, bg=C["bg"]); session_wrap.pack(fill="x", pady=(1,7))
@@ -1328,6 +1342,7 @@ class App(tk.Tk):
         if hasattr(self, "ticker_canvas"):
             self.render_market_ticker(self.market_data_payload)
         self.market_data.set_market(self.market)
+        self._ensure_home_timeout(6500)
         self.market_data.refresh_now()
 
     def render_market_indicators(self, payload=None):
@@ -2437,6 +2452,16 @@ class App(tk.Tk):
         for item in self.news_tree.get_children():
             self.news_tree.delete(item)
         self.news_status.config(text="● " + self.tr("market_loading"), fg=C["gold"])
+        try:
+            from news_data import cached_news
+            cached_rows = cached_news(limit=12)
+        except Exception:
+            cached_rows = []
+        if cached_rows:
+            self.news_items = list(cached_rows)
+            for i,row in enumerate(self.news_items):
+                self.news_tree.insert("", "end", iid=f"cache-{i}", values=(row.get("source","News"), row.get("published",""), row.get("title","")))
+            self.news_status.config(text=f"● {len(cached_rows)} cached headlines • refreshing…", fg=C["gold"])
 
         fallback=[
             ("CoinDesk","Open CoinDesk crypto terminal",COINDESK_HOME),
@@ -2685,52 +2710,53 @@ class App(tk.Tk):
             reminders.pop(idx); save_db(); self.show("ai")
 
     def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
-        """Render one exact, family-aware educational visual with a trustworthy source link."""
-        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        box.pack(fill="x",padx=8,pady=(4,8))
+        """Show the exact bundled source visual first, then a clearly labeled anatomy diagram."""
         kind=visual_kind or key
         family_key="ict" if str(family).lower()=="ict" else ("smc" if str(family).lower()=="smc" else "candles")
-        family_text={
-            "smc":self.tr("smc_family"),
-            "ict":self.tr("ict_family"),
-            "candles":self.tr("candles")
-        }[family_key]
+        family_text={"smc":self.tr("smc_family"),"ict":self.tr("ict_family"),"candles":self.tr("candles")}[family_key]
         family_fg={"smc":C["accent"],"ict":C["violet"],"candles":C["gold"]}[family_key]
-
+        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
+        box.pack(fill="x",padx=8,pady=(4,8))
         header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,5))
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,font=("Segoe UI",8,"bold"),
-                 padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],
-                 font=("Segoe UI",14,"bold")).pack(side="right",padx=8)
-
-        semantic=tk.Frame(box,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        semantic.pack(fill="x",padx=10,pady=(0,7))
-        tk.Label(semantic,text=self.tr("setup_anatomy"),bg=C["panel3"],fg=family_fg,
-                 font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,3))
-        tk.Label(semantic,text=self.ui_text(subtitle),bg=C["panel3"],fg=C["muted"],
-                 font=("Segoe UI",10),wraplength=1120,justify="right").pack(fill="x",padx=12,pady=(0,5))
-
-        holder=tk.Frame(semantic,bg=C["panel3"]); holder.pack(fill="x",padx=4,pady=(0,7))
+        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,font=("Segoe UI",8,"bold"),padx=9,pady=4).pack(side="right")
+        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],font=("Segoe UI",14,"bold")).pack(side="right",padx=8)
+        source_frame=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
+        source_frame.pack(fill="x",padx=10,pady=(0,8))
+        tk.Label(source_frame,text=self.tr("source_chart"),bg=C["panel"],fg=family_fg,font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,4))
+        source_holder=tk.Frame(source_frame,bg=C["panel3"]); source_holder.pack(fill="x",padx=8,pady=(0,8))
+        try:
+            from PIL import Image, ImageTk
+            source_path=bundled_asset_for_visual(kind)
+            if not source_path or not Path(source_path).exists():
+                raise FileNotFoundError(f"Missing bundled education image: {kind}")
+            image=Image.open(source_path).convert("RGB")
+            max_w,max_h=1040,360
+            scale=min(max_w/image.width,max_h/image.height,1.0)
+            if scale<1:
+                image=image.resize((max(1,int(image.width*scale)),max(1,int(image.height*scale))),Image.Resampling.LANCZOS)
+            photo=ImageTk.PhotoImage(image)
+            label=tk.Label(source_holder,image=photo,bg=C["panel3"],bd=0)
+            label.image=photo
+            label.pack(anchor="center",pady=4)
+        except Exception as exc:
+            tk.Label(source_holder,text=f"{self.tr('no_exact_image')}\\n{exc}",bg=C["panel3"],fg=C["danger"],font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
+        anatomy=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
+        anatomy.pack(fill="x",padx=10,pady=(0,8))
+        tk.Label(anatomy,text=self.tr("setup_anatomy")+" • APP EXPLANATION",bg=C["panel"],fg=family_fg,font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,2))
+        tk.Label(anatomy,text=self.ui_text(subtitle),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=1120,justify="right").pack(fill="x",padx=12,pady=(0,5))
+        diagram_holder=tk.Frame(anatomy,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=4,pady=(0,7))
         try:
             if family_key in ("smc","ict"):
-                draw_setup(holder,family_key,self.ui_text(title),C)
+                draw_setup(diagram_holder,family_key,self.ui_text(title),C)
             else:
-                draw_candlestick(holder,self.ui_text(title),C)
+                draw_candlestick(diagram_holder,self.ui_text(title),C)
         except Exception as exc:
-            tk.Label(holder,text=f"{self.tr('no_exact_image')}\n{exc}",bg=C["panel3"],fg=C["danger"],
-                     font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
-
+            tk.Label(diagram_holder,text=str(exc),bg=C["panel3"],fg=C["danger"],font=("Consolas",9)).pack(fill="x",pady=20)
         source_title,source_url=source_for_visual(kind)
-        source=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        source.pack(fill="x",padx=10,pady=(0,8))
-        left=tk.Frame(source,bg=C["panel"]); left.pack(side="left",padx=10,pady=8)
-        tk.Label(left,text="SOURCE / FURTHER READING",bg=C["panel"],fg=C["cyan"],
-                 font=("Consolas",8,"bold")).pack(anchor="w")
-        self.btn(left,self.tr("open_source"),lambda u=source_url:self.open_webview(u,source_title)).pack(anchor="w",pady=(4,0))
-        tk.Label(source,text=self.ui_text(source_title),bg=C["panel"],fg=C["muted"],
-                 font=("Segoe UI",9,"bold"),wraplength=820,justify="right").pack(side="right",fill="x",expand=True,padx=12,pady=10)
-        tk.Label(source,text=self.ui_text("The diagram above is the app's exact teaching map; the link is the external source reference."),
-                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",8),wraplength=420,justify="right").pack(side="right",padx=12,pady=10)
+        footer=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
+        footer.pack(fill="x",padx=10,pady=(0,8))
+        self.btn(footer,self.tr("open_source"),lambda u=source_url:self.open_webview(u,source_title),True).pack(side="left",padx=10,pady=8)
+        tk.Label(footer,text=self.ui_text(source_title),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold"),wraplength=820,justify="right").pack(side="right",fill="x",expand=True,padx=12,pady=10)
         return box
 
     def academy(self):
