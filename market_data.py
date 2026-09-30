@@ -42,6 +42,7 @@ CRYPTO_FALLBACK_ENDPOINT = "https://api.coinpaprika.com/v1/tickers?quotes=USD&li
 KRAKEN_TICKER_ENDPOINT = "https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,SOLUSD,XRPUSD,ADAUSD,DOGEUSD,BNBUSD"
 COINBASE_PRODUCTS = [("BTC","BTC-USD"),("ETH","ETH-USD"),("SOL","SOL-USD"),("XRP","XRP-USD"),("ADA","ADA-USD"),("DOGE","DOGE-USD"),("BNB","BNB-USD")]
 COINCAP_ENDPOINT = "https://api.coincap.io/v2/assets?limit=20"
+CRYPTOCOMPARE_ENDPOINT = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=BTC,ETH,USDT,BNB,XRP,USDC,SOL,TRX,DOGE,ADA&tsyms=USD"
 BINANCE_TICKER_ENDPOINTS = [
     "https://data-api.binance.vision/api/v3/ticker/24hr",
     "https://api.binance.com/api/v3/ticker/24hr",
@@ -182,6 +183,22 @@ def _crypto_from_coincap():
         return [], "unavailable"
 
 
+def _crypto_from_cryptocompare():
+    try:
+        data=_request_json(CRYPTOCOMPARE_ENDPOINT, timeout=3.0)
+        raw=data.get("RAW") or {}
+        out=[]
+        for label,_ in CRYPTO_FALLBACK:
+            row=(raw.get(label) or {}).get("USD") or {}
+            price=_safe_float(row.get("PRICE"))
+            change=_safe_float(row.get("CHANGEPCT24HOUR"))
+            if price is not None:
+                out.append({"symbol":label,"name":label,"price":price,"change":change})
+        return out, "CryptoCompare public market data" if len(out)>=5 else "unavailable"
+    except Exception:
+        return [], "unavailable"
+
+
 def _crypto_from_binance():
     for endpoint in BINANCE_TICKER_ENDPOINTS:
         try:
@@ -293,6 +310,11 @@ def _crypto_live():
 
     # Fast no-key aggregator fallback.
     result, source = _crypto_from_coincap()
+    if result:
+        return result, source
+
+    # Independent public aggregator fallback.
+    result, source = _crypto_from_cryptocompare()
     if result:
         return result, source
 
