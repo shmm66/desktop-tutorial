@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.3.1"
+VERSION = "8.3.2"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -1161,7 +1161,7 @@ class App(tk.Tk):
                              relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
         home_btn.pack(side="left", padx=(0,5))
         if self.cur != "home":
-            ai_btn = tk.Button(left_tools, text=self.tr("ai"), command=self.open_ai_chat,
+            ai_btn = tk.Button(left_tools, text="AI Command Center", command=self.go_ai,
                                bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
                                relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
             ai_btn.pack(side="left", padx=(0,5))
@@ -1933,9 +1933,7 @@ class App(tk.Tk):
         save_db(); self.render_checklist()
 
     def check_item_dialog(self,item=None,index=None):
-        dlg=tk.Toplevel(self)
-        dlg.title(self.tr("check_item"))
-        dlg.geometry("700x470"); dlg.minsize(620,420); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=self._glass_toplevel("check_item","700x470",(620,420)); dlg.grab_set()
         outer=self.card(dlg); outer.pack(fill="both",expand=True,padx=18,pady=18)
         tk.Label(outer,text=self.tr("condition_title"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(anchor="e",padx=18,pady=(16,4))
         title_box=tk.Text(outer,height=5,wrap="word",bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",font=("Segoe UI",11))
@@ -1980,16 +1978,8 @@ class App(tk.Tk):
         except Exception:
             pass
 
-        win = tk.Toplevel(self)
+        win = self._glass_toplevel(f"{APP} • AI Command Center","980x760",(820,620))
         self.ai_chat_window = win
-        win.title(f"{APP} • AI Command Center")
-        win.geometry("980x760")
-        win.minsize(820, 620)
-        win.configure(bg=C["bg"])
-        try:
-            apply_glass(win, dark=self._effective_theme()=="dark", style="acrylic")
-        except Exception:
-            pass
 
         header=tk.Frame(win,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
         header.pack(fill="x",padx=14,pady=(14,8),ipady=8)
