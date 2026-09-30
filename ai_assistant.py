@@ -97,12 +97,24 @@ def clear_openai_key():
 def cloud_status():
     key = _read_openai_key()
     if not key:
-        return {"enabled": False, "model": DEFAULT_MODEL, "message": "Add an OpenAI API key or enable Ollama."}
+        return {"enabled": False, "model": DEFAULT_MODEL, "message": "Add an OpenAI API key or enable Ollama.", "agents_sdk": AGENT_SDK_AVAILABLE}
     try:
         from openai import OpenAI  # noqa: F401
-        return {"enabled": True, "model": DEFAULT_MODEL, "message": "Cloud agent routing is ready."}
+        if not AGENT_SDK_AVAILABLE:
+            return {
+                "enabled": False,
+                "model": DEFAULT_MODEL,
+                "message": "OpenAI Agents SDK is unavailable in this build.",
+                "agents_sdk": False,
+            }
+        return {
+            "enabled": True,
+            "model": DEFAULT_MODEL,
+            "message": "Cloud master agent is ready.",
+            "agents_sdk": True,
+        }
     except Exception:
-        return {"enabled": False, "model": DEFAULT_MODEL}
+        return {"enabled": False, "model": DEFAULT_MODEL, "agents_sdk": AGENT_SDK_AVAILABLE}
 
 
 def _fallback(role, user_message, context):
@@ -180,6 +192,7 @@ class AIOrchestrator:
         cloud = cloud_status()
         return {
             "online": cloud["enabled"] or ollama_online,
+            "agents_sdk": bool(cloud.get("agents_sdk")),
             "cloud": cloud["enabled"],
             "agents_sdk": AGENT_SDK_AVAILABLE,
             "ollama": ollama_online,
