@@ -536,6 +536,7 @@ class App(tk.Tk):
         self.bind_all("<Control-H>", lambda e: self.go_home())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
+        self.bind_all("<Control-Shift-A>", lambda e: self.go_ai())
         self.bind("<Motion>", self._shell_motion, add="+")
         self.build_shell()
         self.apply_language()
@@ -610,11 +611,19 @@ class App(tk.Tk):
         self.after(1, self.focus_force)
 
     def go_home(self, _event=None):
-        """Global Home action that works from every page and market mode."""
+        """Global Home action with a hard fallback path so it cannot strand the user on another page."""
         try:
             self._hard_home()
         except Exception as exc:
-            self._show_page_error("home", exc)
+            try:
+                self._close_menu_immediately()
+                self._cancel_navigation_jobs()
+                self.cur = "home"
+                self._nav_token += 1
+                self._render_page("home", self._nav_token)
+                self._ensure_home_timeout(6500)
+            except Exception as fallback_exc:
+                self._show_page_error("home", f"{exc} | fallback: {fallback_exc}")
         return "break"
 
     def close_app(self):
