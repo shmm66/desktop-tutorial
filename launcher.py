@@ -5,7 +5,7 @@ import tempfile
 import sys
 
 APP = "Trader Planner Pro"
-VERSION = "8.3.2"
+VERSION = "9.0.0"
 
 def show_splash():
     root = tk.Tk()
@@ -54,6 +54,8 @@ def main():
         show_splash()
         from TraderPlannerPro_v7_0_3 import App
         app=App()
+        try: app.state("zoomed")
+        except Exception: pass
         try:
             from PIL import Image,ImageTk
             from logo_3d import create_logo_image
