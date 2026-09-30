@@ -1,11 +1,11 @@
-# CI RELEASE STAMP: V8.3.0
+# CI RELEASE STAMP: V8.3.1
 import tkinter as tk
 from pathlib import Path
 import tempfile
 import sys
 
 APP = "Trader Planner Pro"
-VERSION = "8.3.0"
+VERSION = "8.3.1"
 
 def show_splash():
     root = tk.Tk()
