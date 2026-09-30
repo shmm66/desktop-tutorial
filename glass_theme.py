@@ -10,15 +10,14 @@ def is_windows() -> bool:
 
 
 def _set_dwm_backdrop(window, dark: bool, acrylic: bool = True) -> bool:
-    """Apply the Windows 11 system material to the entire native window."""
+    """Apply the real Windows 11 Desktop Acrylic/Mica compositor material."""
     if not is_windows():
         return False
     try:
         hwnd = wintypes.HWND(window.winfo_id())
         dwmapi = ctypes.windll.dwmapi
 
-        # DWMWA_SYSTEMBACKDROP_TYPE = 38.
-        # DWMSBT_TRANSIENTWINDOW = 3 => Desktop Acrylic on Windows 11.
+        # DWMWA_SYSTEMBACKDROP_TYPE = 38; 3=Desktop Acrylic, 2=Mica.
         attr = wintypes.DWORD(38)
         value = wintypes.DWORD(3 if acrylic else 2)
         result = dwmapi.DwmSetWindowAttribute(
@@ -104,6 +103,7 @@ def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
 
     try:
         window.after(80, _apply)
+        window.bind("<Map>", lambda _e: window.after(40, _apply), add="+")
         return True
     except Exception:
         return _apply()

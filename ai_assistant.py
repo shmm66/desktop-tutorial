@@ -10,9 +10,9 @@ from pathlib import Path
 ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
-DEFAULT_MODEL = "gpt-6-sol"
+DEFAULT_MODEL = os.getenv("TRADER_PLANNER_AI_MODEL", "gpt-5.6-sol")
 REASONING_EFFORT = "xhigh"
-MODEL_FALLBACKS = ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
+MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
@@ -166,6 +166,7 @@ class AIOrchestrator:
         self._cloud_agents = None
         self.last_error = ""
         self.history = []
+        self.active_role = "orchestrator"
 
     def status(self):
         ollama_online, ollama_models = ollama_status()
@@ -199,6 +200,7 @@ class AIOrchestrator:
         recent = json.dumps(self.history[-8:], ensure_ascii=False)
         response = client.responses.create(
             model=self.model,
+            reasoning={"effort": REASONING_EFFORT},
             instructions=common + "\nSPECIALIST ROLE:\n" + specialist,
             input=(
                 "APP CONTEXT:\n" + context +
@@ -212,7 +214,21 @@ class AIOrchestrator:
         return answer
 
     def respond(self, role, user_message, context="", callback=None):
-        role = role if role in self.roles else "form"
+        # Master router chooses a specialist from the user's wording.
+        if role == "orchestrator":
+            text_l = str(user_message or "").lower()
+            if any(k in text_l for k in ("فرم","چک لیست","checklist","journal","پلن","form")):
+                role = "form"
+            elif any(k in text_l for k in ("فومو","fomo","revenge","روان","احساس","discipline","نظم")):
+                role = "psychology"
+            elif any(k in text_l for k in ("کندل","engulf","doji","hammer","morning star")):
+                role = "academy"
+            elif any(k in text_l for k in ("ict","smc","fvg","order block","liquidity","ستاپ","نمودار")):
+                role = "strategy"
+            elif any(k in text_l for k in ("طراحی","ui","ux","ارتقا","بهبود","محصول")):
+                role = "product"
+        role = role if role in self.roles else "orchestrator"
+        self.active_role = role
         user_message = str(user_message or "").strip()
         if not user_message:
             return
