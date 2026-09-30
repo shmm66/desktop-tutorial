@@ -80,7 +80,7 @@ def _apply_pywinstyles(window, dark: bool, style: str) -> bool:
 
 
 def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
-    """Use native Windows 11 Desktop Acrylic first, then a pywinstyles fallback.
+    """Use native Windows 11 Desktop Acrylic first, then a pywinstyles fallback; keep a translucent client surface.
 
     Microsoft documents DWMWA_SYSTEMBACKDROP_TYPE=38 with
     DWMSBT_TRANSIENTWINDOW=3 as Desktop Acrylic on Windows 11 22621+.
@@ -102,6 +102,11 @@ def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
             return False
 
     try:
+        try:
+            # A slight client alpha lets the native Acrylic compositor show through the Tk client area.
+            window.wm_attributes("-alpha", 0.965)
+        except Exception:
+            pass
         window.after(80, _apply)
         window.bind("<Map>", lambda _e: window.after(40, _apply), add="+")
         return True
