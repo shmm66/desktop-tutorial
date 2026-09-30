@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.2.0"
+    assert VERSION == "8.3.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -455,3 +455,31 @@ def test_v820_academy_dispatch_has_exact_models():
     source=inspect.getsource(draw_setup)
     for token in ("_smc_liquidity", "_smc_ob_fvg", "_smc_breaker", "_ict_2022", "_ict_silver", "_ict_unicorn", "_ict_ote", "_ict_amd", "_ict_judas", "_two_instruments"):
         assert token in source
+
+
+def test_v830_ai_uses_flagship_model():
+    import ai_assistant
+    assert ai_assistant.DEFAULT_MODEL == "gpt-5.6-sol"
+    assert ai_assistant.REASONING_EFFORT == "xhigh"
+
+def test_v830_home_timeout_rearms_after_switch():
+    from pathlib import Path
+    source=Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "def _ensure_home_timeout" in source
+    assert source.count("_ensure_home_timeout(6500)") >= 3
+
+def test_v830_academy_uses_bundled_source_images():
+    from pathlib import Path
+    source=Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "bundled_asset_for_visual(kind)" in source
+    assert "Image.open(source_path)" in source
+
+def test_v830_native_acrylic_is_reapplied_after_map():
+    from pathlib import Path
+    source=Path("glass_theme.py").read_text(encoding="utf-8")
+    assert "DWMWA_SYSTEMBACKDROP_TYPE = 38" in source
+    assert 'window.bind("<Map>"' in source
+
+def test_v830_news_cache_first():
+    from news_data import cached_news
+    assert callable(cached_news)
