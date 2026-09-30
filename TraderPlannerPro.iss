@@ -22,9 +22,9 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 SetupLogging=yes
+Uninstallable=yes
 CloseApplications=yes
 CloseApplicationsFilter=TraderPlannerPro.exe
-AppMutex=TraderPlannerProApp
 UsePreviousAppDir=yes
 RestartApplications=no
 
