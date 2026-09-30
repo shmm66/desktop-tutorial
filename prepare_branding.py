@@ -1,35 +1,43 @@
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-OUT = Path('assets')
+from logo_3d import create_logo_image
+
+OUT=Path("assets")
 OUT.mkdir(exist_ok=True)
 
-try:
-    from branding_assets import materialize_assets
-    logo_path, splash_path = materialize_assets(OUT)
-    logo = Image.open(logo_path).convert('RGB')
-    logo.save(OUT/'trader_planner_logo.png', 'PNG')
-    logo.resize((256,256), Image.Resampling.LANCZOS).save(OUT/'trader_planner_logo.ico', 'ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
-except Exception as exc:
-    print(f'Branding asset decode failed, generating safe fallback: {exc}')
-    logo = Image.new('RGB',(512,512),'#061019')
-    d = ImageDraw.Draw(logo)
-    d.rounded_rectangle((18,18,494,494),radius=72,outline='#D9A441',width=10)
-    d.text((256,190),'🐂  🐻',anchor='mm',fill='#E7B85B')
-    d.text((256,285),'TRADER',anchor='mm',fill='white')
-    d.text((256,345),'PLANNER PRO',anchor='mm',fill='#E7B85B')
-    logo.save(OUT/'trader_planner_logo.png')
-    logo.resize((256,256), Image.Resampling.LANCZOS).save(OUT/'trader_planner_logo.ico','ICO',sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+logo_png=OUT/"trader_planner_logo.png"
+logo_ico=OUT/"trader_planner_logo.ico"
+splash_bmp=OUT/"installer_wizard.bmp"
+splash_small=OUT/"installer_small.bmp"
 
-try:
-    # Ensure splash exists; if the supplied asset was unavailable, use a clean fallback.
-    splash = Image.open(OUT/'trader_planner_splash.jpg').convert('RGB')
-except Exception:
-    splash = Image.new('RGB',(960,640),'#061019')
-    d = ImageDraw.Draw(splash)
-    d.rounded_rectangle((120,40,840,590),radius=60,outline='#D9A441',width=8)
-    d.text((480,220),'🐂       🐻',anchor='mm',fill='#E7B85B')
-    d.text((480,320),'TRADER',anchor='mm',fill='white')
-    d.text((480,370),'PLANNER PRO',anchor='mm',fill='#E7B85B')
-    splash.save(OUT/'trader_planner_splash.jpg','JPEG',quality=90)
-print('Branding prepared:', list(OUT.iterdir()))
+# Generate the same premium mark used by the running application and the installer.
+create_logo_image(logo_png, 1024)
+img=Image.open(logo_png).convert("RGB")
+img.resize((256,256),Image.Resampling.LANCZOS).save(
+    logo_ico,"ICO",sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)]
+)
+
+# Inno Setup wizard image: 164x314, with a clean premium glass presentation.
+canvas=Image.new("RGB",(164,314),(7,16,27))
+d=ImageDraw.Draw(canvas)
+for y in range(314):
+    t=y/313
+    c=(7+int(10*t),16+int(15*t),27+int(24*t))
+    d.line((0,y,164,y),fill=c)
+logo_thumb=img.copy()
+logo_thumb.thumbnail((136,136),Image.Resampling.LANCZOS)
+canvas.paste(logo_thumb,((164-logo_thumb.width)//2,34),logo_thumb.convert("RGBA") if logo_thumb.mode=="RGBA" else None)
+f=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",13)
+d.text((82,188),"TRADER PLANNER",font=f,anchor="mm",fill=(244,249,252))
+d.text((82,211),"PRO • v10",font=f,anchor="mm",fill=(246,211,120))
+d.rounded_rectangle((24,250,140,257),radius=4,fill=(46,230,198))
+d.rounded_rectangle((24,266,124,273),radius=4,fill=(246,211,120))
+canvas.save(splash_bmp,"BMP")
+
+small=img.resize((55,55),Image.Resampling.LANCZOS)
+small.save(splash_small,"BMP")
+
+# Keep legacy names for older installer configs.
+canvas.save(OUT/"trader_planner_splash.bmp","BMP")
+print("Branding prepared:", [str(p) for p in OUT.iterdir()])
