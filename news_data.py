@@ -149,8 +149,15 @@ def fetch_rss(url, source="News", limit=12):
     return items[:limit]
 
 
+def cached_news(limit=20):
+    try:
+        rows=json.loads(NEWS_CACHE.read_text(encoding="utf-8"))
+        return rows[:int(limit)] if isinstance(rows,list) else []
+    except (OSError,ValueError,TypeError):
+        return []
+
 def fetch_all_news(limit=24, include_forex=False):
-    results = []
+    results = cached_news(limit=limit)
     feeds = list(FEEDS) + (FOREX_FEEDS if include_forex else [])
     executor = concurrent.futures.ThreadPoolExecutor(
         max_workers=min(6, max(1, len(feeds))), thread_name_prefix="TPNews"
