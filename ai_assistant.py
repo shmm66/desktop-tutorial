@@ -11,8 +11,15 @@ ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
 DEFAULT_MODEL = os.getenv("TRADER_PLANNER_AI_MODEL", "gpt-5.6-sol")
-REASONING_EFFORT = "xhigh"
+REASONING_EFFORT = "max"
 MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
+AGENT_SDK_AVAILABLE = False
+try:
+    from agents import Agent, ModelSettings, Runner
+    from openai.types.shared import Reasoning
+    AGENT_SDK_AVAILABLE = True
+except Exception:
+    Agent = ModelSettings = Runner = Reasoning = None
 CHATGPT_WEB_URL = "https://chatgpt.com/"
 
 ROLES = {
@@ -174,6 +181,7 @@ class AIOrchestrator:
         return {
             "online": cloud["enabled"] or ollama_online,
             "cloud": cloud["enabled"],
+            "agents_sdk": AGENT_SDK_AVAILABLE,
             "ollama": ollama_online,
             "web": True,
             "models": ollama_models,
@@ -181,36 +189,74 @@ class AIOrchestrator:
             "last_error": self.last_error,
         }
 
+    def _build_cloud_agents(self):
+        if self._cloud_agents is not None:
+            return self._cloud_agents
+        if not AGENT_SDK_AVAILABLE:
+            raise RuntimeError("OpenAI Agents SDK is not installed.")
+        common = (
+            "You are a production-grade specialist inside Trader Planner Pro. "
+            "Use the supplied app context as the source of truth. "
+            "Never invent live market data, never promise returns, and never provide personalized financial guarantees. "
+            "Keep Smart Money Concepts as a broad framework, ICT as its named model/terminology family, "
+            "and candlestick patterns as a separate technical-analysis family. "
+            "When the user asks about a setup, structure the answer as context, setup, trigger, invalidation, target and risk. "
+            "When evidence is missing, say exactly what is missing."
+        )
+        settings = ModelSettings(
+            reasoning=Reasoning(mode="pro", effort=REASONING_EFFORT, context="all_turns"),
+            verbosity="medium",
+        )
+        specialists = {}
+        for key, instruction in self.roles.items():
+            if key == "orchestrator":
+                continue
+            specialists[key] = Agent(
+                name={
+                    "form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach",
+                    "planner":"Routine Coach","academy":"Academy Tutor","product":"Product Strategist",
+                }.get(key, key.title()),
+                handoff_description=instruction,
+                instructions=common + "\nSPECIALIST MISSION:\n" + instruction,
+                model=self.model,
+                model_settings=settings,
+            )
+        master = Agent(
+            name="Trader Planner Master Agent",
+            handoff_description=self.roles["orchestrator"],
+            instructions=(
+                common
+                + "\nYou are the master router. Decide which specialist should own the user's turn, "
+                  "then hand off to that specialist. Do not answer with a generic placeholder when a specialist can handle the request."
+            ),
+            model=self.model,
+            model_settings=settings,
+            handoffs=list(specialists.values()),
+        )
+        self._cloud_agents = {"master": master, **specialists}
+        return self._cloud_agents
+
     def _cloud_respond(self, role, user_message, context):
         api_key = _read_openai_key()
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured.")
-        from openai import OpenAI
+        if not AGENT_SDK_AVAILABLE:
+            raise RuntimeError("OpenAI Agents SDK is not installed.")
 
-        client = OpenAI(api_key=api_key, timeout=45.0)
-        common = (
-            "You are Trader Planner Pro's master trading assistant. "
-            "Operate as a precise agent: inspect the supplied app context, identify the user intent, "
-            "apply the selected specialist role, and return a practical answer. "
-            "Never invent market data, never promise returns, and never give personalized financial guarantees. "
-            "Keep broad Smart Money/SMC concepts distinct from named ICT models. "
-            "Candlestick patterns must never be relabeled as ICT setups. "
-        )
-        specialist = self.roles.get(role, self.roles["orchestrator"])
+        # The Agents SDK reads OPENAI_API_KEY when the provider/client is resolved.
+        os.environ["OPENAI_API_KEY"] = api_key
+        agents = self._build_cloud_agents()
+        active = agents.get(role) if role in agents and role != "orchestrator" else agents["master"]
         recent = json.dumps(self.history[-8:], ensure_ascii=False)
-        response = client.responses.create(
-            model=self.model,
-            reasoning={"effort": REASONING_EFFORT},
-            instructions=common + "\nSPECIALIST ROLE:\n" + specialist,
-            input=(
-                "APP CONTEXT:\n" + context +
-                "\n\nRECENT CHAT:\n" + recent +
-                "\n\nUSER QUESTION:\n" + user_message
-            ),
+        prompt = (
+            "APP CONTEXT:\n" + context +
+            "\n\nRECENT CHAT:\n" + recent +
+            "\n\nUSER QUESTION:\n" + user_message
         )
-        answer = str(getattr(response, "output_text", "") or "").strip()
+        result = Runner.run_sync(active, prompt)
+        answer = str(getattr(result, "final_output", "") or "").strip()
         if not answer:
-            raise RuntimeError("OpenAI returned an empty response.")
+            raise RuntimeError("Agents SDK returned an empty response.")
         return answer
 
     def respond(self, role, user_message, context="", callback=None):

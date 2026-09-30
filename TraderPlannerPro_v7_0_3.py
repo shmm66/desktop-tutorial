@@ -31,7 +31,7 @@ from google_oauth import google_status, login_google, logout_google, send_gmail,
 from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "8.3.0"
+VERSION = "8.3.1"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -536,6 +536,7 @@ class App(tk.Tk):
         self.bind_all("<Control-H>", lambda e: self.go_home())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
+        self.bind_all("<Control-Shift-A>", lambda e: self.go_ai())
         self.bind("<Motion>", self._shell_motion, add="+")
         self.build_shell()
         self.apply_language()
@@ -610,11 +611,19 @@ class App(tk.Tk):
         self.after(1, self.focus_force)
 
     def go_home(self, _event=None):
-        """Global Home action that works from every page and market mode."""
+        """Global Home action with a hard fallback path so it cannot strand the user on another page."""
         try:
             self._hard_home()
         except Exception as exc:
-            self._show_page_error("home", exc)
+            try:
+                self._close_menu_immediately()
+                self._cancel_navigation_jobs()
+                self.cur = "home"
+                self._nav_token += 1
+                self._render_page("home", self._nav_token)
+                self._ensure_home_timeout(6500)
+            except Exception as fallback_exc:
+                self._show_page_error("home", f"{exc} | fallback: {fallback_exc}")
         return "break"
 
     def close_app(self):
@@ -1159,6 +1168,24 @@ class App(tk.Tk):
         tk.Label(left_tools, text="HOME", bg=C["panel3"], fg=C["muted"],
                  font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
 
+    def _glass_toplevel(self, title="", geometry="", minsize=None):
+        """Create a consistent native Acrylic child window."""
+        dlg = tk.Toplevel(self)
+        if title:
+            dlg.title(self.ui_text(title))
+        if geometry:
+            dlg.geometry(geometry)
+        if minsize:
+            try: dlg.minsize(*minsize)
+            except Exception: pass
+        dlg.configure(bg=C["bg"])
+        dlg.transient(self)
+        try:
+            apply_glass(dlg, dark=self._effective_theme()=="dark", style="acrylic")
+        except Exception:
+            pass
+        return dlg
+
     def card(self, parent, padx=1):
         frame=tk.Frame(parent,bg=C["panel"],highlightbackground=C["line"],highlightthickness=padx,bd=0,relief="flat")
         try:
@@ -1197,7 +1224,7 @@ class App(tk.Tk):
         self.profile_dialog(active_profile())
 
     def profile_dialog(self, profile=None):
-        dlg=tk.Toplevel(self); dlg.title(self.ui_text("پروفایل ژورنال")); dlg.geometry("520x360"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=self._glass_toplevel("پروفایل ژورنال","520x360"); dlg.grab_set()
         vals = {
             "name": tk.StringVar(value=(profile or {}).get("name","")),
             "market": tk.StringVar(value=(profile or {}).get("market","Crypto")),
@@ -1617,7 +1644,7 @@ class App(tk.Tk):
         save_db(); self.show("daily")
 
     def task_dialog(self,item=None):
-        dlg=tk.Toplevel(self); dlg.title(self.ui_text("ویرایش فعالیت" if item else "فعالیت جدید")); dlg.geometry("560x320"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=self._glass_toplevel("ویرایش فعالیت" if item else "فعالیت جدید","560x320"); dlg.grab_set()
         vals={k:tk.StringVar(value=(item or {}).get(k,"")) for k in ("time","title","cat")}
         for i,(label,key) in enumerate([("زمان","time"),("عنوان","title"),("دسته","cat")]):
             tk.Label(dlg,text=label,bg=C["bg"],fg=C["muted"]).grid(row=i,column=1,padx=14,pady=12,sticky="e")
@@ -1687,7 +1714,7 @@ class App(tk.Tk):
     def add_trade(self): self.trade_dialog()
 
     def trade_dialog(self,row=None,index=None):
-        dlg=tk.Toplevel(self); dlg.title(self.ui_text(("ویرایش" if row else "ثبت")+f" معامله — {self.market}")); dlg.geometry("1180x800"); dlg.minsize(1020,700); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=self._glass_toplevel(("ویرایش" if row else "ثبت")+f" معامله — {self.market}","1180x800",(1020,700)); dlg.grab_set()
         outer=tk.Frame(dlg,bg=C["bg"]); outer.pack(fill="both",expand=True,padx=18,pady=14)
         left=self.card(outer); right=self.card(outer); left.pack(side="left",fill="both",expand=True,padx=6); right.pack(side="left",fill="both",expand=True,padx=6)
         vals={}; widgets={}
@@ -1779,7 +1806,7 @@ class App(tk.Tk):
         messagebox.showinfo(self.ui_text("ذخیره شد"),self.ui_text(f"نسخه «{title}» ذخیره شد."),parent=self); self.show("plan")
 
     def plan_history(self):
-        p=active_profile(); dlg=tk.Toplevel(self); dlg.title(self.ui_text("نسخه‌های Trading Plan")); dlg.geometry("680x500"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        p=active_profile(); dlg=self._glass_toplevel("نسخه‌های Trading Plan","680x500"); dlg.grab_set()
         tree=ttk.Treeview(dlg,columns=("title","date"),show="headings"); tree.heading("title",text="عنوان"); tree.heading("date",text="تاریخ"); tree.column("title",width=400); tree.pack(fill="both",expand=True,padx=15,pady=15)
         for i,item in enumerate(p["plans"]): tree.insert("", "end",iid=str(i),values=(item.get("title",""),item.get("created_at","")))
         def load():
@@ -2686,7 +2713,7 @@ class App(tk.Tk):
         except Exception: pass
 
     def add_reminder(self):
-        dlg=tk.Toplevel(self); dlg.title(self.tr("add_reminder")); dlg.geometry("520x300"); dlg.configure(bg=C["bg"]); dlg.transient(self); dlg.grab_set()
+        dlg=self._glass_toplevel("add_reminder","520x300"); dlg.grab_set()
         title=tk.StringVar(); tm=tk.StringVar(value="09:00"); enabled=tk.BooleanVar(value=True)
         tk.Label(dlg,text=self.tr("reminder_title"),bg=C["bg"],fg=C["muted"]).pack(anchor="e",padx=16,pady=(16,5))
         tk.Entry(dlg,textvariable=title,bg=C["soft"],fg=C["text"],relief="flat",justify="right").pack(fill="x",padx=16)
@@ -2813,9 +2840,9 @@ class App(tk.Tk):
         outer.pack(fill="both",expand=True,padx=8,pady=8)
 
         left=tk.Frame(outer,bg=C["panel"])
-        right=tk.Frame(outer,bg=C["panel"])
-        outer.add(left,minsize=330)
-        outer.add(right,minsize=820)
+        right_shell=tk.Frame(outer,bg=C["panel"])
+        outer.add(left,minsize=300)
+        outer.add(right_shell,minsize=820)
 
         lb=tk.Listbox(
             left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],
@@ -2823,61 +2850,41 @@ class App(tk.Tk):
             activestyle="none",borderwidth=0,highlightthickness=0
         )
         lb.pack(fill="both",expand=True,padx=8,pady=8)
-
         for item in items:
             lb.insert("end", item["name_fa"] if self.language=="fa" else item["name_en"])
 
-        title=tk.Label(
-            right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold"),
-            anchor="e",justify="right"
-        )
+        canvas=tk.Canvas(right_shell,bg=C["panel"],highlightthickness=0,bd=0)
+        scrollbar=ttk.Scrollbar(right_shell,orient="vertical",command=canvas.yview)
+        canvas.pack(side="left",fill="both",expand=True)
+        scrollbar.pack(side="right",fill="y")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        right=tk.Frame(canvas,bg=C["panel"])
+        right_id=canvas.create_window((0,0),window=right,anchor="nw")
+        right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",lambda e: canvas.itemconfigure(right_id,width=e.width))
+        def wheel(e):
+            canvas.yview_scroll(int(-1*(e.delta/120)) if e.delta else 0,"units")
+        canvas.bind("<MouseWheel>",wheel)
+
+        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",18,"bold"),anchor="e",justify="right")
         title.pack(fill="x",padx=18,pady=(14,5))
-
-        badge_row=tk.Frame(right,bg=C["panel"])
-        badge_row.pack(fill="x",padx=18,pady=(0,5))
-
+        badge_row=tk.Frame(right,bg=C["panel"]); badge_row.pack(fill="x",padx=18,pady=(0,5))
         family_text=self.tr("smc_family") if family=="smc" else self.tr("ict_family")
-        family_badge=tk.Label(
-            badge_row,text=family_text,bg=C["soft"],fg=C["accent"],
-            font=("Segoe UI",9,"bold"),padx=10,pady=5
-        )
+        family_badge=tk.Label(badge_row,text=family_text,bg=C["soft"],fg=C["accent"] if family=="smc" else C["violet"],
+                              font=("Segoe UI",9,"bold"),padx=10,pady=5)
         family_badge.pack(side="right")
-
-        visual_name=tk.Label(
-            badge_row,text="",bg=C["panel"],fg=C["muted"],
-            font=("Consolas",8,"bold")
-        )
-        visual_name.pack(side="left",padx=8)
-
-        summary=tk.Label(
-            right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",12),
-            anchor="e",justify="right",wraplength=940
-        )
+        visual_name=tk.Label(badge_row,text="",bg=C["panel"],fg=C["muted"],font=("Consolas",8,"bold")); visual_name.pack(side="left",padx=8)
+        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",12),anchor="e",justify="right",wraplength=940)
         summary.pack(fill="x",padx=18,pady=5)
 
-        visual_holder=tk.Frame(right,bg=C["panel"])
-        visual_holder.pack(fill="x",padx=8,pady=3)
-
-        anatomy_title=tk.Label(
-            right,text=self.tr("setup_anatomy"),bg=C["panel"],fg=C["gold"],
-            font=("Segoe UI",11,"bold")
-        )
+        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=3)
+        anatomy_title=tk.Label(right,text=self.tr("setup_anatomy"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",11,"bold"))
         anatomy_title.pack(anchor="e",padx=18,pady=(6,3))
-
-        anatomy=tk.Frame(right,bg=C["panel"])
-        anatomy.pack(fill="x",padx=18,pady=(0,8))
-
-        steps_frame=tk.Frame(right,bg=C["panel"])
-        steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
-
-        text=tk.Text(
-            steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
-            relief="flat",wrap="word",font=("Segoe UI",12),height=11
-        )
+        anatomy=tk.Frame(right,bg=C["panel"]); anatomy.pack(fill="x",padx=18,pady=(0,8))
+        steps_frame=tk.Frame(right,bg=C["panel"]); steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
+        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",12),height=13)
         text.pack(side="left",fill="both",expand=True)
-        scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview)
-        scr.pack(side="right",fill="y")
-        text.configure(yscrollcommand=scr.set)
+        scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview); scr.pack(side="right",fill="y"); text.configure(yscrollcommand=scr.set)
 
         def render(_=None):
             sel=lb.curselection()
@@ -2885,90 +2892,74 @@ class App(tk.Tk):
             item=items[sel[0]]
             name_en=item["name_en"]
             title.config(text=item["name_fa"] if self.language=="fa" else name_en)
-            summary.config(
-                text=item["summary_fa"] if self.language=="fa" else item["summary_en"]
-            )
+            summary.config(text=item["summary_fa"] if self.language=="fa" else item["summary_en"])
             kind=strategy_visual_key(name_en)
-            visual_name.config(text=kind.upper())
-
-            for w in visual_holder.winfo_children():
-                w.destroy()
-            self._academy_visual(
-                visual_holder,"strategy",name_en,
-                item["summary_en"],visual_kind=kind,family=family
-            )
-
-            for w in anatomy.winfo_children():
-                w.destroy()
+            visual_name.config(text=f"SOURCE VISUAL • {kind.upper()}")
+            for w in visual_holder.winfo_children(): w.destroy()
+            self._academy_visual(visual_holder,"strategy",name_en,item["summary_en"],visual_kind=kind,family=family)
+            for w in anatomy.winfo_children(): w.destroy()
             lines=item["steps_fa"] if self.language=="fa" else item["steps_en"]
             inv=item["risk_fa"] if self.language=="fa" else item["risk_en"]
-
             for idx,line in enumerate(lines,1):
-                chip=tk.Frame(
-                    anatomy,bg=C["soft"],highlightbackground=C["line"],
-                    highlightthickness=1
-                )
+                chip=tk.Frame(anatomy,bg=C["soft"],highlightbackground=C["line"],highlightthickness=1)
                 chip.pack(side="left",fill="both",expand=True,padx=3)
-                tk.Label(
-                    chip,text=f"{idx:02d}",bg=C["accent"],fg="#061019",
-                    font=("Segoe UI",9,"bold"),padx=7,pady=4
-                ).pack(anchor="w")
-                tk.Label(
-                    chip,text=line,bg=C["soft"],fg=C["text"],
-                    font=("Segoe UI",9,"bold"),wraplength=180,justify="right",
-                    padx=8,pady=8
-                ).pack(fill="both",expand=True)
-
-            text.configure(state="normal")
-            text.delete("1.0","end")
+                tk.Label(chip,text=f"{idx:02d}",bg=C["accent"] if family=="smc" else C["violet"],fg="#061019",
+                         font=("Segoe UI",9,"bold"),padx=7,pady=4).pack(anchor="w")
+                tk.Label(chip,text=line,bg=C["soft"],fg=C["text"],font=("Segoe UI",9,"bold"),wraplength=180,justify="right",padx=8,pady=8).pack(fill="both",expand=True)
+            text.configure(state="normal"); text.delete("1.0","end")
+            text.insert("end",self.tr("definition")+"\n\n"+(item["summary_fa"] if self.language=="fa" else item["summary_en"])+"\n\n")
             text.insert("end",self.tr("steps")+"\n\n")
-            for i,line in enumerate(lines,1):
-                text.insert("end",f"{i}. {line}\n")
-            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv)
+            for i,line in enumerate(lines,1): text.insert("end",f"{i}. {line}\n")
+            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv+"\n\n")
+            text.insert("end",f"Source visual key: {kind}\n")
             text.configure(state="disabled")
+            right.update_idletasks()
+            canvas.configure(scrollregion=canvas.bbox("all"))
 
         lb.bind("<<ListboxSelect>>",render)
         if items:
-            lb.selection_set(0)
-            lb.event_generate("<<ListboxSelect>>")
+            lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
 
     def _build_candle_tab(self,parent):
         wrap=tk.Frame(parent,bg=C["panel"]); wrap.pack(fill="both",expand=True,padx=8,pady=8)
-        left=tk.Frame(wrap,bg=C["panel"]); left.pack(side="left",fill="both",expand=True,padx=8,pady=8)
-        right=tk.Frame(wrap,bg=C["panel"]); right.pack(side="left",fill="both",expand=True,padx=8,pady=8)
-        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0); lb.pack(fill="both",expand=True)
+        left=tk.Frame(wrap,bg=C["panel"]); left.pack(side="left",fill="y",padx=8,pady=8)
+        left.config(width=300)
+        right_shell=tk.Frame(wrap,bg=C["panel"]); right_shell.pack(side="left",fill="both",expand=True,padx=8,pady=8)
+        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0,width=30)
+        lb.pack(fill="both",expand=True)
         for name,en,fa in CANDLE_PLAYBOOK: lb.insert("end",fa if self.language=="fa" else name)
-        tk.Label(right,text=self.ui_text("الگوهای کندلی"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=12,pady=10)
+        canvas=tk.Canvas(right_shell,bg=C["panel"],highlightthickness=0); scr=ttk.Scrollbar(right_shell,orient="vertical",command=canvas.yview)
+        canvas.pack(side="left",fill="both",expand=True); scr.pack(side="right",fill="y"); canvas.configure(yscrollcommand=scr.set)
+        right=tk.Frame(canvas,bg=C["panel"]); rid=canvas.create_window((0,0),window=right,anchor="nw")
+        right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all"))); canvas.bind("<Configure>",lambda e: canvas.itemconfigure(rid,width=e.width))
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=4)
-        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); desc.pack(fill="both",expand=True,padx=16,pady=10)
+        tk.Label(right,text=self.ui_text("الگوهای کندلی"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold")).pack(anchor="e",padx=12,pady=10)
+        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); desc.pack(fill="x",padx=16,pady=10)
         en_desc={
-            "Pin Bar / Rejection Candle":"A one-candle rejection pattern with a small body and a pronounced wick. TradingView's candlestick guidance stresses that the pattern must be read with trend, level and confirmation rather than in isolation.",
-            "Bullish Engulfing":"After selling pressure, the second candle's real body fully overtakes the prior bearish real body. This is a candlestick pattern; it is not an ICT setup by itself.",
-            "Bearish Engulfing":"After buying pressure, the second candle's real body fully overtakes the prior bullish real body. This is a candlestick pattern; it is not an ICT setup by itself.",
-            "Inside Bar":"A two-candle containment pattern: the second candle's high and low remain inside the previous candle's range. It signals compression; direction needs context and confirmation.",
-            "Morning Star":"A three-candle bullish reversal pattern usually studied after a decline: a strong bearish candle, a small-bodied middle candle, then a strong bullish candle that closes well into the first candle's body.",
-            "Evening Star":"A three-candle bearish reversal pattern usually studied after a rise: a strong bullish candle, a small-bodied middle candle, then a strong bearish candle that closes well into the first candle's body.",
-            "Hammer":"A bullish-leaning single-candle pattern with a small body and a long lower shadow. It is most meaningful after a decline or at a defined support area, with confirmation.",
-            "Shooting Star":"A bearish-leaning single-candle pattern with a small body and a long upper shadow. It is most meaningful after an advance or near resistance, with confirmation.",
-            "Doji":"A candle whose open and close are very close, showing temporary balance or indecision. Context determines whether it matters.",
-            "Tweezer Top":"A bearish reversal pattern in which two nearby candles form matching or nearly matching highs near resistance; confirmation is still required.",
-            "Tweezer Bottom":"A bullish reversal pattern in which two nearby candles form matching or nearly matching lows near support; confirmation is still required.",
-            "Three White Soldiers":"Three consecutive strong bullish candles with progressively higher closes. It can describe sustained buying pressure after a decline, but context remains essential.",
-            "Three Black Crows":"Three consecutive strong bearish candles with progressively lower closes. It can describe sustained selling pressure after an advance, but context remains essential.",
-            "Marubozu":"A candle with little or no visible shadow and a large body, emphasizing directional movement from open toward close.",
-            "Spinning Top":"A small real body with visible upper and lower shadows, showing a period of balance or indecision within a wider range.",
-            "Long-Legged Doji":"A dramatic doji with long shadows showing a wide intraday battle between buyers and sellers. TradingView notes that a close below the candle midpoint can signal weakness in the example it discusses."
+            "Pin Bar / Rejection Candle":"A one-candle rejection pattern with a small body and a pronounced wick. Read it with trend, level and confirmation.",
+            "Bullish Engulfing":"After selling pressure, the second candle's real body fully overtakes the prior bearish real body. This is a candlestick pattern, not an ICT setup by itself.",
+            "Bearish Engulfing":"After buying pressure, the second candle's real body fully overtakes the prior bullish real body. This is a candlestick pattern, not an ICT setup by itself.",
+            "Inside Bar":"A two-candle containment pattern: the second candle remains inside the previous candle's range. Direction requires context and confirmation.",
+            "Morning Star":"A three-candle bullish reversal sequence studied after a decline.",
+            "Evening Star":"A three-candle bearish reversal sequence studied after a rise.",
+            "Hammer":"A small body with a long lower shadow; context and confirmation matter.",
+            "Shooting Star":"A small body with a long upper shadow; context and confirmation matter.",
+            "Doji":"Open and close are very close, indicating temporary balance or indecision.",
+            "Tweezer Top":"Two nearby candles form matching or nearly matching highs near resistance.",
+            "Tweezer Bottom":"Two nearby candles form matching or nearly matching lows near support.",
+            "Three White Soldiers":"Three strong bullish candles with progressively higher closes.",
+            "Three Black Crows":"Three strong bearish candles with progressively lower closes.",
+            "Marubozu":"A large body with little or no visible shadow, emphasizing directional movement.",
+            "Spinning Top":"A small body with visible upper and lower shadows, showing balance/indecision.",
+            "Long-Legged Doji":"A doji with long shadows showing a wide battle between buyers and sellers."
         }
         def render(_=None):
             if not lb.curselection(): return
             name,en,fa=CANDLE_PLAYBOOK[lb.curselection()[0]]
             for w in visual_holder.winfo_children(): w.destroy()
-            self._academy_visual(
-                visual_holder,"candlestick",name,
-                en_desc.get(name,"Candlestick pattern reference."),
-                visual_kind=pattern_visual_key(name),family="candles"
-            )
-            desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick pattern reference.')}")
+            self._academy_visual(visual_holder,"candlestick",name,en_desc.get(name,"Candlestick reference."),visual_kind=pattern_visual_key(name),family="candles")
+            desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick reference.')}\n\nCANDLESTICK PATTERN ≠ ICT MODEL")
+            canvas.configure(scrollregion=canvas.bbox("all"))
         lb.bind("<<ListboxSelect>>",render)
         if CANDLE_PLAYBOOK: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
     def _build_glossary_tab(self,parent):
@@ -2976,16 +2967,16 @@ class App(tk.Tk):
         q=tk.StringVar(); entry=tk.Entry(bar,textvariable=q,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="right",font=("Segoe UI",10)); entry.pack(side="right",fill="x",expand=True,padx=8,pady=10)
         tk.Label(bar,text=self.tr("search_term"),bg=C["panel"],fg=C["muted"]).pack(side="right")
         cat=tk.StringVar(value="ALL"); cats=["ALL"]+sorted({x["category"] for x in GLOSSARY}); combo=ttk.Combobox(bar,textvariable=cat,values=cats,state="readonly",width=24,justify="right"); combo.pack(side="left",padx=8,pady=8)
-        family_var=tk.StringVar(value="ALL")
-        family_combo=ttk.Combobox(bar,textvariable=family_var,values=["ALL","SMC","ICT","CANDLE"],state="readonly",width=14,justify="center")
-        family_combo.pack(side="left",padx=8,pady=8)
+        family_var=tk.StringVar(value="ALL"); family_combo=ttk.Combobox(bar,textvariable=family_var,values=["ALL","SMC","ICT","CANDLE"],state="readonly",width=14,justify="center"); family_combo.pack(side="left",padx=8,pady=8)
         body=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8); body.pack(fill="both",expand=True,padx=8,pady=(0,8))
-        left=tk.Frame(body,bg=C["panel"]); right=tk.Frame(body,bg=C["panel"]); body.add(left,minsize=380); body.add(right,minsize=760)
+        left=tk.Frame(body,bg=C["panel"]); right_shell=tk.Frame(body,bg=C["panel"]); body.add(left,minsize=360); body.add(right_shell,minsize=760)
         tree=ttk.Treeview(left,columns=("term","category"),show="headings",selectmode="browse"); tree.heading("term",text="Term"); tree.heading("category",text="Category"); tree.column("term",width=260); tree.column("category",width=120); tree.pack(fill="both",expand=True,padx=8,pady=8)
+        canvas=tk.Canvas(right_shell,bg=C["panel"],highlightthickness=0); scr=ttk.Scrollbar(right_shell,orient="vertical",command=canvas.yview); canvas.pack(side="left",fill="both",expand=True); scr.pack(side="right",fill="y"); canvas.configure(yscrollcommand=scr.set)
+        right=tk.Frame(canvas,bg=C["panel"]); rid=canvas.create_window((0,0),window=right,anchor="nw"); right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all"))); canvas.bind("<Configure>",lambda e: canvas.itemconfigure(rid,width=e.width))
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=(8,4))
-        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",15,"bold"),justify="right",anchor="e"); title.pack(fill="x",padx=18,pady=(8,5))
-        meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
-        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",11),wraplength=860,justify="right",anchor="e"); usage.pack(fill="both",expand=True,padx=18,pady=7)
+        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold"),justify="right",anchor="e"); title.pack(fill="x",padx=18,pady=(8,5))
+        meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",13),wraplength=860,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
+        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); usage.pack(fill="x",padx=18,pady=7)
         def refresh(*_):
             term=q.get().strip().lower(); selected_cat=cat.get(); selected_family=family_var.get()
             for x in tree.get_children(): tree.delete(x)
@@ -2994,8 +2985,8 @@ class App(tk.Tk):
                 blob=" ".join([item["term"],item["fa"],item["en"],item["category"],item["meaning_fa"],item["meaning_en"],item["usage_fa"],item["usage_en"]]).lower()
                 if term and term not in blob: continue
                 if selected_cat!="ALL" and item["category"]!=selected_cat: continue
-                kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
-                family = "ICT" if kind.startswith("ict_") or kind in {"unicorn","breaker","smt"} else ("CANDLE" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "SMC")
+                kind=glossary_visual_key(item["term"],item["category"],item["meaning_en"])
+                family="ICT" if kind.startswith("ict_") or kind in {"unicorn","smt"} else ("CANDLE" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "SMC")
                 if selected_family!="ALL" and family!=selected_family: continue
                 matched.append(i); tree.insert("", "end",iid=str(i),values=(item["term"],item["category"]))
             if matched: tree.selection_set(str(matched[0])); render()
@@ -3003,13 +2994,14 @@ class App(tk.Tk):
             sel=tree.selection()
             if not sel: return
             item=GLOSSARY[int(sel[0])]
-            kind=glossary_visual_key(item["term"], item["category"], item["meaning_en"])
+            kind=glossary_visual_key(item["term"],item["category"],item["meaning_en"])
             for w in visual_holder.winfo_children(): w.destroy()
-            family = "ict" if kind.startswith("ict_") or kind in {"unicorn","breaker","smt"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
+            family="ict" if kind.startswith("ict_") or kind in {"unicorn","smt"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
             self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"],family=family)
             title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
             meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
             usage.config(text=self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"]))
+            canvas.configure(scrollregion=canvas.bbox("all"))
         tree.bind("<<TreeviewSelect>>",render); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh); family_combo.bind("<<ComboboxSelected>>",refresh); refresh()
         tk.Label(parent,text=f"{len(GLOSSARY)} terms",bg=C["bg"],fg=C["muted"],font=("Segoe UI",8)).pack(anchor="e",padx=10,pady=(0,6))
     def open_path(self,path):

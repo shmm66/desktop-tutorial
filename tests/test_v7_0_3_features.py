@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.3.0"
+    assert VERSION == "8.3.1"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -460,7 +460,7 @@ def test_v820_academy_dispatch_has_exact_models():
 def test_v830_ai_uses_flagship_model():
     import ai_assistant
     assert ai_assistant.DEFAULT_MODEL == "gpt-5.6-sol"
-    assert ai_assistant.REASONING_EFFORT == "xhigh"
+    assert ai_assistant.REASONING_EFFORT == "max"
 
 def test_v830_home_timeout_rearms_after_switch():
     from pathlib import Path
@@ -483,3 +483,26 @@ def test_v830_native_acrylic_is_reapplied_after_map():
 def test_v830_news_cache_first():
     from news_data import cached_news
     assert callable(cached_news)
+
+
+def test_v831_agents_sdk_handoffs_are_defined():
+    from pathlib import Path
+    source=Path("ai_assistant.py").read_text(encoding="utf-8")
+    assert "from agents import Agent, ModelSettings, Runner" in source
+    assert "handoffs=list(specialists.values())" in source
+    assert 'Reasoning(mode="pro", effort=REASONING_EFFORT, context="all_turns")' in source
+
+def test_v831_home_has_fallback_path():
+    from pathlib import Path
+    source=Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert 'self._show_page_error("home", f"{exc} | fallback: {fallback_exc}")' in source
+
+def test_v831_academy_scrolls_long_source_cards():
+    from pathlib import Path
+    source=Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert source.count("canvas.configure(scrollregion=canvas.bbox("all"))") >= 3
+
+def test_v831_glass_alpha_is_translucent():
+    from pathlib import Path
+    source=Path("glass_theme.py").read_text(encoding="utf-8")
+    assert 'window.wm_attributes("-alpha", 0.965)' in source
