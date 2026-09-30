@@ -1,11 +1,11 @@
-# CI RELEASE STAMP: V8.3.2
+# CI RELEASE STAMP: V10.0.0
 import tkinter as tk
 from pathlib import Path
 import tempfile
 import sys
 
 APP = "Trader Planner Pro"
-VERSION = "9.0.0"
+VERSION = "10.0.0"
 
 def show_splash():
     root = tk.Tk()
@@ -30,7 +30,7 @@ def show_splash():
     tk.Label(root,text="TRADER PLANNER PRO",fg="#EAF2F7",bg="#061019",font=("Segoe UI",24,"bold")).pack()
     tk.Label(root,text=f"Professional trading workspace  •  V{VERSION}",fg="#27D3B0",bg="#061019",font=("Segoe UI",10,"bold")).pack(pady=(4,14))
     root.update()
-    root.after(850, root.destroy)
+    root.after(1850, root.destroy)
     root.mainloop()
 
 def _write_startup_error(exc):
