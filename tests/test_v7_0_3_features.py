@@ -297,7 +297,7 @@ def test_v780_news_webview_has_fallback():
 
 def test_v800_ai_uses_supported_master_model():
     from ai_assistant import DEFAULT_MODEL, ROLES
-    assert DEFAULT_MODEL == "gpt-6-sol"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert "academy" in ROLES
     assert "product" in ROLES
 
@@ -345,8 +345,8 @@ def test_v800_navigation_uses_single_home_renderer():
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
     assert DEFAULT_MODEL == "gpt-6-sol"
-    assert MODEL_FALLBACKS == ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
-    assert "gpt-5.6-terra" not in MODEL_FALLBACKS
+    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
+    assert "gpt-5.6-terra" in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
 
 
@@ -506,3 +506,24 @@ def test_v831_glass_alpha_is_translucent():
     from pathlib import Path
     source=Path("glass_theme.py").read_text(encoding="utf-8")
     assert 'window.wm_attributes("-alpha", 0.965)' in source
+
+
+def test_v10_trading_desk_uses_live_tradingview_and_market_universes():
+    from pathlib import Path
+    source = Path("trading_chart.html").read_text(encoding="utf-8")
+    assert "external-embedding/embed-widget-advanced-chart.js" in source
+    for token in ("CRYPTOCAP:BTC.D","CRYPTOCAP:USDT.D","CRYPTOCAP:TOTAL","CRYPTOCAP:TOTAL2","CRYPTOCAP:TOTAL3"):
+        assert token in source
+    for token in ("OANDA:XAUUSD","OANDA:XAGUSD","FXCM:COPPER","OANDA:EURUSD","OANDA:GBPUSD","TVC:DXY","TVC:USOIL","NASDAQ:NDX","NASDAQ:AAPL"):
+        assert token in source
+    assert "per_page=100" in source
+    assert "api.coinpaprika.com/v1/tickers" in source
+    assert "localStorage" in source
+    assert "Top 100 Crypto Market" in source
+    assert "Forex" in source and "Crypto" in source
+
+def test_v10_trading_desk_has_native_chart_controls():
+    from pathlib import Path
+    source = Path("trading_chart.html").read_text(encoding="utf-8")
+    for token in ("hide_top_toolbar:false","hide_side_toolbar:false","withdateranges:true","allow_symbol_change:true","save_image:true","calendar:true"):
+        assert token in source
