@@ -44,7 +44,7 @@ jobs:
         run: python -m pytest -q
 
   package:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -135,7 +135,7 @@ jobs:
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
           if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
 
-      - name: Publish V9.0.0 Release
+      - name: Publish V10.0.0 Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
