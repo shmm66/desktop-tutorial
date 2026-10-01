@@ -344,7 +344,7 @@ def test_v800_navigation_uses_single_home_renderer():
 
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-6-sol"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
     assert "gpt-5.6-terra" in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
