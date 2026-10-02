@@ -53,7 +53,8 @@ jobs:
 
       - name: Run tests
         shell: cmd
-        run: "%TP_PYTHON%" -m pytest -q
+        run: |
+          "%TP_PYTHON%" -m pytest -q
 
       - name: Prepare branding and education assets
         shell: cmd
