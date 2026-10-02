@@ -87,13 +87,16 @@ jobs:
           "%PY_EXE%" -m pip install -r requirements.txt pyinstaller
       - name: Prepare premium branding and exact education image assets
         shell: cmd
-        run: "%LocalAppData%\Programs\Python\Python312\python.exe" prepare_branding.py
+        run: |
+          "%LocalAppData%\Programs\Python\Python312\python.exe" prepare_branding.py
       - name: Prepare exact education image assets
         shell: cmd
-        run: "%LocalAppData%\Programs\Python\Python312\python.exe" prepare_education_assets.py
+        run: |
+          "%LocalAppData%\Programs\Python\Python312\python.exe" prepare_education_assets.py
       - name: Build Windows icon
         shell: cmd
-        run: "%LocalAppData%\Programs\Python\Python312\python.exe" build_icon.py
+        run: |
+          "%LocalAppData%\Programs\Python\Python312\python.exe" build_icon.py
       - name: Build EXE
         shell: cmd
         run: >-
