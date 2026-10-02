@@ -429,7 +429,7 @@ def test_v820_home_is_synchronous_and_ai_is_globally_launchable():
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def go_home(self, _event=None):" in source
     assert "self._hard_home()" in source
-    assert 'command=self.open_ai_chat' in source
+    assert 'command=self.go_ai' in source
     assert '("ai", self.tr("ai_chat"), self.open_ai_chat)' in source
     assert "def open_ai_chat(self):" in source
     assert "tk.Toplevel(self)" in source
