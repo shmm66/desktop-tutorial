@@ -12,16 +12,8 @@ permissions:
   contents: write
 
 jobs:
-  runner_diagnostic:
-    runs-on: ubuntu-slim
-    steps:
-      - name: Runner allocation diagnostic
-        run: |
-          echo "GitHub hosted runner allocation is working"
-          uname -a
-
   quality:
-    runs-on: ubuntu-24.04
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
