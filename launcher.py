@@ -47,6 +47,23 @@ def _write_startup_error(exc):
 
 def main():
     try:
+        if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
+            # Headless CI validation for Windows service runners.
+            import importlib
+            required = [
+                "TraderPlannerPro_v7_0_3", "market_data", "news_data",
+                "ai_assistant", "academy_visuals", "academy_diagrams",
+                "glass_theme", "google_oauth", "statement_report", "webview_runner"
+            ]
+            for module_name in required:
+                importlib.import_module(module_name)
+            base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+            required_assets = [base / "trading_chart.html", base / "education_sources"]
+            missing = [str(p) for p in required_assets if not p.exists()]
+            if missing:
+                raise RuntimeError("Missing bundled assets: " + ", ".join(missing))
+            print(f"{APP} {VERSION} self-test: OK")
+            return
         if len(sys.argv) > 1 and sys.argv[1] == "--webview":
             from webview_runner import main as webview_main
             webview_main()
