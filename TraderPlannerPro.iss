@@ -24,7 +24,6 @@ SetupIconFile=assets\trader_planner_logo.ico
 WizardImageFile=assets\installer_wizard.bmp
 WizardSmallImageFile=assets\installer_small.bmp
 WizardImageStretch=no
-WizardSmallImageStretch=no
 AppComments=Premium glass trading workspace with live market services and integrated Trading Desk
 SetupLogging=yes
 Uninstallable=yes
