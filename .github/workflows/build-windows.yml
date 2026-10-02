@@ -16,12 +16,6 @@ jobs:
   quality:
     runs-on: [self-hosted, windows, x64]
     steps:
-      - name: Prepare PowerShell execution policy
-        shell: powershell
-        run: |
-          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
-          Get-ExecutionPolicy -List
-
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Locate Python 3.14
         shell: powershell
@@ -45,23 +39,23 @@ jobs:
       - name: Syntax check
         shell: cmd
         run: |
-          python -m py_compile TraderPlannerPro_v7_0_3.py
-          python -m py_compile TraderPlannerPro_v7.py
-          python -m py_compile launcher.py
-          python -m py_compile logo_3d.py
-          python -m py_compile branding_assets.py
-          python -m py_compile prepare_branding.py
-          python -m py_compile academy_visuals.py
-          python -m py_compile market_data.py
-          python -m py_compile calendar_utils.py
-          python -m py_compile ai_assistant.py
-          python -m py_compile news_data.py
-          python -m py_compile webview_runner.py
-          python -m py_compile prepare_education_assets.py
-          python -m py_compile glass_theme.py
-          python -m py_compile academy_diagrams.py
-          python -m py_compile google_oauth.py
-          python -m py_compile statement_report.py
+          "%TP_PYTHON%" -m py_compile TraderPlannerPro_v7_0_3.py
+          "%TP_PYTHON%" -m py_compile TraderPlannerPro_v7.py
+          "%TP_PYTHON%" -m py_compile launcher.py
+          "%TP_PYTHON%" -m py_compile logo_3d.py
+          "%TP_PYTHON%" -m py_compile branding_assets.py
+          "%TP_PYTHON%" -m py_compile prepare_branding.py
+          "%TP_PYTHON%" -m py_compile academy_visuals.py
+          "%TP_PYTHON%" -m py_compile market_data.py
+          "%TP_PYTHON%" -m py_compile calendar_utils.py
+          "%TP_PYTHON%" -m py_compile ai_assistant.py
+          "%TP_PYTHON%" -m py_compile news_data.py
+          "%TP_PYTHON%" -m py_compile webview_runner.py
+          "%TP_PYTHON%" -m py_compile prepare_education_assets.py
+          "%TP_PYTHON%" -m py_compile glass_theme.py
+          "%TP_PYTHON%" -m py_compile academy_diagrams.py
+          "%TP_PYTHON%" -m py_compile google_oauth.py
+          "%TP_PYTHON%" -m py_compile statement_report.py
       - name: Run tests
         shell: cmd
         run: "%TP_PYTHON%" -m pytest -q
@@ -70,12 +64,6 @@ jobs:
     needs: quality
     runs-on: [self-hosted, windows, x64]
     steps:
-      - name: Prepare PowerShell execution policy
-        shell: powershell
-        run: |
-          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
-          Get-ExecutionPolicy -List
-
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Locate Python 3.14
         shell: powershell
