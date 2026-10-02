@@ -1,99 +1,68 @@
-name: CI + Windows EXE + Installer + V10
-# Production verification: Quality -> Build EXE -> Installer -> Smoke Test -> Release
+name: Trader Planner Pro V10 — Windows Release
 
 on:
   workflow_dispatch:
   push:
     branches: [ "v10-professional-visual-online" ]
+
 permissions:
   contents: write
 
 concurrency:
-  group: trader-planner-v10-build
+  group: trader-planner-v10-release
   cancel-in-progress: true
 
 jobs:
-  quality:
+  build_release:
     runs-on: [self-hosted, windows, x64]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Locate Python 3.14
-        shell: powershell
-        run: |
-          $candidates = @()
-          $candidates += Get-ChildItem 'C:\Program Files\Python*\python.exe' -ErrorAction SilentlyContinue
-          $candidates += Get-ChildItem 'C:\Users\*\AppData\Local\Programs\Python\Python*\python.exe' -ErrorAction SilentlyContinue
-          $candidates += Get-ChildItem 'C:\Python*\python.exe' -ErrorAction SilentlyContinue
-          $py = $candidates | Sort-Object FullName -Descending | Where-Object {
-            try { (& $_.FullName --version 2>&1) -match 'Python 3\.14\.' } catch { $false }
-          } | Select-Object -First 1
-          if (-not $py) { throw 'Python 3.14.x was not found. Install Python 3.14 system-wide or make it visible to the runner service.' }
-          "TP_PYTHON=$($py.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          & $py.FullName --version
-          & $py.FullName -m pip --version
-      - name: Install test/build dependencies
-        shell: cmd
-        run: |
-          "%TP_PYTHON%" -m pip install --upgrade pip
-          "%TP_PYTHON%" -m pip install pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
-      - name: Syntax check
-        shell: cmd
-        run: |
-          "%TP_PYTHON%" -m py_compile TraderPlannerPro_v7_0_3.py
-          "%TP_PYTHON%" -m py_compile TraderPlannerPro_v7.py
-          "%TP_PYTHON%" -m py_compile launcher.py
-          "%TP_PYTHON%" -m py_compile logo_3d.py
-          "%TP_PYTHON%" -m py_compile branding_assets.py
-          "%TP_PYTHON%" -m py_compile prepare_branding.py
-          "%TP_PYTHON%" -m py_compile academy_visuals.py
-          "%TP_PYTHON%" -m py_compile market_data.py
-          "%TP_PYTHON%" -m py_compile calendar_utils.py
-          "%TP_PYTHON%" -m py_compile ai_assistant.py
-          "%TP_PYTHON%" -m py_compile news_data.py
-          "%TP_PYTHON%" -m py_compile webview_runner.py
-          "%TP_PYTHON%" -m py_compile prepare_education_assets.py
-          "%TP_PYTHON%" -m py_compile glass_theme.py
-          "%TP_PYTHON%" -m py_compile academy_diagrams.py
-          "%TP_PYTHON%" -m py_compile google_oauth.py
-          "%TP_PYTHON%" -m py_compile statement_report.py
-      - name: Run tests
-        shell: cmd
-        run: "%TP_PYTHON%" -m pytest -q
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-  package:
-    needs: quality
-    runs-on: [self-hosted, windows, x64]
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Locate Python 3.14
         shell: powershell
         run: |
           $candidates = @()
+          if (Get-Command py -ErrorAction SilentlyContinue) {
+            try {
+              $p = (& py -3.14 -c "import sys; print(sys.executable)" 2>$null).Trim()
+              if ($p -and (Test-Path $p)) { $candidates += Get-Item $p }
+            } catch {}
+          }
           $candidates += Get-ChildItem 'C:\Program Files\Python*\python.exe' -ErrorAction SilentlyContinue
           $candidates += Get-ChildItem 'C:\Users\*\AppData\Local\Programs\Python\Python*\python.exe' -ErrorAction SilentlyContinue
           $candidates += Get-ChildItem 'C:\Python*\python.exe' -ErrorAction SilentlyContinue
-          $py = $candidates | Sort-Object FullName -Descending | Where-Object {
+          $py = $candidates | Where-Object {
             try { (& $_.FullName --version 2>&1) -match 'Python 3\.14\.' } catch { $false }
           } | Select-Object -First 1
-          if (-not $py) { throw 'Python 3.14.x was not found. Install Python 3.14 system-wide or make it visible to the runner service.' }
+          if (-not $py) { throw 'Python 3.14.x was not found for the GitHub Actions runner service.' }
           "TP_PYTHON=$($py.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           & $py.FullName --version
           & $py.FullName -m pip --version
-      - name: Install build dependencies
+
+      - name: Install dependencies
         shell: cmd
         run: |
           "%TP_PYTHON%" -m pip install --upgrade pip
           "%TP_PYTHON%" -m pip install -r requirements.txt pyinstaller
-      - name: Prepare premium branding and exact education image assets
+
+      - name: Syntax check
         shell: cmd
-        run: "%TP_PYTHON%" prepare_branding.py
-      - name: Prepare exact education image assets
+        run: |
+          for %%F in (TraderPlannerPro_v7_0_3.py TraderPlannerPro_v7.py launcher.py logo_3d.py branding_assets.py prepare_branding.py academy_visuals.py market_data.py calendar_utils.py ai_assistant.py news_data.py webview_runner.py prepare_education_assets.py glass_theme.py academy_diagrams.py google_oauth.py statement_report.py) do "%TP_PYTHON%" -m py_compile "%%F" || exit /b 1
+
+      - name: Run tests
         shell: cmd
-        run: "%TP_PYTHON%" prepare_education_assets.py
-      - name: Build Windows icon
+        run: "%TP_PYTHON%" -m pytest -q
+
+      - name: Prepare branding and education assets
         shell: cmd
-        run: "%TP_PYTHON%" build_icon.py
-      - name: Build EXE
+        run: |
+          "%TP_PYTHON%" prepare_branding.py
+          "%TP_PYTHON%" prepare_education_assets.py
+          "%TP_PYTHON%" build_icon.py
+
+      - name: Build Windows EXE
         shell: cmd
         run: >-
           "%TP_PYTHON%" -m PyInstaller --noconfirm --clean --onefile --windowed
@@ -105,13 +74,6 @@ jobs:
           --hidden-import PIL
           --hidden-import PIL.Image
           --hidden-import PIL.ImageTk
-          --hidden-import json
-          --hidden-import csv
-          --hidden-import datetime
-          --hidden-import pathlib
-          --hidden-import shutil
-          --hidden-import re
-          --hidden-import uuid
           --collect-all tzdata
           --collect-all webview
           --collect-all agents
@@ -126,21 +88,20 @@ jobs:
           --add-data "education_sources;education_sources"
           --add-data "trading_chart.html;."
           launcher.py
-      - name: Verify EXE
+
+      - name: Verify EXE and headless startup
         shell: cmd
         run: |
           if not exist "dist\TraderPlannerPro.exe" exit /b 1
           for %%A in ("dist\TraderPlannerPro.exe") do if %%~zA LSS 1000000 exit /b 1
-      - name: Headless EXE self-test
-        shell: cmd
-        run: |
-          "dist\TraderPlannerPro.exe" --self-test
-          if errorlevel 1 exit /b 1
+          "dist\TraderPlannerPro.exe" --self-test || exit /b 1
+
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@b8e8eb5936437c243592fda645c96dfc6488c275
         with:
           path: TraderPlannerPro.iss
           options: /O+
+
       - name: Installer smoke test
         shell: cmd
         run: |
@@ -150,12 +111,20 @@ jobs:
           "installer\TraderPlannerPro_Setup_v10.0.0.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="%TEMP%\TraderPlannerPro-CI-Test\App"
           if errorlevel 1 exit /b 1
           if not exist "%TEMP%\TraderPlannerPro-CI-Test\App\TraderPlannerPro.exe" exit /b 1
-          "%TEMP%\TraderPlannerPro-CI-Test\App\TraderPlannerPro.exe" --self-test
-          if errorlevel 1 exit /b 1
+          "%TEMP%\TraderPlannerPro-CI-Test\App\TraderPlannerPro.exe" --self-test || exit /b 1
           if not exist "%TEMP%\TraderPlannerPro-CI-Test\App\unins000.exe" exit /b 1
           "%TEMP%\TraderPlannerPro-CI-Test\App\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
           if errorlevel 1 exit /b 1
           if exist "%TEMP%\TraderPlannerPro-CI-Test\App\TraderPlannerPro.exe" exit /b 1
+
+      - name: Upload verified Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TraderPlannerPro-V10-Windows-Verified
+          path: |
+            dist/TraderPlannerPro.exe
+            installer/TraderPlannerPro_Setup_v10.0.0.exe
+          if-no-files-found: error
 
       - name: Publish V10.0.0 Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/v10-professional-visual-online')
@@ -168,7 +137,8 @@ jobs:
           body: |
             ## Trader Planner Pro V10.0.0
 
-            Verified GitHub-hosted Windows x64 build of Trader Planner Pro V10.0.0. Includes the premium native glass workspace, live Trading Desk, multi-market chart universe, AI Command Center, Academy taxonomy and branded installer.
+            Verified Windows x64 build from the Trader Planner Pro V10 branch.
+            Includes the premium glass workspace and live multi-market Trading Desk.
 
           files: |
             dist/TraderPlannerPro.exe
