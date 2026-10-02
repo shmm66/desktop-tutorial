@@ -23,17 +23,25 @@ jobs:
           Get-ExecutionPolicy -List
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Verify local Python
-        shell: cmd
+      - name: Locate Python 3.14
+        shell: powershell
         run: |
-          where python
-          python --version
-          python -m pip --version
+          $candidates = @()
+          $candidates += Get-ChildItem 'C:\Program Files\Python*\python.exe' -ErrorAction SilentlyContinue
+          $candidates += Get-ChildItem 'C:\Users\*\AppData\Local\Programs\Python\Python*\python.exe' -ErrorAction SilentlyContinue
+          $candidates += Get-ChildItem 'C:\Python*\python.exe' -ErrorAction SilentlyContinue
+          $py = $candidates | Sort-Object FullName -Descending | Where-Object {
+            try { (& $_.FullName --version 2>&1) -match 'Python 3\.14\.' } catch { $false }
+          } | Select-Object -First 1
+          if (-not $py) { throw 'Python 3.14.x was not found. Install Python 3.14 system-wide or make it visible to the runner service.' }
+          "TP_PYTHON=$($py.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          & $py.FullName --version
+          & $py.FullName -m pip --version
       - name: Install test/build dependencies
         shell: cmd
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+          "%TP_PYTHON%" -m pip install --upgrade pip
+          "%TP_PYTHON%" -m pip install pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
       - name: Syntax check
         shell: cmd
         run: |
@@ -56,7 +64,7 @@ jobs:
           python -m py_compile statement_report.py
       - name: Run tests
         shell: cmd
-        run: python -m pytest -q
+        run: "%TP_PYTHON%" -m pytest -q
 
   package:
     needs: quality
@@ -69,30 +77,38 @@ jobs:
           Get-ExecutionPolicy -List
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Verify local Python
-        shell: cmd
+      - name: Locate Python 3.14
+        shell: powershell
         run: |
-          where python
-          python --version
-          python -m pip --version
+          $candidates = @()
+          $candidates += Get-ChildItem 'C:\Program Files\Python*\python.exe' -ErrorAction SilentlyContinue
+          $candidates += Get-ChildItem 'C:\Users\*\AppData\Local\Programs\Python\Python*\python.exe' -ErrorAction SilentlyContinue
+          $candidates += Get-ChildItem 'C:\Python*\python.exe' -ErrorAction SilentlyContinue
+          $py = $candidates | Sort-Object FullName -Descending | Where-Object {
+            try { (& $_.FullName --version 2>&1) -match 'Python 3\.14\.' } catch { $false }
+          } | Select-Object -First 1
+          if (-not $py) { throw 'Python 3.14.x was not found. Install Python 3.14 system-wide or make it visible to the runner service.' }
+          "TP_PYTHON=$($py.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          & $py.FullName --version
+          & $py.FullName -m pip --version
       - name: Install build dependencies
         shell: cmd
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller
+          "%TP_PYTHON%" -m pip install --upgrade pip
+          "%TP_PYTHON%" -m pip install -r requirements.txt pyinstaller
       - name: Prepare premium branding and exact education image assets
         shell: cmd
-        run: python prepare_branding.py
+        run: "%TP_PYTHON%" prepare_branding.py
       - name: Prepare exact education image assets
         shell: cmd
-        run: python prepare_education_assets.py
+        run: "%TP_PYTHON%" prepare_education_assets.py
       - name: Build Windows icon
         shell: cmd
-        run: python build_icon.py
+        run: "%TP_PYTHON%" build_icon.py
       - name: Build EXE
         shell: cmd
         run: >-
-          pyinstaller --noconfirm --clean --onefile --windowed
+          "%TP_PYTHON%" -m PyInstaller --noconfirm --clean --onefile --windowed
           --name TraderPlannerPro
           --hidden-import tkinter
           --hidden-import tkinter.font
