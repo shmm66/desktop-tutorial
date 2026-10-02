@@ -1,0 +1,89 @@
+name: V10 Windows Build — Self-Hosted Fallback
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: [self-hosted, windows, x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        shell: powershell
+        run: |
+          python --version
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller pillow
+
+      - name: Prepare branding
+        shell: powershell
+        run: python prepare_branding.py
+
+      - name: Prepare education assets
+        shell: powershell
+        run: python prepare_education_assets.py
+
+      - name: Build icon
+        shell: powershell
+        run: python build_icon.py
+
+      - name: Build EXE
+        shell: powershell
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed `
+            --name TraderPlannerPro `
+            --hidden-import tkinter `
+            --hidden-import tkinter.font `
+            --hidden-import tkinter.messagebox `
+            --hidden-import tkinter.filedialog `
+            --hidden-import PIL `
+            --hidden-import PIL.Image `
+            --hidden-import PIL.ImageTk `
+            --collect-all tzdata `
+            --collect-all webview `
+            --collect-all agents `
+            --collect-all matplotlib `
+            --collect-all reportlab `
+            --hidden-import webview.platforms.edgechromium `
+            --hidden-import glass_theme `
+            --hidden-import academy_diagrams `
+            --hidden-import pywinstyles `
+            --hidden-import googleapiclient.discovery `
+            --hidden-import google_auth_oauthlib.flow `
+            --add-data "education_sources;education_sources" `
+            --add-data "trading_chart.html;." `
+            launcher.py
+
+      - name: Verify EXE
+        shell: powershell
+        run: |
+          $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
+          if (-not (Test-Path $exe)) { throw 'EXE not found' }
+          if ((Get-Item $exe).Length -lt 1000000) { throw 'EXE is unexpectedly small' }
+
+      - name: Build installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: TraderPlannerPro.iss
+          options: /O+
+
+      - name: Verify installer
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $installer) { throw 'Installer not found' }
+          Write-Host "Installer: $($installer.FullName)"
+
+      - name: Upload EXE and installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: TraderPlannerPro-V10-Windows
+          path: |
+            dist/TraderPlannerPro.exe
+            installer/*.exe
+          if-no-files-found: error
