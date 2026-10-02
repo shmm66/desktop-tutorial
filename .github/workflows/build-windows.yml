@@ -11,21 +11,33 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: trader-planner-v10-selfhost
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Verify local Python
+      - name: Bootstrap Python 3.12
         shell: cmd
         run: |
-          python --version
-          python -c "import sys; assert sys.version_info >= (3, 11), sys.version"
+          set "PY_DIR=%LocalAppData%\Programs\Python\Python312"
+          if not exist "%PY_DIR%\python.exe" (
+            echo Python 3.12 not found. Downloading the reproducible build runtime...
+            curl.exe -L --fail --retry 3 -o "%TEMP%\python-3.12.10-amd64.exe" "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe"
+            if errorlevel 1 exit /b 1
+            "%TEMP%\python-3.12.10-amd64.exe" /quiet InstallAllUsers=0 PrependPath=0 Include_pip=1 Include_test=0
+            if errorlevel 1 exit /b 1
+          )
+          if not exist "%PY_DIR%\python.exe" exit /b 1
+          "%PY_DIR%\python.exe" --version
       - name: Install test/build dependencies
         run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
       - name: Syntax check
         run: |
-          python -m py_compile TraderPlannerPro_v7_0_3.py
+          "%LocalAppData%\Programs\Python\Python312\python.exe" -m py_compile TraderPlannerPro_v7_0_3.py
           python -m py_compile TraderPlannerPro_v7.py
           python -m py_compile launcher.py
           python -m py_compile logo_3d.py
@@ -43,23 +55,41 @@ jobs:
           python -m py_compile google_oauth.py
           python -m py_compile statement_report.py
       - name: Run tests
-        run: python -m pytest -q
+        shell: cmd
+        run: "%LocalAppData%\Programs\Python\Python312\python.exe" -m pytest -q
 
   package:
     needs: quality
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Install build dependencies
+      - name: Bootstrap Python 3.12
+        shell: cmd
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller
+          set "PY_DIR=%LocalAppData%\Programs\Python\Python312"
+          if not exist "%PY_DIR%\python.exe" (
+            curl.exe -L --fail --retry 3 -o "%TEMP%\python-3.12.10-amd64.exe" "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe"
+            if errorlevel 1 exit /b 1
+            "%TEMP%\python-3.12.10-amd64.exe" /quiet InstallAllUsers=0 PrependPath=0 Include_pip=1 Include_test=0
+            if errorlevel 1 exit /b 1
+          )
+          if not exist "%PY_DIR%\python.exe" exit /b 1
+          "%PY_DIR%\python.exe" --version
+      - name: Install build dependencies
+        shell: cmd
+        run: |
+          set "PY_EXE=%LocalAppData%\Programs\Python\Python312\python.exe"
+          "%PY_EXE%" -m pip install --upgrade pip
+          "%PY_EXE%" -m pip install -r requirements.txt pyinstaller
       - name: Prepare premium branding and exact education image assets
-        run: python prepare_branding.py
+        shell: cmd
+        run: "%LocalAppData%\\Programs\\Python\\Python312\\python.exe" \prepare_branding.py
       - name: Prepare exact education image assets
-        run: python prepare_education_assets.py
+        shell: cmd
+        run: "%LocalAppData%\\Programs\\Python\\Python312\\python.exe" \prepare_education_assets.py
       - name: Build Windows icon
-        run: python build_icon.py
+        shell: cmd
+        run: "%LocalAppData%\\Programs\\Python\\Python312\\python.exe" \build_icon.py
       - name: Build EXE
         run: >-
           pyinstaller --noconfirm --clean --onefile --windowed
