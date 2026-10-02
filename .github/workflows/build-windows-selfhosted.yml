@@ -13,7 +13,7 @@ jobs:
     runs-on: [self-hosted, windows, x64]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Install build dependencies
         shell: powershell
@@ -69,7 +69,7 @@ jobs:
           if ((Get-Item $exe).Length -lt 1000000) { throw 'EXE is unexpectedly small' }
 
       - name: Build installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        uses: Minionguyjpro/Inno-Setup-Action@b8e8eb5936437c243592fda645c96dfc6488c275
         with:
           path: TraderPlannerPro.iss
           options: /O+
@@ -105,7 +105,7 @@ jobs:
 
       - name: Publish V10 release assets
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           tag_name: v10.0.0-selfhost
           name: Trader Planner Pro V10.0.0 — Windows Self-Hosted Build
@@ -120,7 +120,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload EXE and installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: TraderPlannerPro-V10-Windows
           path: |
