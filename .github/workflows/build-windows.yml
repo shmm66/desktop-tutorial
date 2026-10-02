@@ -16,6 +16,12 @@ jobs:
   quality:
     runs-on: [self-hosted, windows, x64]
     steps:
+      - name: Prepare PowerShell execution policy
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+          Get-ExecutionPolicy -List
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
@@ -53,6 +59,12 @@ jobs:
     needs: quality
     runs-on: [self-hosted, windows, x64]
     steps:
+      - name: Prepare PowerShell execution policy
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+          Get-ExecutionPolicy -List
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
