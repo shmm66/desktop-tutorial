@@ -35,7 +35,8 @@ jobs:
           "%PY_DIR%\python.exe" --version
       - name: Install test/build dependencies
         shell: cmd
-        run: "%LocalAppData%\Programs\Python\Python312\python.exe" -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+        run: |
+          "%LocalAppData%\Programs\Python\Python312\python.exe" -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
       - name: Syntax check
         shell: cmd
         run: |
@@ -58,7 +59,8 @@ jobs:
           "%LocalAppData%\Programs\Python\Python312\python.exe" -m py_compile statement_report.py
       - name: Run tests
         shell: cmd
-        run: "%LocalAppData%\Programs\Python\Python312\python.exe" -m pytest -q
+        run: |
+          "%LocalAppData%\Programs\Python\Python312\python.exe" -m pytest -q
 
   package:
     needs: quality
