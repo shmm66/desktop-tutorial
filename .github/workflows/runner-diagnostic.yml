@@ -1,0 +1,19 @@
+name: Runner Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "v10-professional-visual-online" ]
+
+jobs:
+  test:
+    runs-on: [self-hosted, windows, x64]
+    steps:
+      - name: Basic runner test
+        shell: cmd
+        run: |
+          echo RUNNER_OK
+          hostname
+          where py
+          py -3.14 --version
+          py -3.14 -c "import sys; print(sys.executable)"
