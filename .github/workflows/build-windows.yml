@@ -4,10 +4,7 @@ name: CI + Windows EXE + Installer + V10
 on:
   workflow_dispatch:
   push:
-    branches: [ main, "feature/**", "v10-professional-visual-online" ]
-  pull_request:
-    branches: [ main ]
-
+    branches: [ "v10-professional-visual-online" ]
 permissions:
   contents: write
 
