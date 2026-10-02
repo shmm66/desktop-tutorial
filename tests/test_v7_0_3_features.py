@@ -500,7 +500,7 @@ def test_v831_home_has_fallback_path():
 def test_v831_academy_scrolls_long_source_cards():
     from pathlib import Path
     source=Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert source.count("canvas.configure(scrollregion=canvas.bbox("all"))") >= 3
+    assert source.count('canvas.configure(scrollregion=canvas.bbox("all"))') >= 3
 
 def test_v831_glass_alpha_is_translucent():
     from pathlib import Path
