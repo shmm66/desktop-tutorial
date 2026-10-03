@@ -46,6 +46,7 @@ jobs:
         run: |
           $candidates = @()
           if ($env:LOCALAPPDATA) { $candidates += Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Programs\Python') -Filter 'python.exe' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } }
+          if ($env:LOCALAPPDATA) { $candidates += Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps') -Filter 'python*.exe' -File -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } }
           $candidates += Get-ChildItem -Path 'C:\Program Files\Python*' -Filter 'python.exe' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
           $candidates += Get-ChildItem -Path 'C:\Users' -Filter 'python.exe' -File -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\AppData\\Local\\Programs\\Python\\Python3\d+\\python\.exe$' } | ForEach-Object { $_.FullName }
           $registryPaths = @('HKCU:\Software\Python\PythonCore\3.14\InstallPath','HKLM:\Software\Python\PythonCore\3.14\InstallPath','HKLM:\Software\WOW6432Node\Python\PythonCore\3.14\InstallPath')
