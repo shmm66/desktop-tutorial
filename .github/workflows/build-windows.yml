@@ -38,47 +38,33 @@ jobs:
         run: python -m pytest -q
 
   package:
-    runs-on: [self-hosted, windows, x64]
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - name: Locate real Python 3.14 installation
-        shell: powershell
-        run: |
-          $candidates = @()
-          if ($env:LOCALAPPDATA) { $candidates += Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Programs\Python') -Filter 'python.exe' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } }
-          if ($env:LOCALAPPDATA) { $candidates += Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps') -Filter 'python*.exe' -File -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } }
-          $candidates += Get-ChildItem -Path 'C:\Program Files\Python*' -Filter 'python.exe' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
-          $candidates += Get-ChildItem -Path 'C:\Users' -Filter 'python.exe' -File -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\AppData\\Local\\Programs\\Python\\Python3\d+\\python\.exe$' } | ForEach-Object { $_.FullName }
-          $registryPaths = @('HKCU:\Software\Python\PythonCore\3.14\InstallPath','HKLM:\Software\Python\PythonCore\3.14\InstallPath','HKLM:\Software\WOW6432Node\Python\PythonCore\3.14\InstallPath')
-          foreach ($rp in $registryPaths) { try { $installPath = Get-ItemPropertyValue -Path $rp -Name '(default)' -ErrorAction Stop; if ($installPath) { $candidates += Join-Path $installPath 'python.exe' } } catch {} }
-          $pythonPath = $candidates | Where-Object { Test-Path $_ } | Sort-Object -Unique | Where-Object { try { $v = & $_ -c 'import sys; print(sys.version_info.major, sys.version_info.minor)' 2>$null; $v -match '^3 14$' } catch { $false } } | Select-Object -First 1
-          if (-not $pythonPath) { Write-Host 'Discovered candidates:'; $candidates | Sort-Object -Unique | ForEach-Object { Write-Host $_ }; throw 'A real Python 3.14 interpreter was not found. WindowsApps\python.exe is only an App Execution Alias.' }
-          $pythonPath = (Resolve-Path $pythonPath).Path
-          Write-Host "Using Python: $pythonPath"
-          & $pythonPath --version
-          Write-Host "Executable: $(& $pythonPath -c 'import sys; print(sys.executable)')"
-          "TP_PYTHON=$pythonPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install build dependencies
         shell: powershell
         run: |
-          & $env:TP_PYTHON -m pip install --upgrade pip
-          & $env:TP_PYTHON -m pip install -r requirements.txt pyinstaller
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
       - name: Prepare exact education image assets
         shell: powershell
         run: |
-          & $env:TP_PYTHON prepare_education_assets.py
+          python prepare_education_assets.py
       - name: Build Windows icon
         shell: powershell
         run: |
-          & $env:TP_PYTHON build_icon.py
+          python build_icon.py
       - name: Run tests on build runner
         shell: powershell
         run: |
-          & $env:TP_PYTHON -m pytest -q
+          python -m pytest -q
       - name: Build EXE
         shell: powershell
         run: >-
-          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all webview --collect-all agents --collect-all matplotlib --collect-all reportlab --hidden-import webview.platforms.edgechromium --hidden-import glass_theme --hidden-import academy_diagrams --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow --add-data 'education_sources;education_sources' --add-data 'trading_chart.html;.' launcher.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all webview --collect-all agents --collect-all matplotlib --collect-all reportlab --hidden-import webview.platforms.edgechromium --hidden-import glass_theme --hidden-import academy_diagrams --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow --add-data 'education_sources;education_sources' --add-data 'trading_chart.html;.' launcher.py
       - name: Verify EXE
         shell: powershell
         run: |
