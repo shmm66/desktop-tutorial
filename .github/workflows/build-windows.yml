@@ -16,55 +16,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    runs-on: windows-latest
+  package:
+    runs-on: [self-hosted, windows, x64]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install test dependencies
+
+      - name: Bootstrap isolated Python 3.14.8
         shell: powershell
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
+          $ErrorActionPreference = 'Stop'
+          $pythonDir = Join-Path $env:GITHUB_WORKSPACE '.python314'
+          $installer = Join-Path $env:RUNNER_TEMP 'python-3.14.8-amd64.exe'
+          $url = 'https://www.python.org/ftp/python/3.14.8/python-3.14.8-amd64.exe'
+          $expected = '759be887b96e736a3ca886daf8d575f18fcae1a09efab6902f42d59e8999f8ef'
+          if (Test-Path $pythonDir) { Remove-Item $pythonDir -Recurse -Force -ErrorAction SilentlyContinue }
+          Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
+          $actual = (Get-FileHash -Path $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "Python installer SHA-256 mismatch. Expected $expected, got $actual" }
+          $args = '/quiet InstallAllUsers=0 PrependPath=0 Include_test=0 TargetDir="' + $pythonDir + '"'
+          $p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Python installer failed with exit code $($p.ExitCode)" }
+          $py = Join-Path $pythonDir 'python.exe'
+          if (-not (Test-Path $py)) { throw "Bootstrapped Python executable not found: $py" }
+          & $py --version
+          "TP_PYTHON=$py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install build dependencies
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON -m pip install --upgrade pip
+          & $env:TP_PYTHON -m pip install -r requirements.txt pyinstaller
+
       - name: Syntax check
         shell: powershell
         run: |
           $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','branding_assets.py','prepare_branding.py','academy_visuals.py','market_data.py','calendar_utils.py','ai_assistant.py','news_data.py','webview_runner.py','prepare_education_assets.py','glass_theme.py','academy_diagrams.py','google_oauth.py','statement_report.py')
-          foreach ($file in $files) { python -m py_compile $file }
+          foreach ($file in $files) { & $env:TP_PYTHON -m py_compile $file }
+
       - name: Run tests
         shell: powershell
-        run: python -m pytest -q
-
-  package:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install build dependencies
-        shell: powershell
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller
+          & $env:TP_PYTHON -m pytest -q
+
       - name: Prepare exact education image assets
         shell: powershell
         run: |
-          python prepare_education_assets.py
+          & $env:TP_PYTHON prepare_education_assets.py
+
       - name: Build Windows icon
         shell: powershell
         run: |
-          python build_icon.py
-      - name: Run tests on build runner
-        shell: powershell
-        run: |
-          python -m pytest -q
+          & $env:TP_PYTHON build_icon.py
+
       - name: Build EXE
         shell: powershell
         run: >-
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all webview --collect-all agents --collect-all matplotlib --collect-all reportlab --hidden-import webview.platforms.edgechromium --hidden-import glass_theme --hidden-import academy_diagrams --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow --add-data 'education_sources;education_sources' --add-data 'trading_chart.html;.' launcher.py
+          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all webview --collect-all agents --collect-all matplotlib --collect-all reportlab --hidden-import webview.platforms.edgechromium --hidden-import glass_theme --hidden-import academy_diagrams --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow --add-data 'education_sources;education_sources' --add-data 'trading_chart.html;.' launcher.py
+
       - name: Verify EXE
         shell: powershell
         run: |
@@ -72,27 +80,31 @@ jobs:
           if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
           if ((Get-Item $exe).Length -lt 1000000) { throw 'EXE is unexpectedly small.' }
           Write-Host "EXE ready: $exe"
+
       - name: EXE self-test
         shell: powershell
         run: |
           $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
           $p = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw "EXE self-test failed with exit code $($p.ExitCode)" }
+
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: TraderPlannerPro.iss
           options: /O+
+
       - name: Verify installer output
         shell: powershell
         run: |
           $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $installer) { throw 'Installer EXE was not produced.' }
           Write-Host "Installer ready: $($installer.FullName)"
+
       - name: Upload verified build
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-V10-Windows-Verified
+          name: TraderPlannerPro-V11-Windows-Verified
           path: |
             dist/TraderPlannerPro.exe
             **/*Setup*.exe
