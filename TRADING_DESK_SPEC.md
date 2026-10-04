@@ -61,3 +61,7 @@ The existing GitHub Actions pipeline remains the release source of truth:
 The V10 pipeline is pinned to the supported windows-2022 GitHub-hosted runner.
 
 Build trigger verification: 2026-10-02T11:25:22.544Z
+
+
+## CI build bootstrap
+The Windows package job uses the repository self-hosted runner and bootstraps the pinned official Python 3.14.8 installer into the workspace, so the build does not depend on the runner service PATH or Windows Python App Execution Alias.
