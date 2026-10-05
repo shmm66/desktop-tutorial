@@ -58,7 +58,7 @@ def main():
             for module_name in required:
                 importlib.import_module(module_name)
             base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-            required_assets = [base / "trading_chart.html", base / "education_sources"]
+            required_assets = [base / "education_sources"]
             missing = [str(p) for p in required_assets if not p.exists()]
             if missing:
                 raise RuntimeError("Missing bundled assets: " + ", ".join(missing))
