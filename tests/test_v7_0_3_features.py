@@ -527,3 +527,15 @@ def test_v10_trading_desk_has_native_chart_controls():
     source = Path("trading_chart.html").read_text(encoding="utf-8")
     for token in ("hide_top_toolbar:false","hide_side_toolbar:false","withdateranges:true","allow_symbol_change:true","save_image:true","calendar:true"):
         assert token in source
+
+
+
+def test_native_trading_desk_is_desktop_native():
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[1] / "native_trading_desk.py"
+    text = p.read_text(encoding="utf-8")
+    assert "class NativeTradingDesk" in text
+    assert "FigureCanvasTkAgg" in text
+    assert "NavigationToolbar2Tk" in text
+    assert "TradingView" not in text
+    assert "webview" not in text.lower()
