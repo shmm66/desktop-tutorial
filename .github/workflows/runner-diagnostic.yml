@@ -9,7 +9,7 @@ on:
 
 jobs:
   test:
-    runs-on: [self-hosted, windows, x64]
+    runs-on: self-hosted
     steps:
       - name: Basic runner health
         shell: cmd
