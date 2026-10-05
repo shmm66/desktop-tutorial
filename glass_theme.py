@@ -77,7 +77,7 @@ def _apply_pywinstyles(window, dark: bool, style: str) -> bool:
         return False
 
 
-def _configure_window_transparency(window, dark: bool):
+def _configure_window_transparency(window, dark: bool, opacity: float = 0.94):
     """Tune the client/window alpha without relying on per-widget alpha.
 
     Tk child widgets are opaque by design, so the real glass effect comes from
@@ -85,7 +85,7 @@ def _configure_window_transparency(window, dark: bool):
     """
     try:
         # Keep text/controls crisp while allowing the DWM material to breathe through.
-        window.wm_attributes("-alpha", 0.94 if dark else 0.965)
+        window.wm_attributes("-alpha", max(0.86, min(float(opacity), 0.995)))
     except Exception:
         pass
     try:
@@ -105,7 +105,7 @@ def apply_glass(window, dark: bool = True, style: str = "acrylic", opacity: floa
                 window.wm_attributes("-alpha", max(0.86, min(float(opacity), 0.995)))
             except Exception:
                 pass
-            _configure_window_transparency(window, dark)
+            _configure_window_transparency(window, dark, opacity)
             native_ok = _set_dwm_backdrop(window, dark=dark, acrylic=(style != "mica"))
             pywin_ok = _apply_pywinstyles(window, dark=dark, style=style)
             return native_ok or pywin_ok
