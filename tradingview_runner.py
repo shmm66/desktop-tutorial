@@ -175,39 +175,46 @@ def build_tradingview_html(symbol: str = "BINANCE:BTCUSDT",
 </html>"""
 
 
+def tradingview_url(symbol: str = "BINANCE:BTCUSDT", interval: str = "1H") -> str:
+    tv_interval = INTERVALS.get(str(interval), "60")
+    # Official TradingView chart route: the real TradingView terminal supplies
+    # the chart UI, time scale, drawings, replay and available exchange feed.
+    return (
+        "https://www.tradingview.com/chart/?symbol="
+        + quote(symbol, safe=":")
+        + "&interval="
+        + quote(tv_interval, safe="")
+    )
+
+
 def open_tradingview(symbol: str = "BINANCE:BTCUSDT",
                      interval: str = "1H",
                      locale: str = "en",
                      theme: str = "dark",
                      mode: str = "Crypto") -> int:
-    tv_interval = INTERVALS.get(str(interval), str(interval) or "60")
-    watchlist = FOREX_WATCHLIST if str(mode).lower() == "forex" else CRYPTO_WATCHLIST
-    html = build_tradingview_html(symbol, tv_interval, locale, theme, watchlist)
+    url = tradingview_url(symbol, interval)
     title = f"{APP} • {symbol} • {interval}"
 
     if webview is None:
-        fallback = "https://www.tradingview.com/chart/?symbol=" + quote(symbol, safe=":")
-        webbrowser.open(fallback)
+        webbrowser.open(url)
         return 0
 
     try:
         webview.create_window(
             title,
-            html=html,
+            url=url,
             width=1680,
             height=1000,
             min_size=(1200, 760),
             resizable=True,
             fullscreen=False,
             background_color="#0A1018" if theme == "dark" else "#F4F7FA",
-            text_select=False,
             zoomable=True,
         )
         webview.start(gui="edgechromium", debug=False)
         return 0
     except Exception:
-        fallback = "https://www.tradingview.com/chart/?symbol=" + quote(symbol, safe=":")
-        webbrowser.open(fallback)
+        webbrowser.open(url)
         return 0
 
 
