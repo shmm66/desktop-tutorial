@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   package:
-    runs-on: windows-2025
+    runs-on: [self-hosted, windows, x64]
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +46,7 @@ jobs:
       - name: Syntax check
         shell: powershell
         run: |
-          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','branding_assets.py','prepare_branding.py','academy_visuals.py','market_data.py','calendar_utils.py','ai_assistant.py','news_data.py','webview_runner.py','prepare_education_assets.py','glass_theme.py','academy_diagrams.py','google_oauth.py','statement_report.py')
+          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','branding_assets.py','prepare_branding.py','academy_visuals.py','market_data.py','calendar_utils.py','ai_assistant.py','news_data.py','webview_runner.py','prepare_education_assets.py','glass_theme.py','academy_diagrams.py','google_oauth.py','statement_report.py','tradingview_runner.py')
           foreach ($file in $files) { & $env:TP_PYTHON -m py_compile $file }
 
       - name: Run tests
@@ -67,7 +67,7 @@ jobs:
       - name: Build EXE
         shell: powershell
         run: >-
-          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all webview --collect-all agents --collect-all matplotlib --collect-all reportlab --hidden-import webview.platforms.edgechromium --hidden-import glass_theme --hidden-import academy_diagrams --hidden-import native_trading_desk --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow --add-data 'education_sources;education_sources' launcher.py
+          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all webview --collect-all agents --collect-all matplotlib --collect-all reportlab --hidden-import webview.platforms.edgechromium --hidden-import glass_theme --hidden-import academy_diagrams --hidden-import native_trading_desk --hidden-import tradingview_runner --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow --add-data 'education_sources;education_sources' launcher.py
 
       - name: Verify EXE
         shell: powershell
@@ -100,7 +100,7 @@ jobs:
       - name: Upload verified build
         uses: actions/upload-artifact@v4
         with:
-          name: TraderPlannerPro-V11-Windows-Verified
+          name: TraderPlannerPro-V10-TradingView-Pro-Windows-Verified
           path: |
             dist/TraderPlannerPro.exe
             **/*Setup*.exe
