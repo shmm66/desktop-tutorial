@@ -108,7 +108,8 @@ def main():
             required = [
                 "TraderPlannerPro_v7_0_3", "market_data", "news_data",
                 "ai_assistant", "academy_visuals", "academy_diagrams",
-                "glass_theme", "google_oauth", "statement_report", "webview_runner", "native_trading_desk"
+                "glass_theme", "google_oauth", "statement_report", "webview_runner",
+                "native_trading_desk", "tradingview_runner"
             ]
             for module_name in required:
                 importlib.import_module(module_name)
@@ -123,6 +124,9 @@ def main():
             from webview_runner import main as webview_main
             webview_main()
             return
+        if len(sys.argv) > 1 and sys.argv[1] == "--tradingview":
+            from tradingview_runner import main as tradingview_main
+            raise SystemExit(tradingview_main(sys.argv[2:]))
         show_splash()
         from TraderPlannerPro_v7_0_3 import App
         app=App()
