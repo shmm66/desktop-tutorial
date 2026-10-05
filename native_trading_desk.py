@@ -357,6 +357,19 @@ class NativeTradingDesk(tk.Frame):
                  bg=self.colors["panel2"], fg=self.colors["muted"], justify="left", wraplength=190,
                  font=("Segoe UI", 8)).pack(anchor="w", padx=10, pady=8)
 
+    def destroy(self):
+        job = getattr(self, "_live_job", None)
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+            self._live_job = None
+        try:
+            super().destroy()
+        except Exception:
+            pass
+
     def _home(self):
         try:
             self.master.master.go_home()
