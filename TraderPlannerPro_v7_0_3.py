@@ -1006,6 +1006,9 @@ class App(tk.Tk):
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
                           padx=18, pady=11, cursor="hand2")
             b.pack(fill="x", padx=7, pady=2); self.menu_buttons[key] = b
+            normal_bg = C["panel"]
+            b.bind("<Enter>", lambda e, w=b: w.configure(bg=C["panel2"], fg=C["accent"]))
+            b.bind("<Leave>", lambda e, w=b: w.configure(bg=normal_bg, fg=C["text"]))
         self.menu_home_hint = tk.Label(self.menu, text=self.tr("home_shortcut"), bg=C["panel3"], fg=C["muted"],
                                        font=("Segoe UI", 8), wraplength=240, justify="left")
         self.menu_home_hint.pack(fill="x", padx=14, pady=(18,14), ipady=8)
@@ -1548,7 +1551,7 @@ class App(tk.Tk):
 
     def draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
-        canvas = tk.Canvas(holder, width=68, height=68, bg=C["panel"], highlightthickness=0)
+        canvas = tk.Canvas(holder, width=58, height=58, bg=C["panel"], highlightthickness=0)
         canvas.pack(side="left", padx=(3,8), pady=3)
         info = tk.Frame(holder, bg=C["panel"]); info.pack(side="left", fill="x", expand=True, pady=5)
         title = tk.Label(info, text=session["fa"] if self.language == "fa" else session["en"], bg=C["panel"],
@@ -1566,16 +1569,16 @@ class App(tk.Tk):
         for canvas, status, hours, session in list(self.session_clock_widgets):
             try:
                 now = datetime.now(ZoneInfo(session["tz"]))
-                w = h = 68
-                cx = cy = 34
-                r = 27
+                w = h = 58
+                cx = cy = 29
+                r = 23
                 canvas.delete("all")
-                canvas.create_oval(2,2,66,66,fill=C["shadow"],outline=C["line"])
-                canvas.create_oval(6,6,62,62,fill=C["panel3"],outline=C["soft"])
+                canvas.create_oval(2,2,56,56,fill=C["shadow"],outline=C["line"])
+                canvas.create_oval(6,6,52,52,fill=C["panel3"],outline=C["soft"])
                 local_minutes = now.hour*60 + now.minute
                 start = session["start"]*60; end = session["end"]*60
                 progress = max(0.0, min(1.0, (local_minutes-start)/max(1,end-start))) if start <= local_minutes < end else 0.0
-                canvas.create_arc(5,5,63,63,start=90,extent=-360*progress,style="arc",
+                canvas.create_arc(5,5,53,53,start=90,extent=-360*progress,style="arc",
                                  outline=C["accent"] if progress else C["soft"], width=3)
                 for n in (0,15,30,45):
                     ang = math.radians(n*6-90)
@@ -1586,7 +1589,7 @@ class App(tk.Tk):
                 for value,turns,length,width,color in ((hour,12,14,3,C["text"]),(minute,60,20,2,C["gold"])):
                     ang = math.radians(value*(360/turns)-90)
                     canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
-                canvas.create_oval(30,30,38,38,fill=C["accent"],outline=C["panel3"],width=1)
+                canvas.create_oval(26,26,32,32,fill=C["accent"],outline=C["panel3"],width=1)
                 is_open = start <= local_minutes < end
                 status.config(text=f"{self.tr('open') if is_open else self.tr('closed')}  •  {now.strftime('%H:%M')}",
                               fg=C["accent"] if is_open else C["muted"])
