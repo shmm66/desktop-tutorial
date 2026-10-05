@@ -508,27 +508,19 @@ def test_v831_glass_alpha_is_translucent():
     assert 'window.wm_attributes("-alpha", 0.965)' in source
 
 
-def test_v10_trading_desk_uses_live_tradingview_and_market_universes():
+def test_v10_trading_desk_is_native_integrated():
     from pathlib import Path
-    source = Path("trading_chart.html").read_text(encoding="utf-8")
-    assert "external-embedding/embed-widget-advanced-chart.js" in source
-    for token in ("CRYPTOCAP:BTC.D","CRYPTOCAP:USDT.D","CRYPTOCAP:TOTAL","CRYPTOCAP:TOTAL2","CRYPTOCAP:TOTAL3"):
-        assert token in source
-    for token in ("OANDA:XAUUSD","OANDA:XAGUSD","FXCM:COPPER","OANDA:EURUSD","OANDA:GBPUSD","TVC:DXY","TVC:USOIL","NASDAQ:NDX","NASDAQ:AAPL"):
-        assert token in source
-    assert "per_page=100" in source
-    assert "api.coinpaprika.com/v1/tickers" in source
-    assert "localStorage" in source
-    assert "Top 100 Crypto Market" in source
-    assert "Forex" in source and "Crypto" in source
-
-def test_v10_trading_desk_has_native_chart_controls():
-    from pathlib import Path
-    source = Path("trading_chart.html").read_text(encoding="utf-8")
-    for token in ("hide_top_toolbar:false","hide_side_toolbar:false","withdateranges:true","allow_symbol_change:true","save_image:true","calendar:true"):
-        assert token in source
-
-
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    native = Path("native_trading_desk.py").read_text(encoding="utf-8")
+    assert "from native_trading_desk import NativeTradingDesk" in source
+    assert "NativeTradingDesk(shell, C" in source
+    assert "open_chart" not in source[source.index("    def chart(self):"):source.index("\n    def calculators(self):")]
+    assert "FigureCanvasTkAgg" in native
+    assert "NavigationToolbar2Tk" in native
+    assert "Binance" in native
+    assert "Yahoo Finance" in native
+    assert "TradingView" not in native
+    assert "webview" not in native.lower()
 
 def test_native_trading_desk_is_desktop_native():
     from pathlib import Path
