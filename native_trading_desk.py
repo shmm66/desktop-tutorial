@@ -303,6 +303,7 @@ class NativeTradingDesk(tk.Frame):
         toolbar.pack(fill="x", padx=4, pady=(0, 5))
         self.canvas.mpl_connect("button_press_event", self._chart_click)
         self.canvas.mpl_connect("motion_notify_event", self._crosshair)
+        self.canvas.mpl_connect("scroll_event", self._wheel_zoom)
 
         right = self._panel(body)
         right.pack(side="left", fill="y", padx=(4, 0))
@@ -471,6 +472,17 @@ class NativeTradingDesk(tk.Frame):
         self.ax.axhline(last, color=self.colors["gold"], linewidth=0.8, alpha=0.55, linestyle="--")
         self.meta_label.config(text=f"{source} • {len(rows)} candles • {datetime.now().strftime('%H:%M:%S')}")
         self.status_var.set(f"{source} • online")
+        self.canvas.draw_idle()
+
+    def _wheel_zoom(self, event):
+        if event.inaxes != self.ax or event.xdata is None:
+            return
+        left, right = self.ax.get_xlim()
+        center = event.xdata
+        scale = 0.82 if event.button == "up" else 1.22
+        new_left = center - (center - left) * scale
+        new_right = center + (right - center) * scale
+        self.ax.set_xlim(new_left, new_right)
         self.canvas.draw_idle()
 
     def _draw_tool(self, mode):
