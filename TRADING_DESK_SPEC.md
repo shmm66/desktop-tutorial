@@ -1,67 +1,76 @@
-# Trader Planner Pro V10 — Trading Desk Technical Specification
+# Trader Planner Pro — Trading Desk / TradingView Pro
 
-## Purpose
-The Trading Desk is an online-first market-analysis workspace embedded in the native Windows application. Its visual target is a TradingView-style professional terminal while keeping the surrounding application native.
+## هدف
+صفحه Trading Desk در پوسته بومی Windows 11 باقی می‌ماند، اما برای تست دقیق بازار یک حالت TradingView Pro ارائه می‌کند. این حالت از ویجت رسمی TradingView Advanced Chart در یک پنجره دسکتاپ pywebview استفاده می‌کند؛ بنابراین کندل‌ها از منبع نمودار TradingView می‌آیند و برنامه برای نمایش نمودار، OHLC مصنوعی تولید نمی‌کند.
 
-## Chart engine
-- TradingView Advanced Chart Widget is embedded from TradingView's official widget endpoint.
-- Candles, timeframes, zoom/pan, drawing toolbar, indicators, symbol search/change, date ranges, chart details and fullscreen are provided by the embedded chart.
-- The chart symbol is changed by rebuilding the widget configuration with the selected symbol.
-- Drawing tools remain price/time anchored because they are rendered by the chart engine rather than on a fixed application canvas.
-- The application does not claim to ship TradingView's proprietary Charting Library or Trading Platform; the integration uses the official embeddable widget.
+## TradingView Pro
+ویجت با تنظیمات زیر راه‌اندازی می‌شود:
+- Symbol Search فعال
+- تغییر Symbol فعال
+- Top toolbar فعال
+- Drawing toolbar فعال
+- Volume فعال
+- Legend و Details فعال
+- بازه‌های زمانی از 1m تا 1M
+- Date ranges فعال
+- Save image فعال
+- Fullscreen از خود رابط TradingView در دسترس
+- Studies در تنظیم اولیه خالی است و کاربر می‌تواند از رابط TradingView موارد لازم را اضافه کند
+- Theme و locale با تنظیمات برنامه هماهنگ می‌شود
 
-## Crypto universe
-The left market browser loads the top 100 assets by market capitalization:
-1. CoinGecko /coins/markets?per_page=100
-2. CoinPaprika /v1/tickers?limit=100 fallback
-3. Browser localStorage cache fallback
+منبع embed:
+https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js
 
-The watchlist exposes ranking, symbol, name, price and 24h percentage change. Selecting an asset opens the preferred Binance symbol in the TradingView chart.
+این پروژه ادعا نمی‌کند که TradingView Charting Library یا Trading Platform اختصاصی را مالک یا توزیع می‌کند. این یک استفاده از قابلیت رسمی embeddable TradingView است.
 
-Macro charts:
-- CRYPTOCAP:BTC.D
-- CRYPTOCAP:USDT.D
-- CRYPTOCAP:TOTAL
-- CRYPTOCAP:TOTAL2
-- CRYPTOCAP:TOTAL3
+## بازارها و نمادهای پیش‌فرض
 
-Macro cards read current global market metrics from CoinGecko /global and cache the last successful snapshot.
+### Crypto
+- BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, AVAXUSDT, LINKUSDT, TRXUSDT
+- BTC Dominance: CRYPTOCAP:BTC.D
+- USDT Dominance: CRYPTOCAP:USDT.D
+- Total Market: CRYPTOCAP:TOTAL
+- Total2 / Total3
 
-## Forex / traditional markets
-The Forex mode exposes:
+### Forex / Macro / Stocks
 - Gold: OANDA:XAUUSD
 - Silver: OANDA:XAGUSD
 - Copper: FXCM:COPPER
 - Major FX: EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, USDCAD, NZDUSD
-- Dollar/indices: DXY, S&P 500, Nasdaq 100, Dow 30
-- Energy: WTI and Brent
-- US stocks: AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, AVGO, JPM, BRK.B
+- DXY: TVC:DXY
+- S&P 500: SP:SPX
+- Nasdaq 100: NASDAQ:NDX
+- Dow: DJ:DJI
+- WTI / Brent
+- AAPL, MSFT, NVDA, AMZN, META, TSLA, GOOGL, JPM
 
-The chart data for these instruments is supplied by the TradingView feed available to the embedded widget.
+این‌ها فقط preset هستند؛ Symbol Search خود TradingView برای جستجوی سایر نمادها فعال است.
 
-## Reliability model
-The Trading Desk avoids synthetic/demo candles. If the online chart feed cannot connect, the UI exposes the connection state rather than inventing market candles. Crypto list and macro values may use the most recent cached API snapshot when the corresponding public API is temporarily unavailable.
+## دقت زمانی و کندل
+- بازه زمانی مستقیماً به intervalهای TradingView نگاشت می‌شود: 1m, 3m, 5m, 15m, 30m, 1H, 4H, 1D, 1W, 1M.
+- زمان نمایش روی exchange تنظیم شده تا timezone با بازار همان نماد هماهنگ شود.
+- برنامه در این حالت کندل‌سازی، resample یا interpolation دستی انجام نمی‌دهد.
+- دسترسی real-time هر بازار وابسته به data entitlement / feed در TradingView است؛ در صورت نبود دسترسی، نباید برنامه آن را به عنوان live بدون منبع کافی گزارش کند.
 
-## Refresh policy
-- Crypto top-100 snapshot: on startup, mode switch and manual refresh.
-- Global macro snapshot: on startup, mode switch and manual refresh.
-- Chart: rebuilt on symbol/timeframe change and manual refresh.
-- Status labels identify the active data path (live API, cache, or unavailable).
+## Native fallback
+فایل native_trading_desk.py همچنان در پروژه باقی است و برای مسیر native بدون WebView نگهداری می‌شود. این مسیر برای smoke test و fallback داخلی مفید است، ولی TradingView Pro مسیر مرجع تست دقت کندل‌ها است.
 
-## Build / installer
-The existing GitHub Actions pipeline remains the release source of truth:
-1. Windows x64 quality checks
-2. Python syntax and pytest
-3. PyInstaller one-file EXE
-4. startup smoke test
-5. Inno Setup installer
-6. silent install / uninstall smoke test
-7. release assets
+## Home / Glass / AI / Journal / Weekly
+- Windows Acrylic/Mica در glass_theme.py
+- ساعت دیجیتال اصلی + چهار ساعت سشن روی Home
+- Snapshot صفحه اول شامل زمان محلی، اجرای کارهای امروز، پیشرفت هفته، Net R هفته و وضعیت AI Agent
+- Journal مستقل برای هر profile/market
+- Weekly Planner با جابه‌جایی هفته و ورود مستقیم به روز
+- AI Command Center با Master Agent، Form Coach، Strategy Coach، Psychology Coach، Routine Coach، Academy Tutor و Product Strategist
+- Google/Gmail Statement برای گزارش ژورنال
 
-The V10 pipeline is pinned to the supported windows-2022 GitHub-hosted runner.
-
-Build trigger verification: 2026-10-02T11:25:22.544Z
-
-
-## CI build bootstrap
-The Windows package job uses the repository self-hosted runner and bootstraps the pinned official Python 3.14.8 installer into the workspace, so the build does not depend on the runner service PATH or Windows Python App Execution Alias.
+## Build
+Workflow:
+1. self-hosted Windows x64 runner
+2. bootstrap isolated Python 3.14.8
+3. syntax checks
+4. pytest
+5. PyInstaller one-file EXE
+6. EXE self-test
+7. Inno Setup installer
+8. verified artifact upload
