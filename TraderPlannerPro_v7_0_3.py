@@ -646,6 +646,12 @@ class App(tk.Tk):
                 win.destroy()
         except Exception:
             pass
+        try:
+            proc=getattr(self, "tradingview_process", None)
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+        except Exception:
+            pass
         self.destroy()
 
     def _parse_hhmm(self, value, fallback="08:00"):
@@ -1320,6 +1326,29 @@ class App(tk.Tk):
         if cached.get("items"):
             self.market_data_payload = cached
         self.heading(self.tr("dashboard"), self.tr("dashboard_sub"))
+
+        # Compact command-center snapshot: local clock, today's tasks, weekly execution and journal edge.
+        today_key = date.today().isoformat()
+        week_dates = self._week_dates(0)
+        week_keys = {d.isoformat() for d in week_dates}
+        today_tasks = DB.get("tasks", {}).get(today_key, [])
+        week_total, week_done = self._week_task_stats(week_dates)
+        week_rows = [r for r in p["journals"][self.market] if str(r.get("Date", ""))[:10] in week_keys]
+        week_net_r = sum(result_num(r) for r in week_rows)
+        snapshot = self.card(self.content); snapshot.pack(fill="x", pady=(2,7))
+        cells = tk.Frame(snapshot, bg=C["panel"]); cells.pack(fill="x", padx=10, pady=10)
+        snap_specs = [
+            ("LOCAL TIME", datetime.now().strftime("%H:%M:%S"), C["cyan"]),
+            ("TODAY TASKS", f"{sum(1 for x in today_tasks if x.get('done'))}/{len(today_tasks)}", C["accent"]),
+            ("WEEK EXECUTION", f"{week_done}/{week_total}", C["gold"]),
+            ("WEEK NET R", f"{week_net_r:+.2f} R", C["violet"]),
+            ("AI AGENT", "CLOUD" if self.ai.status().get("cloud") else "LOCAL / FALLBACK", C["blue"]),
+        ]
+        for title,value,color in snap_specs:
+            c=tk.Frame(cells,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
+            c.pack(side="left",fill="both",expand=True,padx=3)
+            tk.Label(c,text=title,bg=C["panel3"],fg=C["muted"],font=("Segoe UI",7,"bold")).pack(anchor="w",padx=9,pady=(7,2))
+            tk.Label(c,text=value,bg=C["panel3"],fg=color,font=("Segoe UI" if title != "LOCAL TIME" else "Consolas",12,"bold")).pack(anchor="w",padx=9,pady=(0,7))
 
         ticker_header = tk.Frame(self.content, bg=C["panel2"], highlightbackground=C["line"], highlightthickness=1)
         ticker_header.pack(fill="x", pady=(2,4))
@@ -2377,137 +2406,65 @@ class App(tk.Tk):
         except Exception:
             webbrowser.open(url)
 
-    def settings(self):
-        p=active_profile()
-        self.heading(self.tr("settings_title"), self.tr("settings_sub"))
-
-        lang_box=self.card(self.content); lang_box.pack(fill="x",pady=8)
-        tk.Label(lang_box,text=self.tr("choose_language"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(16,5))
-        tk.Label(lang_box,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
-        row=tk.Frame(lang_box,bg=C["panel"]); row.pack(fill="x",padx=18,pady=(0,15))
-        fa_btn=tk.Button(row,text="فارسی",command=lambda:self.set_language("fa"),bg=C["accent"] if self.language=="fa" else C["soft"],
-                         fg="#061019" if self.language=="fa" else C["text"],relief="flat",font=("Segoe UI",10,"bold"),padx=24,pady=10)
-        en_btn=tk.Button(row,text="English",command=lambda:self.set_language("en"),bg=C["accent"] if self.language=="en" else C["soft"],
-                         fg="#061019" if self.language=="en" else C["text"],relief="flat",font=("Segoe UI",10,"bold"),padx=24,pady=10)
-        fa_btn.pack(side="right",padx=5); en_btn.pack(side="right",padx=5)
-        tk.Label(row,text=f"{self.tr('language_now')}: {'فارسی' if self.language=='fa' else 'English'}",
-                 bg=C["panel"],fg=C["gold"],font=("Segoe UI",9,"bold")).pack(side="left",padx=8)
-
-        skin_box=self.card(self.content); skin_box.pack(fill="x",pady=8)
-        tk.Label(skin_box,text=self.tr("skin"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
-        tk.Label(skin_box,text=self.tr("skin_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
-        skin_labels={}
-        for k,v in SKINS.items():
-            skin_labels[v.get(self.language=="fa" and "label_fa" or "label_en",k)]=k
-        skin_var=tk.StringVar(value=SKINS[self.skin]["label_fa" if self.language=="fa" else "label_en"])
-        skin_combo=ttk.Combobox(skin_box,textvariable=skin_var,state="readonly",values=list(skin_labels.keys()),width=30,justify="center")
-        skin_combo.pack(anchor="e",padx=18,pady=(0,14))
-        self.btn(skin_box,self.tr("save_theme"),lambda:self._save_skin_and_theme(skin_labels,skin_var),True).pack(anchor="e",padx=18,pady=(0,14))
-        glass_box=self.card(self.content); glass_box.pack(fill="x",pady=8)
-        tk.Label(glass_box,text="Glass Transparency",bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
-        tk.Label(glass_box,text="Native Windows Acrylic intensity",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,10))
-        glass_row=tk.Frame(glass_box,bg=C["panel"]); glass_row.pack(fill="x",padx=18,pady=(0,10))
-        glass_var=tk.DoubleVar(value=self.glass_opacity)
-        glass_value=tk.Label(glass_row,text=f"{int(self.glass_opacity*100)}%",bg=C["panel"],fg=C["gold"],font=("Consolas",10,"bold"),width=6)
-        glass_value.pack(side="right",padx=8)
-        scale=tk.Scale(glass_row,from_=0.86,to=0.99,resolution=0.01,orient="horizontal",variable=glass_var,
-                       bg=C["panel"],fg=C["text"],highlightthickness=0,bd=0,showvalue=False,length=320,
-                       command=lambda v: glass_value.configure(text=f"{int(float(v)*100)}%"))
-        scale.pack(side="right",fill="x",expand=True,padx=8)
-        self.btn(glass_box,self.tr("save_theme"),lambda:self._save_glass_opacity(glass_var),True).pack(anchor="e",padx=18,pady=(0,14))
-
-        theme_box=self.card(self.content); theme_box.pack(fill="x",pady=8)
-        tk.Label(theme_box,text=self.tr("theme"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
-        tk.Label(theme_box,text=self.tr("theme_help"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,12))
-        theme_row=tk.Frame(theme_box,bg=C["panel"]); theme_row.pack(fill="x",padx=18,pady=(0,15))
-        labels=THEME_LABELS.get(self.language,THEME_LABELS["en"])
-        theme_labels=THEME_LABELS.get(self.language,THEME_LABELS["en"])
-        theme_display={theme_labels["dark"]:"dark",theme_labels["light"]:"light",theme_labels["auto"]:"auto"}
-        theme_var=tk.StringVar(value=theme_labels.get(self.theme_mode,theme_labels["dark"]))
-        theme_combo=ttk.Combobox(theme_row,textvariable=theme_var,state="readonly",
-                                 values=list(theme_display.keys()),width=18,justify="center")
-        theme_combo.pack(side="right",padx=6)
-        tk.Label(theme_row,text=self.ui_text("Dark / Light / Automatic"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=8)
-
-        times=tk.Frame(theme_box,bg=C["panel"]); times.pack(fill="x",padx=18,pady=(0,14))
-        start_var=tk.StringVar(value=self.theme_auto_start); end_var=tk.StringVar(value=self.theme_auto_end)
-        tk.Label(times,text=labels["auto_start"],bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=5)
-        tk.Entry(times,textvariable=start_var,width=8,justify="center",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right",padx=5)
-        tk.Label(times,text=labels["auto_end"],bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(side="right",padx=10)
-        tk.Entry(times,textvariable=end_var,width=8,justify="center",bg=C["soft"],fg=C["text"],relief="flat").pack(side="right",padx=5)
-        def save_theme():
-            mode=theme_display.get(theme_var.get(),"dark")
-            start=start_var.get().strip() or "08:00"; end=end_var.get().strip() or "20:00"
-            if not self._valid_hhmm(start): start="08:00"
-            if not self._valid_hhmm(end): end="20:00"
-            DB.setdefault("settings",{}).update({"theme":mode,"theme_auto_start":start,"theme_auto_end":end})
-            self.theme_mode=mode; self.theme_auto_start=start; self.theme_auto_end=end
-            save_db(); self.apply_theme(); self.show(self.cur)
-        self.btn(theme_box,self.tr("save_theme"),save_theme,True).pack(anchor="e",padx=18,pady=(0,14))
-
-        # AI provider card
-        ai_box=self.card(self.content); ai_box.pack(fill="x",pady=8)
-        tk.Label(ai_box,text=self.tr("ai_agent_roles"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
-        tk.Label(ai_box,text=self.tr("ai_cloud_note"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),wraplength=1080,justify="right").pack(anchor="e",padx=18,pady=(0,10))
-        ai_status=self.ai.status()
-        status_text=(f"{self.tr('ai_cloud_ready')} • {ai_status.get('model', self.ai.model)}"
-                     if ai_status.get("cloud") else self.tr("ai_cloud_missing"))
-        tk.Label(ai_box,text=status_text,bg=C["panel3"],fg=C["accent"] if ai_status.get("cloud") else C["gold"],font=("Consolas",9,"bold"),padx=10,pady=6).pack(anchor="e",padx=18,pady=4)
-        ai_row=tk.Frame(ai_box,bg=C["panel"]); ai_row.pack(fill="x",padx=18,pady=8)
-        ai_key=tk.StringVar()
-        ai_entry=tk.Entry(ai_row,textvariable=ai_key,show="•",bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",width=52,justify="left")
-        ai_entry.pack(side="right",padx=5,ipady=8)
-        self.btn(ai_row,self.tr("ai_save_key"),lambda:self._save_ai_key(ai_key.get()),True).pack(side="right",padx=4)
-        self.btn(ai_row,self.tr("ai_clear_key"),self._clear_ai_key).pack(side="right",padx=4)
-        ai_actions=tk.Frame(ai_box,bg=C["panel"]); ai_actions.pack(fill="x",padx=18,pady=(0,12))
-        self.btn(ai_actions,self.tr("agent_upgrade_ideas"),lambda:self._open_product_agent_from_settings()).pack(side="right",padx=4)
-        self.btn(ai_actions,"Get OpenAI API Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="right",padx=4)
-        self.btn(ai_actions,"Open AI Chat",self.go_ai,True).pack(side="right",padx=4)
-
-        # Google / Gmail card
-        google_box=self.card(self.content); google_box.pack(fill="x",pady=8)
-        tk.Label(google_box,text=self.tr("google_account"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
-        tk.Label(google_box,text=self.tr("google_no_credentials"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),wraplength=1080,justify="right").pack(anchor="e",padx=18,pady=(0,10))
-        google_state=google_status()
-        google_text=(f"{self.tr('google_connected')}: {google_state.get('email','')}" if google_state.get("connected") else self.tr("google_credentials"))
-        google_label=tk.Label(google_box,text=google_text,bg=C["panel3"],fg=C["accent"] if google_state.get("connected") else C["muted"],font=("Segoe UI",9,"bold"),anchor="e")
-        google_label.pack(fill="x",padx=18,pady=5)
-        g_row=tk.Frame(google_box,bg=C["panel"]); g_row.pack(fill="x",padx=18,pady=(2,14))
-        self.btn(g_row,self.tr("google_login"),lambda:self._google_login_ui(google_label),True).pack(side="right",padx=4)
-        self.btn(g_row,self.tr("google_logout"),lambda:self._google_logout_ui(google_label)).pack(side="right",padx=4)
-        self.btn(g_row,self.tr("google_pick_credentials"),lambda:self._pick_google_credentials(google_label)).pack(side="right",padx=4)
-        self.btn(g_row,self.tr("email_statement"),self.email_statement).pack(side="right",padx=4)
-        self.btn(g_row,"Google OAuth Guide",lambda:self.open_webview("https://developers.google.com/workspace/gmail/api/quickstart/python","Google Gmail API — OAuth Setup")).pack(side="right",padx=4)
-
-        profile_box=self.card(self.content); profile_box.pack(fill="x",pady=8)
-        info=(f"{self.tr('profile')}: {p['name']}\n"
-              f"{self.tr('market')}: {p['market']}\n"
-              f"{self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}\n"
-              f"{self.tr('data_path')}: {DATA}\n{self.tr('reports_path')}: {REPORTS}")
-        tk.Label(profile_box,text=info,bg=C["panel"],fg=C["muted"],justify="right",font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=14)
-        self.btn(profile_box,self.tr("manage_profiles"),self.edit_profile,True).pack(anchor="e",padx=18,pady=8)
-
-    def open_calculator(self, market):
-        self._calculator_market = "Forex" if market == "Forex" else "Crypto"
-        self.show("calculators")
-
-    def _save_skin_and_theme(self,skin_labels,skin_var):
-        self.skin=skin_labels.get(skin_var.get(),"glass")
-        DB.setdefault("settings",{})["skin"]=self.skin
-        save_db()
-        self.apply_theme()
-        self.show(self.cur)
+    def open_tradingview(self, symbol=None, interval="1H"):
+        """Launch the official TradingView Advanced Chart inside the desktop workflow."""
+        market = self.market if self.market in ("Crypto", "Forex") else "Crypto"
+        if symbol is None:
+            symbol = "BINANCE:BTCUSDT" if market == "Crypto" else "OANDA:XAUUSD"
+        try:
+            if getattr(sys, "frozen", False):
+                cmd = [sys.executable, "--tradingview", symbol, interval,
+                       getattr(self, "language", "en"), self._effective_theme(), market]
+            else:
+                launcher = Path(__file__).with_name("launcher.py")
+                cmd = [sys.executable, str(launcher), "--tradingview", symbol, interval,
+                       getattr(self, "language", "en"), self._effective_theme(), market]
+            creationflags = 0x08000000 if sys.platform.startswith("win") else 0
+            self.tradingview_process = subprocess.Popen(cmd, creationflags=creationflags)
+        except Exception as exc:
+            messagebox.showerror(self.tr("chart"), f"TradingView window could not start:\n{exc}", parent=self)
 
     def chart(self):
-        self.heading(self.tr("chart"), "Professional native multi-market desktop chart")
-        shell = self.card(self.content)
-        shell.pack(fill="both", expand=True, padx=6, pady=8)
-        try:
-            desk = NativeTradingDesk(shell, C, getattr(self, "language", "en"))
-            desk.pack(fill="both", expand=True)
-            self._native_trading_desk = desk
-        except Exception as exc:
-            messagebox.showerror(self.tr("chart"), f"Native Trading Desk failed to initialize:\n{exc}", parent=self)
+        self.heading(self.tr("chart"), "TradingView Pro • official Advanced Chart • live market feed")
+        hero = self.card(self.content)
+        hero.pack(fill="x", pady=(4, 8))
+        top = tk.Frame(hero, bg=C["panel"]); top.pack(fill="x", padx=16, pady=14)
+        tk.Label(top, text="TRADINGVIEW PRO", bg=C["panel"], fg=C["accent"],
+                 font=("Segoe UI", 17, "bold")).pack(side="right")
+        tk.Label(top, text="Real exchange candles • Symbol Search • Timeframes • Drawings • Studies • Volume • Fullscreen",
+                 bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9)).pack(side="right", padx=12)
+        controls = tk.Frame(hero, bg=C["panel"]); controls.pack(fill="x", padx=16, pady=(0,14))
+        symbol_defaults = ["BINANCE:BTCUSDT","BINANCE:ETHUSDT","CRYPTOCAP:BTC.D","CRYPTOCAP:USDT.D",
+                           "CRYPTOCAP:TOTAL"] if self.market == "Crypto" else [
+                           "OANDA:XAUUSD","OANDA:XAGUSD","FXCM:COPPER","OANDA:EURUSD","OANDA:GBPUSD",
+                           "OANDA:USDJPY","TVC:DXY","SP:SPX","NASDAQ:NDX","NYMEX:CL1!","NASDAQ:AAPL"]
+        symbol_var=tk.StringVar(value=symbol_defaults[0])
+        interval_var=tk.StringVar(value="1H")
+        tk.Label(controls,text="Symbol",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(side="right",padx=(8,4))
+        symbol_box=ttk.Combobox(controls,textvariable=symbol_var,values=symbol_defaults,state="normal",width=25,justify="left")
+        symbol_box.pack(side="right",padx=4)
+        tk.Label(controls,text="Interval",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(side="right",padx=(10,4))
+        interval_box=ttk.Combobox(controls,textvariable=interval_var,
+                                   values=["1m","3m","5m","15m","30m","1H","4H","1D","1W","1M"],
+                                   state="readonly",width=7,justify="center")
+        interval_box.pack(side="right",padx=4)
+        self.btn(controls,"OPEN TRADINGVIEW",lambda:self.open_tradingview(symbol_var.get().strip() or symbol_defaults[0],
+                 interval_var.get()),True).pack(side="left",padx=4)
+        self.btn(controls,"BTC",lambda:(symbol_var.set("BINANCE:BTCUSDT"),self.open_tradingview("BINANCE:BTCUSDT",interval_var.get()))).pack(side="left",padx=3)
+        self.btn(controls,"GOLD",lambda:(symbol_var.set("OANDA:XAUUSD"),self.open_tradingview("OANDA:XAUUSD",interval_var.get()))).pack(side="left",padx=3)
+        note=self.card(self.content); note.pack(fill="both",expand=True,pady=3)
+        tk.Label(note,text="TradingView test workspace",bg=C["panel"],fg=C["text"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=18,pady=(18,6))
+        tk.Label(note,text="این صفحه کنترلر داخل Trader Planner Pro است. نمودار اصلی در پنجره TradingView Pro باز می‌شود تا موتور رسمی TradingView، مقیاس زمانی، کندل‌ها و ابزارهای رسم را بدون ساخت کندل مصنوعی در اختیار تست قرار دهد.",
+                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),justify="right",wraplength=1050).pack(anchor="e",padx=18,pady=(0,12))
+        feature_row=tk.Frame(note,bg=C["panel"]); feature_row.pack(fill="x",padx=18,pady=(0,18))
+        for title,val in (("CANDLE FEED","TradingView"),("DRAWING TOOLS","ON"),("SYMBOL SEARCH","ON"),
+                          ("VOLUME","ON"),("TIMEFRAMES","1m → 1M"),("SAVE IMAGE","ON")):
+            b=tk.Frame(feature_row,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
+            b.pack(side="left",fill="x",expand=True,padx=3)
+            tk.Label(b,text=title,bg=C["panel3"],fg=C["muted"],font=("Segoe UI",7,"bold")).pack(pady=(8,2))
+            tk.Label(b,text=val,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold")).pack(pady=(0,8))
+        self._chart_test_hint = symbol_var
+        self._chart_interval_hint = interval_var
 
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
