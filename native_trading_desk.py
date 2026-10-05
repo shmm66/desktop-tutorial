@@ -246,6 +246,7 @@ class NativeTradingDesk(tk.Frame):
         self.interval_var = tk.StringVar(value="1H")
         self._build()
         self._load_market()
+        self._live_job = self.after(15000, self._live_refresh_loop)
 
     def _panel(self, parent):
         return tk.Frame(parent, bg=self.colors["panel2"],
@@ -364,6 +365,16 @@ class NativeTradingDesk(tk.Frame):
 
     def _load_market(self):
         threading.Thread(target=self._market_worker, daemon=True).start()
+
+    def _live_refresh_loop(self):
+        self._live_job = None
+        try:
+            self._load_chart()
+        finally:
+            try:
+                self._live_job = self.after(15000, self._live_refresh_loop)
+            except Exception:
+                self._live_job = None
 
     def refresh(self):
         self._load_market()
@@ -518,7 +529,7 @@ class NativeTradingDesk(tk.Frame):
         last = rows[-1]["close"]
         self.ax.axhline(last, color=self.colors["gold"], linewidth=0.8, alpha=0.55, linestyle="--")
         self.meta_label.config(text=f"{source} • {len(rows)} candles • {datetime.now().strftime('%H:%M:%S')}")
-        self.status_var.set(f"{source} • online")
+        self.status_var.set(f"{source} • live • refreshed {datetime.now().strftime("%H:%M:%S")}")
         self.canvas.draw_idle()
 
     def _wheel_zoom(self, event):
