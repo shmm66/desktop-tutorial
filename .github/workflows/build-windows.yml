@@ -11,10 +11,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: trader-planner-v10-release
-  cancel-in-progress: true
-
 jobs:
   package:
     runs-on: windows-latest
