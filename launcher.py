@@ -11,26 +11,81 @@ def show_splash():
     root = tk.Tk()
     root.overrideredirect(True)
     root.configure(bg="#061019")
+    try:
+        root.wm_attributes("-topmost", True)
+    except Exception:
+        pass
     sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-    width, height = min(1100, sw - 80), min(720, sh - 100)
+    width, height = min(1040, sw - 90), min(680, sh - 120)
     root.geometry(f"{width}x{height}+{(sw-width)//2}+{(sh-height)//2}")
+
+    canvas = tk.Canvas(root, bg="#061019", highlightthickness=0, bd=0)
+    canvas.pack(fill="both", expand=True)
+
+    # Soft native-looking background glows.
+    canvas.create_oval(width*0.58, -height*0.35, width*1.10, height*0.45,
+                       fill="#0B2735", outline="")
+    canvas.create_oval(-width*0.15, height*0.70, width*0.46, height*1.25,
+                       fill="#0A202A", outline="")
+
+    logo_photo = None
     try:
         from PIL import Image, ImageTk
         from logo_3d import create_logo_image
-        p=Path(tempfile.gettempdir())/"TraderPlannerPro_3D"/"logo.png"
+        p = Path(tempfile.gettempdir()) / "TraderPlannerPro_3D" / "logo.png"
         create_logo_image(p, 620)
-        image=Image.open(p).convert("RGBA")
-        image.thumbnail((360,360), Image.Resampling.LANCZOS)
-        photo=ImageTk.PhotoImage(image)
-        tk.Label(root,image=photo,bg="#061019").pack(pady=(36,6))
-        root._photo=photo
+        image = Image.open(p).convert("RGBA")
+        image.thumbnail((330, 330), Image.Resampling.LANCZOS)
+        logo_photo = ImageTk.PhotoImage(image)
+        canvas.create_image(width//2, height//2-55, image=logo_photo)
+        root._photo = logo_photo
     except Exception:
-        c=tk.Canvas(root,bg="#061019",highlightthickness=0); c.pack(fill="both",expand=True)
-        c.create_text(width//2, height//2-30, text="TP", fill="#F2C46D", font=("Segoe UI",54,"bold"))
-    tk.Label(root,text="TRADER PLANNER PRO",fg="#EAF2F7",bg="#061019",font=("Segoe UI",24,"bold")).pack()
-    tk.Label(root,text=f"Professional trading workspace  •  V{VERSION}",fg="#27D3B0",bg="#061019",font=("Segoe UI",10,"bold")).pack(pady=(4,14))
-    root.update()
-    root.after(1850, root.destroy)
+        canvas.create_text(width//2, height//2-55, text="TP", fill="#F2C46D",
+                           font=("Segoe UI", 58, "bold"))
+
+    canvas.create_text(width//2, height-132, text="TRADER PLANNER PRO",
+                       fill="#EAF2F7", font=("Segoe UI", 24, "bold"))
+    canvas.create_text(width//2, height-102,
+                       text=f"PROFESSIONAL TRADING WORKSPACE  •  V{VERSION}",
+                       fill="#36E0C0", font=("Segoe UI", 9, "bold"))
+
+    bar_w = min(520, width-180)
+    x0 = (width-bar_w)//2
+    y0 = height-68
+    canvas.create_rectangle(x0, y0, x0+bar_w, y0+5, fill="#203444", outline="")
+    progress = canvas.create_rectangle(x0, y0, x0+2, y0+5, fill="#36E0C0", outline="")
+    status = canvas.create_text(width//2, y0+30, text="Initializing workspace…",
+                                fill="#8EA5B4", font=("Segoe UI", 8))
+
+    start_time = root.after_idle(lambda: None)
+    phases = [
+        (12, "Loading visual workspace…"),
+        (34, "Preparing market engine…"),
+        (57, "Loading Academy & Journal…"),
+        (78, "Starting AI Command Center…"),
+        (92, "Finalizing glass interface…"),
+        (100, "Ready"),
+    ]
+    idx = 0
+    tick = 0
+
+    def animate():
+        nonlocal idx, tick
+        tick += 1
+        target, label = phases[min(idx, len(phases)-1)]
+        current = x0 + (bar_w * target / 100.0)
+        canvas.coords(progress, x0, y0, current, y0+5)
+        canvas.itemconfigure(status, text=label)
+        # Small pulse on the accent edge.
+        pulse = 0.55 + 0.45 * ((tick % 20) / 20.0)
+        canvas.itemconfigure(progress, fill="#36E0C0" if pulse > 0.72 else "#27B89E")
+        if idx < len(phases)-1:
+            idx += 1
+            root.after(190, animate)
+        else:
+            root.after(260, root.destroy)
+
+    root.after(90, animate)
     root.mainloop()
 
 def _write_startup_error(exc):
