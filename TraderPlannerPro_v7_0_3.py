@@ -142,7 +142,7 @@ INDICATOR_LABELS = {
 
 I18N = {
     "fa": {
-        "home":"⌂  خانه","daily":"◫  برنامه روزانه","plan":"◈  Trading Plan","check":"✓  چک‌لیست",
+        "home":"⌂  خانه","daily":"◫  برنامه روزانه","weekly":"▦  برنامه هفتگی","plan":"◈  Trading Plan","check":"✓  چک‌لیست",
         "journal":"▣  ژورنال","settings":"⚙  تنظیمات","new_profile":"＋ پروفایل جدید","edit_profile":"ویرایش پروفایل",
         "delete_profile":"حذف پروفایل","active_profile":"پروفایل فعال","initial_capital":"سرمایه اولیه",
         "dashboard":"داشبورد حرفه‌ای","dashboard_sub":"پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه",
@@ -175,10 +175,10 @@ I18N = {
         "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
         "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
-        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  AI Chat","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","chart":"📈  Trading Desk","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","ai_open_chat":"باز کردن چت هوش مصنوعی","ai_clear":"پاک کردن گفتگو","ai_close":"بستن","ai_welcome":"سلام. من دستیار Trader Planner Pro هستم. درباره فرم‌ها، استراتژی ثبت‌شده، روانشناسی و نظم معاملاتی سؤال بپرس.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","quick_nav":"دسترسی سریع","crypto_mode":"کریپتو","forex_mode":"فارکس","academy_hub":"آکادمی","ai_chat":"گفت‌وگو با AI","nav_home":"خانه","source_chart":"نمودار منبع","setup_anatomy":"آناتومی ستاپ","family":"چارچوب","smc_family":"چارچوب SMC","ict_family":"مدل نام‌گذاری‌شده ICT","no_exact_image":"برای این اصطلاح تصویر اختصاصی منبع پیدا نشد؛ مرجع معتبر کنار آن نمایش داده می‌شود.","news_live":"اخبار زنده","news_fallback":"فید زنده در دسترس نیست؛ ترمینال منابع همچنان فعال است.","ai_quick_forms":"کمک برای پر کردن فرم","ai_quick_strategy":"توضیح این ستاپ","ai_quick_psychology":"بررسی روانشناسی","ai_quick_routine":"ساخت روتین","ai_placeholder":"سؤال خودت را از دستیار تریدر بپرس...","ai_page_note":"درباره ژورنال، چک‌لیست، پلن یا تعاریف آکادمی سؤال کن.","market_state_live":"فید زنده","market_state_cache":"نمایش آخرین Snapshot","market_state_offline":"آفلاین / بدون فید","market_switch":"تغییر بازار","skin_preview":"انتخاب پوسته","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی","google_account":"حساب Google","google_login":"ورود با Google","google_logout":"خروج از Google","google_connected":"متصل به Google","google_credentials":"فایل OAuth Google","google_pick_credentials":"انتخاب فایل credentials.json","google_no_credentials":"برای Google Login یک OAuth Desktop Client از Google Cloud انتخاب کن.","email_statement":"ارسال Statement به Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement آماده شد و در حال ارسال است.","email_statement_sent":"Statement به Gmail ارسال شد.","email_statement_error":"ارسال Statement ناموفق بود.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"ذخیره کلید AI","ai_clear_key":"پاک کردن کلید AI","ai_cloud_ready":"Cloud Agent فعال","ai_cloud_missing":"Cloud Agent نیازمند API Key است","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"ایده‌های ارتقای محصول","ai_cloud_note":"مدل محلی رایگان با Ollama همیشه قابل استفاده است؛ OpenAI Cloud برای Agent قوی‌تر به API Key نیاز دارد."
+        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  AI Chat","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","chart":"📈  Trading Desk","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","ai_open_chat":"باز کردن چت هوش مصنوعی","ai_clear":"پاک کردن گفتگو","ai_close":"بستن","ai_welcome":"سلام. من دستیار Trader Planner Pro هستم. درباره فرم‌ها، استراتژی ثبت‌شده، روانشناسی و نظم معاملاتی سؤال بپرس.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","quick_nav":"دسترسی سریع","crypto_mode":"کریپتو","forex_mode":"فارکس","academy_hub":"آکادمی","ai_chat":"گفت‌وگو با AI","nav_home":"خانه","source_chart":"نمودار منبع","setup_anatomy":"آناتومی ستاپ","family":"چارچوب","smc_family":"چارچوب SMC","ict_family":"مدل نام‌گذاری‌شده ICT","no_exact_image":"برای این اصطلاح تصویر اختصاصی منبع پیدا نشد؛ مرجع معتبر کنار آن نمایش داده می‌شود.","news_live":"اخبار زنده","news_fallback":"فید زنده در دسترس نیست؛ ترمینال منابع همچنان فعال است.","ai_quick_forms":"کمک برای پر کردن فرم","ai_quick_strategy":"توضیح این ستاپ","ai_quick_psychology":"بررسی روانشناسی","ai_quick_routine":"ساخت روتین","ai_placeholder":"سؤال خودت را از دستیار تریدر بپرس...","ai_page_note":"درباره ژورنال، چک‌لیست، پلن یا تعاریف آکادمی سؤال کن.","market_state_live":"فید زنده","market_state_cache":"نمایش آخرین Snapshot","market_state_offline":"آفلاین / بدون فید","market_switch":"تغییر بازار","skin_preview":"انتخاب پوسته","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی","avg_r":"میانگین R","profit_factor":"Profit Factor","best_trade":"بهترین معامله","worst_trade":"بدترین معامله","weekly_tasks":"عملکرد هفتگی","today_tasks":"برنامه امروز","weekly_title":"برنامه هفتگی","weekly_sub":"هفت روز معاملاتی را یکجا ببین، وضعیت اجرا را دنبال کن و با یک کلیک وارد روز موردنظر شو","week_prev":"هفته قبل","week_next":"هفته بعد","week_current":"هفته جاری","open_day":"باز کردن روز","weekly_progress":"پیشرفت هفته","google_account":"حساب Google","google_login":"ورود با Google","google_logout":"خروج از Google","google_connected":"متصل به Google","google_credentials":"فایل OAuth Google","google_pick_credentials":"انتخاب فایل credentials.json","google_no_credentials":"برای Google Login یک OAuth Desktop Client از Google Cloud انتخاب کن.","email_statement":"ارسال Statement به Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement آماده شد و در حال ارسال است.","email_statement_sent":"Statement به Gmail ارسال شد.","email_statement_error":"ارسال Statement ناموفق بود.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"ذخیره کلید AI","ai_clear_key":"پاک کردن کلید AI","ai_cloud_ready":"Cloud Agent فعال","ai_cloud_missing":"Cloud Agent نیازمند API Key است","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"ایده‌های ارتقای محصول","ai_cloud_note":"مدل محلی رایگان با Ollama همیشه قابل استفاده است؛ OpenAI Cloud برای Agent قوی‌تر به API Key نیاز دارد."
     },
     "en": {
-        "home":"⌂  Home","daily":"◫  Daily Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
+        "home":"⌂  Home","daily":"◫  Daily Planner","weekly":"▦  Weekly Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
         "journal":"▣  Journal","settings":"⚙  Settings","new_profile":"＋ New Profile","edit_profile":"Edit Profile",
         "delete_profile":"Delete Profile","active_profile":"Active Profile","initial_capital":"Initial Capital",
         "dashboard":"Professional Dashboard","dashboard_sub":"Profile, capital, journal performance and trading status at a glance",
@@ -210,7 +210,7 @@ I18N = {
         "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
         "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
-        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Chat","news":"📰  Market News","calculators":"🧮  Calculators","chart":"📈  Trading Desk","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","ai_open_chat":"Open AI Chat","ai_clear":"Clear Chat","ai_close":"Close","ai_welcome":"Hi. I am the Trader Planner Pro assistant. Ask about forms, documented strategies, psychology or your trading routine.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","quick_nav":"Quick Nav","crypto_mode":"Crypto","forex_mode":"Forex","academy_hub":"Academy Hub","ai_chat":"Chat with AI","nav_home":"Home","source_chart":"Source chart","setup_anatomy":"Setup Anatomy","family":"Framework","smc_family":"SMC-style framework","ict_family":"ICT named model","no_exact_image":"No dedicated source image is mapped for this term; the source reference is shown instead.","news_live":"LIVE NEWS","news_fallback":"Live feed unavailable — source terminals remain available.","ai_quick_forms":"Help fill my form","ai_quick_strategy":"Explain this setup","ai_quick_psychology":"Psychology check","ai_quick_routine":"Build my routine","ai_placeholder":"Ask your trading assistant...","ai_page_note":"Ask about your journal, checklist, plan or Academy definitions.","market_state_live":"LIVE FEED","market_state_cache":"CACHED SNAPSHOT","market_state_offline":"OFFLINE / NO FEED","market_switch":"Switch market","skin_preview":"Choose a visual skin","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated","google_account":"Google Account","google_login":"Continue with Google","google_logout":"Sign out","google_connected":"Google connected","google_credentials":"Google OAuth credentials","google_pick_credentials":"Choose credentials.json","google_no_credentials":"Choose a Google Cloud OAuth Desktop client to enable Google Login.","email_statement":"Send Statement to Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement is ready and will be sent.","email_statement_sent":"Statement sent to Gmail.","email_statement_error":"Statement delivery failed.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"Save AI Key","ai_clear_key":"Clear AI Key","ai_cloud_ready":"Cloud Agent ready","ai_cloud_missing":"Cloud Agent needs an API key","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"Product upgrade ideas","ai_cloud_note":"Local Ollama remains available without cloud cost; the stronger OpenAI Cloud Agent requires an API key."
+        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Chat","news":"📰  Market News","calculators":"🧮  Calculators","chart":"📈  Trading Desk","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","ai_open_chat":"Open AI Chat","ai_clear":"Clear Chat","ai_close":"Close","ai_welcome":"Hi. I am the Trader Planner Pro assistant. Ask about forms, documented strategies, psychology or your trading routine.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","quick_nav":"Quick Nav","crypto_mode":"Crypto","forex_mode":"Forex","academy_hub":"Academy Hub","ai_chat":"Chat with AI","nav_home":"Home","source_chart":"Source chart","setup_anatomy":"Setup Anatomy","family":"Framework","smc_family":"SMC-style framework","ict_family":"ICT named model","no_exact_image":"No dedicated source image is mapped for this term; the source reference is shown instead.","news_live":"LIVE NEWS","news_fallback":"Live feed unavailable — source terminals remain available.","ai_quick_forms":"Help fill my form","ai_quick_strategy":"Explain this setup","ai_quick_psychology":"Psychology check","ai_quick_routine":"Build my routine","ai_placeholder":"Ask your trading assistant...","ai_page_note":"Ask about your journal, checklist, plan or Academy definitions.","market_state_live":"LIVE FEED","market_state_cache":"CACHED SNAPSHOT","market_state_offline":"OFFLINE / NO FEED","market_switch":"Switch market","skin_preview":"Choose a visual skin","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated","avg_r":"Average R","profit_factor":"Profit Factor","best_trade":"Best Trade","worst_trade":"Worst Trade","weekly_tasks":"Weekly Progress","today_tasks":"Today Plan","weekly_title":"Weekly Planner","weekly_sub":"See all seven days, track execution and jump into any day instantly","week_prev":"Previous Week","week_next":"Next Week","week_current":"Current Week","open_day":"Open Day","weekly_progress":"Weekly Progress","google_account":"Google Account","google_login":"Continue with Google","google_logout":"Sign out","google_connected":"Google connected","google_credentials":"Google OAuth credentials","google_pick_credentials":"Choose credentials.json","google_no_credentials":"Choose a Google Cloud OAuth Desktop client to enable Google Login.","email_statement":"Send Statement to Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement is ready and will be sent.","email_statement_sent":"Statement sent to Gmail.","email_statement_error":"Statement delivery failed.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"Save AI Key","ai_clear_key":"Clear AI Key","ai_cloud_ready":"Cloud Agent ready","ai_cloud_missing":"Cloud Agent needs an API key","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"Product upgrade ideas","ai_cloud_note":"Local Ollama remains available without cloud cost; the stronger OpenAI Cloud Agent requires an API key."
     }
 }
 
@@ -492,7 +492,7 @@ class App(tk.Tk):
         super().__init__()
         self.title(f"{APP} V{VERSION}")
         self.geometry("1520x960"); self.minsize(1180, 760); self.configure(bg=C["bg"])
-        self.cur = "home"; self.day = date.today().isoformat(); self.market = active_profile().get("market", "Crypto")
+        self.cur = "home"; self.day = date.today().isoformat(); self.week_offset = 0; self.market = active_profile().get("market", "Crypto")
         self.language = DB.get("settings", {}).get("language", "fa")
         if self.language not in dict(LANGUAGE_OPTIONS): self.language = "fa"
         self.menu_open = False
@@ -943,7 +943,7 @@ class App(tk.Tk):
         self.date_label = tk.Label(status, bg=C["panel3"], fg=C["muted"], font=("Segoe UI", 8, "bold"),
                                    padx=10, pady=6, anchor="center")
         self.date_label.pack(side="left", padx=3)
-        self.clock_label = tk.Label(status, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 9, "bold"),
+        self.clock_label = tk.Label(status, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 11, "bold"),
                                      padx=10, pady=6); self.clock_label.pack(side="left", padx=3)
         self.profile_combo = ttk.Combobox(status, state="readonly", width=18, justify="right")
         self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
@@ -973,6 +973,7 @@ class App(tk.Tk):
         self._quick_nav_buttons = {}
         nav_specs = [
             ("home", self.tr("nav_home"), self.go_home),
+            ("weekly", self.tr("weekly"), lambda: self.go("weekly")),
             ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
             ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
             ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
@@ -999,7 +1000,7 @@ class App(tk.Tk):
         tk.Label(self.menu, text="FAST NAVIGATION • AUTO HIDE", bg=C["panel"], fg=C["muted"],
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
-        for key in ("home","daily","plan","check","journal","academy","ai","news","calculators","chart","settings"):
+        for key in ("home","daily","weekly","plan","check","journal","academy","ai","news","calculators","chart","settings"):
             cmd = self.go_ai if key == "ai" else (lambda k=key: self.go(k))
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
@@ -1083,7 +1084,7 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        allowed={"home","daily","plan","check","journal","academy","ai","news","calculators","chart","settings"}
+        allowed={"home","daily","weekly","plan","check","journal","academy","ai","news","calculators","chart","settings"}
         if key not in allowed:
             key="home"
         self._cancel_menu_hide()
@@ -1370,6 +1371,8 @@ class App(tk.Tk):
             tk.Label(box, text=title, bg=C["panel"], fg=C["muted"], font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=13)
             tk.Label(box, text=value, bg=C["panel"], fg=C["text"], font=("Segoe UI", 16, "bold")).pack(anchor="w", padx=13, pady=(0,8))
 
+        self.render_home_summary(self.content, p["journals"][self.market])
+
         lower = tk.Frame(self.content, bg=C["bg"]); lower.pack(fill="both", expand=True, pady=4)
         left = self.card(lower); left.pack(side="left", fill="both", expand=True, padx=(0,4))
         right = self.card(lower); right.pack(side="left", fill="both", expand=True, padx=(4,0))
@@ -1550,17 +1553,18 @@ class App(tk.Tk):
             self.render_market_indicators(payload)
 
     def draw_session_clock(self, parent, session):
-        holder = tk.Frame(parent, bg=C["panel"]); holder.pack(fill="x", padx=8, pady=4)
-        canvas = tk.Canvas(holder, width=58, height=58, bg=C["panel"], highlightthickness=0)
-        canvas.pack(side="left", padx=(3,8), pady=3)
-        info = tk.Frame(holder, bg=C["panel"]); info.pack(side="left", fill="x", expand=True, pady=5)
-        title = tk.Label(info, text=session["fa"] if self.language == "fa" else session["en"], bg=C["panel"],
-                         fg=C["gold"], font=("Segoe UI", 9, "bold"))
+        holder = tk.Frame(parent, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1)
+        holder.pack(fill="both", expand=True, padx=6, pady=4)
+        canvas = tk.Canvas(holder, width=88, height=88, bg=C["panel"], highlightthickness=0)
+        canvas.pack(side="left", padx=(10,8), pady=7)
+        info = tk.Frame(holder, bg=C["panel"]); info.pack(side="left", fill="both", expand=True, pady=9)
+        title = tk.Label(info, text=(session["fa"] if self.language == "fa" else session["en"]).upper(),
+                         bg=C["panel"], fg=C["gold"], font=("Segoe UI", 9, "bold"))
         title.pack(anchor="w")
-        status = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 8, "bold"))
-        status.pack(anchor="w", pady=(2,0))
+        status = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9, "bold"))
+        status.pack(anchor="w", pady=(4,0))
         hours = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Consolas", 7))
-        hours.pack(anchor="w")
+        hours.pack(anchor="w", pady=(2,0))
         self.session_clock_widgets.append((canvas, status, hours, session))
 
     def update_session_clocks(self):
@@ -1569,31 +1573,40 @@ class App(tk.Tk):
         for canvas, status, hours, session in list(self.session_clock_widgets):
             try:
                 now = datetime.now(ZoneInfo(session["tz"]))
-                w = h = 58
-                cx = cy = 29
-                r = 23
+                cx = cy = 44
                 canvas.delete("all")
-                canvas.create_oval(2,2,56,56,fill=C["shadow"],outline=C["line"])
-                canvas.create_oval(6,6,52,52,fill=C["panel3"],outline=C["soft"])
-                local_minutes = now.hour*60 + now.minute
-                start = session["start"]*60; end = session["end"]*60
-                progress = max(0.0, min(1.0, (local_minutes-start)/max(1,end-start))) if start <= local_minutes < end else 0.0
-                canvas.create_arc(5,5,53,53,start=90,extent=-360*progress,style="arc",
-                                 outline=C["accent"] if progress else C["soft"], width=3)
-                for n in (0,15,30,45):
-                    ang = math.radians(n*6-90)
-                    canvas.create_line(cx+math.cos(ang)*22, cy+math.sin(ang)*22,
-                                       cx+math.cos(ang)*25, cy+math.sin(ang)*25, fill=C["muted"], width=1)
+                local_minutes = now.hour*60 + now.minute + now.second/60.0
+                start = session["start"]*60
+                end = session["end"]*60
+                is_open = start <= local_minutes < end
+                progress = max(0.0, min(1.0, (local_minutes-start)/max(1,end-start))) if is_open else 0.0
+                canvas.create_oval(4,4,84,84,fill=C["shadow"],outline=C["line"],width=1)
+                canvas.create_oval(9,9,79,79,fill=C["panel3"],outline=C["soft"],width=1)
+                canvas.create_arc(7,7,81,81,start=90,extent=-360*progress,style="arc",
+                                 outline=C["accent"] if is_open else C["soft"], width=4)
+                for n in range(12):
+                    ang = math.radians(n*30-90)
+                    outer = 34 if n % 3 else 31
+                    inner = 30 if n % 3 else 25
+                    canvas.create_line(cx+math.cos(ang)*inner, cy+math.sin(ang)*inner,
+                                       cx+math.cos(ang)*outer, cy+math.sin(ang)*outer,
+                                       fill=C["muted"] if n % 3 else C["gold"], width=2 if n % 3 else 3)
                 hour = (now.hour % 12) + now.minute/60.0
                 minute = now.minute + now.second/60.0
-                for value,turns,length,width,color in ((hour,12,14,3,C["text"]),(minute,60,20,2,C["gold"])):
+                second = now.second + now.microsecond/1_000_000.0
+                for value,turns,length,width,color in (
+                    (hour,12,21,4,C["text"]),(minute,60,29,3,C["gold"]),(second,60,31,1,C["accent"]),
+                ):
                     ang = math.radians(value*(360/turns)-90)
                     canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
-                canvas.create_oval(26,26,32,32,fill=C["accent"],outline=C["panel3"],width=1)
-                is_open = start <= local_minutes < end
-                status.config(text=f"{self.tr('open') if is_open else self.tr('closed')}  •  {now.strftime('%H:%M')}",
-                              fg=C["accent"] if is_open else C["muted"])
-                hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00  {now.tzname() or ''}")
+                canvas.create_oval(40,40,48,48,fill=C["accent"],outline=C["panel3"],width=2)
+                if is_open:
+                    remaining = max(0, int((end-local_minutes)*60))
+                    status.config(fg=C["accent"], text=f"{self.tr('open')}  •  {now.strftime('%H:%M:%S')}")
+                    hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00  |  {remaining//3600:02d}:{(remaining%3600)//60:02d} left")
+                else:
+                    status.config(fg=C["muted"], text=f"{self.tr('closed')}  •  {now.strftime('%H:%M:%S')}")
+                    hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00  |  local {now.tzname() or ''}")
             except Exception:
                 continue
         if self.cur == "home":
@@ -1633,6 +1646,56 @@ class App(tk.Tk):
         for count,color,label in zip(counts,colors,labels):
             c.create_rectangle(390,y,408,y+18,fill=color,outline=""); c.create_text(420,y+9,text=f"{label}: {count}",anchor="w",fill=C["text"],font=("Segoe UI",10))
             y+=34
+
+    def weekly(self):
+        dates = self._week_dates(self.week_offset)
+        start, end = dates[0], dates[-1]
+        total, done = self._week_task_stats(dates)
+        self.heading(self.tr("weekly_title"), self.tr("weekly_sub"))
+        nav=tk.Frame(self.content,bg=C["bg"]); nav.pack(fill="x",pady=(2,7))
+        self.btn(nav,self.tr("week_prev"),lambda:self._shift_week(-1)).pack(side="left",padx=3)
+        self.btn(nav,self.tr("week_current"),self._reset_week).pack(side="left",padx=3)
+        self.btn(nav,self.tr("week_next"),lambda:self._shift_week(1)).pack(side="left",padx=3)
+        status=self.card(nav); status.pack(side="right",padx=3)
+        tk.Label(status,text=f"{start.strftime('%d %b')} — {end.strftime('%d %b')}  |  {self.tr('weekly_progress')}",
+                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",8,"bold")).pack(side="left",padx=(10,6),pady=7)
+        pct=(done/total*100.0) if total else 0.0
+        tk.Label(status,text=f"{done}/{total}  •  {pct:.0f}%",bg=C["panel"],fg=C["accent"],font=("Segoe UI",10,"bold")).pack(side="left",padx=(0,10))
+        grid=tk.Frame(self.content,bg=C["bg"]); grid.pack(fill="both",expand=True,pady=3)
+        for col in range(2): grid.columnconfigure(col,weight=1)
+        names=(["دوشنبه","سه‌شنبه","چهارشنبه","پنجشنبه","جمعه","شنبه","یکشنبه"]
+               if self.language=="fa" else ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"])
+        for i,day_obj in enumerate(dates):
+            key=day_obj.isoformat()
+            tasks=DB.get("tasks",{}).get(key,[])
+            done_count=sum(1 for x in tasks if x.get("done"))
+            box=self.card(grid); box.grid(row=i//2,column=i%2,sticky="nsew",padx=4,pady=4)
+            head=tk.Frame(box,bg=C["panel"]); head.pack(fill="x",padx=10,pady=(9,3))
+            tk.Label(head,text=names[i],bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(side="right")
+            tk.Label(head,text=day_obj.strftime("%d %b"),bg=C["panel"],fg=C["muted"],font=("Consolas",8)).pack(side="left")
+            progress=(done_count/len(tasks)) if tasks else 0.0
+            tk.Label(box,text=f"{done_count}/{len(tasks)}  •  {progress*100:.0f}%",bg=C["panel"],fg=C["text"],font=("Segoe UI",9,"bold")).pack(anchor="w",padx=12)
+            preview=tk.Frame(box,bg=C["panel"]); preview.pack(fill="both",expand=True,padx=10,pady=(4,7))
+            for task in tasks[:5]:
+                icon="✓" if task.get("done") else "○"
+                tk.Label(preview,text=f"{icon} {task.get('time','')}  {task.get('title','')}",bg=C["panel"],
+                         fg=C["muted"] if task.get("done") else C["text"],font=("Segoe UI",8),anchor="w",
+                         justify="left",wraplength=340).pack(fill="x",pady=1)
+            controls=tk.Frame(box,bg=C["panel"]); controls.pack(fill="x",padx=10,pady=(2,10))
+            self.btn(controls,self.tr("open_day"),lambda d=key:self._open_week_day(d),True).pack(side="right")
+        for row in range(4): grid.rowconfigure(row,weight=1)
+
+    def _shift_week(self, delta):
+        self.week_offset += int(delta)
+        self.show("weekly")
+
+    def _reset_week(self):
+        self.week_offset=0
+        self.show("weekly")
+
+    def _open_week_day(self, day_key):
+        self.day=day_key
+        self.show("daily")
 
     def daily(self):
         self.heading("برنامه روزانه","قابل ویرایش، قابل تیک‌زدن و ذخیره روی همان مسیر داده قبلی")
@@ -1704,6 +1767,18 @@ class App(tk.Tk):
         self.btn(bar,"خروجی CSV",self.export_journal).pack(side="left",padx=3)
         self.btn(bar,self.tr("email_statement"),self.email_statement,True).pack(side="left",padx=3)
         self.btn(bar,"باز کردن پوشه تصاویر",lambda:self.open_path(SCREENSHOTS / safe(p["id"]))).pack(side="left",padx=3)
+        metrics=self._trade_metrics(rows)
+        summary=tk.Frame(self.content,bg=C["bg"]); summary.pack(fill="x",pady=(4,5))
+        pf="∞" if math.isinf(metrics["profit_factor"]) else f"{metrics['profit_factor']:.2f}"
+        journal_cards=[
+            (self.tr("trading_count"),metrics["count"],C["cyan"]),
+            (self.tr("win_rate"),f"{self.win_rate(rows):.1f}%",C["accent"]),
+            (self.tr("net_r"),f"{metrics['net_r']:+.2f} R",C["gold"]),
+            (self.tr("avg_r"),f"{metrics['avg_r']:+.2f} R",C["violet"]),
+            (self.tr("profit_factor"),pf,C["blue"]),
+        ]
+        for title,value,accent in journal_cards:
+            self._metric_card(summary,title,value,accent).pack(side="left",fill="both",expand=True,padx=3)
         qv=tk.StringVar(); tk.Label(bar,text="جستجو:",bg=C["bg"],fg=C["muted"]).pack(side="right")
         ent=tk.Entry(bar,textvariable=qv,width=30,justify="right",bg=C["soft"],fg=C["text"],relief="flat"); ent.pack(side="right",padx=6)
         ent.bind("<KeyRelease>",lambda e:self.fill_journal_tree(qv.get()))
