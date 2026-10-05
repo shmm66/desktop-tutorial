@@ -50,12 +50,13 @@ def test_native_trading_desk_has_no_browser_chart_dependency():
 
 def test_tradingview_pro_embed_is_official_and_real_time_or_fail_safe():
     source = (ROOT / "tradingview_runner.py").read_text(encoding="utf-8")
-    assert "external-embedding/embed-widget-advanced-chart.js" in source
-    assert '"hide_side_toolbar": False' in source
-    assert '"allow_symbol_change": True' in source
-    assert '"hide_volume": False' in source
-    assert '"save_image": True' in source
+    assert "def tradingview_url" in source
     assert "https://www.tradingview.com/chart/?symbol=" in source
+    assert '"interval="' in source
+    assert "webview.create_window" in source
+    assert 'gui="edgechromium"' in source
+    assert "https://www.tradingview.com/chart/" in source
     # The chart path must not generate synthetic OHLC data.
     assert "fake candle" not in source.lower()
     assert "synthetic candle" not in source.lower()
+    assert "random" not in source.lower()
