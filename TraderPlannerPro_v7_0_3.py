@@ -29,6 +29,7 @@ from ai_assistant import AIOrchestrator
 from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 from google_oauth import google_status, login_google, logout_google, send_gmail, find_client_file
 from statement_report import create_statement
+from native_trading_desk import NativeTradingDesk
 
 APP = "Trader Planner Pro"
 VERSION = "10.0.0"
@@ -2395,20 +2396,15 @@ class App(tk.Tk):
         self.show(self.cur)
 
     def chart(self):
-        self.heading(self.tr("chart"), "Professional live multi-market chart workspace")
-        box=self.card(self.content); box.pack(fill="both",expand=True,padx=6,pady=8)
-        tk.Label(box,text="TRADING DESK",bg=C["panel"],fg=C["accent"],font=("Segoe UI",24,"bold")).pack(pady=(54,8))
-        tk.Label(box,text="TradingView live chart engine • Crypto Top 100 • Forex / Metals / Indices / Oil / US Stocks",bg=C["panel"],fg=C["muted"],font=("Segoe UI",11)).pack(pady=4)
-        tk.Label(box,text="Native chart controls: candles • timeframes • zoom/pan • drawing tools • indicators • watchlists • fullscreen",bg=C["panel"],fg=C["text"],font=("Segoe UI",10)).pack(pady=12)
-        def open_chart():
-            base=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parent))
-            path=base/"trading_chart.html"
-            if path.exists():
-                self.open_webview(path.resolve().as_uri(),"Trader Planner Pro • Trading Desk")
-            else:
-                messagebox.showerror(self.tr("chart"),"Trading chart resource is missing.",parent=self)
-        self.btn(box,"OPEN LIVE TRADING DESK",open_chart,True).pack(pady=16)
-        tk.Label(box,text="The Trading Desk is online-first: TradingView supplies the interactive chart feed; crypto Top 100 and global market metrics are refreshed from public market APIs with cache fallback.",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),wraplength=1000,justify="center").pack(pady=4)
+        self.heading(self.tr("chart"), "Professional native multi-market desktop chart")
+        shell = self.card(self.content)
+        shell.pack(fill="both", expand=True, padx=6, pady=8)
+        try:
+            desk = NativeTradingDesk(shell, C, getattr(self, "language", "en"))
+            desk.pack(fill="both", expand=True)
+            self._native_trading_desk = desk
+        except Exception as exc:
+            messagebox.showerror(self.tr("chart"), f"Native Trading Desk failed to initialize:\n{exc}", parent=self)
 
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
