@@ -165,6 +165,29 @@ def _yahoo_history(symbol, interval):
             continue
     return [], "unavailable"
 
+def _coingecko_ohlc(coin_id, interval):
+    days = {"1h": 30, "4h": 90, "1d": 365, "1w": 365, "1M": 365}.get(interval, 30)
+    try:
+        url = "https://api.coingecko.com/api/v3/coins/" + urllib.parse.quote(str(coin_id), safe="") + "/ohlc?" + urllib.parse.urlencode({
+            "vs_currency": "usd", "days": days
+        })
+        rows = _json(url)
+        out = []
+        for r in rows or []:
+            if len(r) < 5:
+                continue
+            out.append({
+                "time": datetime.fromtimestamp(float(r[0]) / 1000, tz=timezone.utc),
+                "open": _f(r[1]), "high": _f(r[2]), "low": _f(r[3]),
+                "close": _f(r[4]), "volume": 0.0,
+            })
+        if len(out) > 20:
+            return out[-420:], "CoinGecko OHLC"
+    except Exception:
+        pass
+    return [], "unavailable"
+
+
 def _fetch_crypto_universe():
     try:
         rows = _json(COINGECKO_TOP)
@@ -177,6 +200,7 @@ def _fetch_crypto_universe():
                 "rank": int(r.get("market_cap_rank") or idx),
                 "symbol": symbol,
                 "name": r.get("name") or symbol,
+                "id": r.get("id") or symbol.lower(),
                 "price": _f(r.get("current_price")),
                 "change": _f(r.get("price_change_percentage_24h")),
                 "binance": symbol + "USDT",
@@ -409,7 +433,7 @@ class NativeTradingDesk(tk.Frame):
             return
         row = rows[sel[0]]
         if self.mode == "Crypto":
-            self.symbol = row.get("binance")
+            self.symbol = row.get("binance") or ("COINGECKO:" + str(row.get("id") or row.get("symbol","")).lower())
             self.symbol_name = f"{row.get('symbol')} / USDT"
         else:
             self.symbol = row.get("symbol")
@@ -428,9 +452,12 @@ class NativeTradingDesk(tk.Frame):
 
     def _chart_worker(self, symbol, interval, mode):
         if mode == "Crypto":
-            rows, source = _binance_klines(symbol, interval)
-            if not rows and symbol.endswith("USDT"):
-                rows, source = _yahoo_history(symbol[:-4] + "-USD", interval)
+            if symbol.startswith("COINGECKO:"):
+                rows, source = _coingecko_ohlc(symbol.split(":", 1)[1], interval)
+            else:
+                rows, source = _binance_klines(symbol, interval)
+                if not rows and symbol.endswith("USDT"):
+                    rows, source = _yahoo_history(symbol[:-4] + "-USD", interval)
         else:
             rows, source = _yahoo_history(symbol, interval)
         self.after(0, lambda: self._draw_chart(rows, source, symbol))
