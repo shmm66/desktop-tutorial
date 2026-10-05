@@ -529,7 +529,7 @@ class NativeTradingDesk(tk.Frame):
         last = rows[-1]["close"]
         self.ax.axhline(last, color=self.colors["gold"], linewidth=0.8, alpha=0.55, linestyle="--")
         self.meta_label.config(text=f"{source} • {len(rows)} candles • {datetime.now().strftime('%H:%M:%S')}")
-        self.status_var.set(f"{source} • live • refreshed {datetime.now().strftime("%H:%M:%S")}")
+        self.status_var.set(f"{source} • live • refreshed {datetime.now().strftime('%H:%M:%S')}")
         self.canvas.draw_idle()
 
     def _wheel_zoom(self, event):
