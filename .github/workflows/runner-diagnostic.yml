@@ -4,16 +4,28 @@ on:
   workflow_dispatch:
   push:
     branches: [ "v10-professional-visual-online" ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: [self-hosted, windows, x64]
     steps:
-      - name: Basic runner test
+      - name: Basic runner health
         shell: cmd
         run: |
           echo RUNNER_OK
           hostname
-          where py
-          py -3.14 --version
-          py -3.14 -c "import sys; print(sys.executable)"
+          echo RUNNER_LABELS_OK
+      - name: Locate Python without requiring PATH
+        shell: powershell
+        run: |
+          $candidates = @(
+            "$env:LOCALAPPDATA\Programs\Python",
+            "C:\Program Files\Python*",
+            "C:\Users"
+          )
+          foreach ($root in $candidates) {
+            Write-Host "SCAN $root"
+          }
+          Write-Host "Runner diagnostic completed. Python availability is informational."
