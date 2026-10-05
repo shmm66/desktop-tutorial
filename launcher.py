@@ -53,7 +53,7 @@ def main():
             required = [
                 "TraderPlannerPro_v7_0_3", "market_data", "news_data",
                 "ai_assistant", "academy_visuals", "academy_diagrams",
-                "glass_theme", "google_oauth", "statement_report", "webview_runner"
+                "glass_theme", "google_oauth", "statement_report", "webview_runner", "native_trading_desk"
             ]
             for module_name in required:
                 importlib.import_module(module_name)
