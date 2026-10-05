@@ -464,6 +464,13 @@ class NativeTradingDesk(tk.Frame):
 
     def _draw_chart(self, rows, source, symbol):
         self.data = rows
+        old_volume = getattr(self, "_volume_ax", None)
+        if old_volume is not None:
+            try:
+                old_volume.remove()
+            except Exception:
+                pass
+            self._volume_ax = None
         self.ax.clear()
         self.ax.set_facecolor(self.colors["panel3"])
         self.ax.grid(True, alpha=0.10, linewidth=0.7)
@@ -487,6 +494,19 @@ class NativeTradingDesk(tk.Frame):
             self.ax.add_patch(Rectangle((x - width/2, body_low), width, body_h,
                                         facecolor=color, edgecolor=color, linewidth=0.5))
 
+        volumes = [row.get("volume", 0.0) or 0.0 for row in rows]
+        if any(v > 0 for v in volumes):
+            self._volume_ax = self.ax.twinx()
+            self._volume_ax.set_zorder(self.ax.get_zorder() - 1)
+            self._volume_ax.patch.set_alpha(0)
+            max_v = max(volumes) or 1.0
+            scaled = [v / max_v for v in volumes]
+            self._volume_ax.fill_between(xs, 0, scaled, color=self.colors["blue"], alpha=0.13, step="mid")
+            self._volume_ax.set_ylim(0, 1)
+            self._volume_ax.set_yticks([])
+            for spine in self._volume_ax.spines.values():
+                spine.set_visible(False)
+        
         self.ax.xaxis.set_major_locator(AutoDateLocator())
         self.ax.xaxis.set_major_formatter(ConciseDateFormatter(self.ax.xaxis.get_major_locator()))
         self.ax.tick_params(axis="both", colors=self.colors["muted"], labelsize=8)
