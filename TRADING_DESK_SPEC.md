@@ -4,24 +4,13 @@
 صفحه Trading Desk در پوسته بومی Windows 11 باقی می‌ماند، اما برای تست دقیق بازار یک حالت TradingView Pro ارائه می‌کند. این حالت از ویجت رسمی TradingView Advanced Chart در یک پنجره دسکتاپ pywebview استفاده می‌کند؛ بنابراین کندل‌ها از منبع نمودار TradingView می‌آیند و برنامه برای نمایش نمودار، OHLC مصنوعی تولید نمی‌کند.
 
 ## TradingView Pro
-ویجت با تنظیمات زیر راه‌اندازی می‌شود:
-- Symbol Search فعال
-- تغییر Symbol فعال
-- Top toolbar فعال
-- Drawing toolbar فعال
-- Volume فعال
-- Legend و Details فعال
-- بازه‌های زمانی از 1m تا 1M
-- Date ranges فعال
-- Save image فعال
-- Fullscreen از خود رابط TradingView در دسترس
-- Studies در تنظیم اولیه خالی است و کاربر می‌تواند از رابط TradingView موارد لازم را اضافه کند
-- Theme و locale با تنظیمات برنامه هماهنگ می‌شود
+برای تست دقیق و مقایسه UI، مسیر TradingView Pro مستقیماً صفحه رسمی TradingView Chart را داخل پنجره دسکتاپ Edge WebView باز می‌کند:
 
-منبع embed:
-https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js
+https://www.tradingview.com/chart/
 
-این پروژه ادعا نمی‌کند که TradingView Charting Library یا Trading Platform اختصاصی را مالک یا توزیع می‌کند. این یک استفاده از قابلیت رسمی embeddable TradingView است.
+نماد و interval از داخل Trader Planner Pro به URL رسمی TradingView منتقل می‌شوند. این روش به‌جای بازسازی رابط TradingView با کد دست‌ساز، خود ترمینال رسمی را نمایش می‌دهد و برای بررسی کندل، مقیاس زمانی، Drawingها، Replay، Symbol Search و سایر رفتارهای نمودار مناسب‌تر است.
+
+ویژگی‌های دقیق وابسته به حساب و فید TradingView هستند؛ برنامه هیچ OHLC مصنوعی تولید نمی‌کند و داده نمودار در این مسیر از خود TradingView می‌آید.
 
 ## بازارها و نمادهای پیش‌فرض
 
@@ -53,7 +42,7 @@ https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js
 - دسترسی real-time هر بازار وابسته به data entitlement / feed در TradingView است؛ در صورت نبود دسترسی، نباید برنامه آن را به عنوان live بدون منبع کافی گزارش کند.
 
 ## Native fallback
-فایل native_trading_desk.py همچنان در پروژه باقی است و برای مسیر native بدون WebView نگهداری می‌شود. این مسیر برای smoke test و fallback داخلی مفید است، ولی TradingView Pro مسیر مرجع تست دقت کندل‌ها است.
+فایل native_trading_desk.py همچنان در پروژه باقی است و برای مسیر native بدون WebView نگهداری می‌شود. این مسیر برای smoke test و fallback داخلی مفید است، ولی TradingView Pro مسیر مرجع تست دقت کندل‌ها و رفتار رابط TradingView است.
 
 ## Home / Glass / AI / Journal / Weekly
 - Windows Acrylic/Mica در glass_theme.py
