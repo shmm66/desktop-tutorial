@@ -33,6 +33,7 @@ def test_desktop_services_and_native_chart_files_exist():
         "market_data.py",
         "glass_theme.py",
         "native_trading_desk.py",
+        "tradingview_runner.py",
     ]
     for name in expected:
         assert (ROOT / name).is_file()
@@ -45,3 +46,16 @@ def test_native_trading_desk_has_no_browser_chart_dependency():
     assert "navigationtoolbartk2" in source
     assert "webview" not in source
     assert "tradingview" not in source
+
+
+def test_tradingview_pro_embed_is_official_and_real_time_or_fail_safe():
+    source = (ROOT / "tradingview_runner.py").read_text(encoding="utf-8")
+    assert "external-embedding/embed-widget-advanced-chart.js" in source
+    assert '"hide_side_toolbar": False' in source
+    assert '"allow_symbol_change": True' in source
+    assert '"hide_volume": False' in source
+    assert '"save_image": True' in source
+    assert "https://www.tradingview.com/chart/?symbol=" in source
+    # The chart path must not generate synthetic OHLC data.
+    assert "fake candle" not in source.lower()
+    assert "synthetic candle" not in source.lower()
