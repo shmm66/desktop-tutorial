@@ -94,13 +94,17 @@ def _configure_window_transparency(window, dark: bool):
         pass
 
 
-def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
+def apply_glass(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
     """Apply a production-safe native Windows 11 Acrylic surface."""
     if not is_windows():
         return False
 
     def _apply():
         try:
+            try:
+                window.wm_attributes("-alpha", max(0.86, min(float(opacity), 0.995)))
+            except Exception:
+                pass
             _configure_window_transparency(window, dark)
             native_ok = _set_dwm_backdrop(window, dark=dark, acrylic=(style != "mica"))
             pywin_ok = _apply_pywinstyles(window, dark=dark, style=style)
@@ -118,8 +122,8 @@ def apply_glass(window, dark: bool = True, style: str = "acrylic") -> bool:
         return _apply()
 
 
-def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic") -> bool:
-    return apply_glass(window, dark=dark, style=style)
+def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
+    return apply_glass(window, dark=dark, style=style, opacity=opacity)
 
 
 def set_widget_glass(widget, opacity: float = 0.88) -> bool:
@@ -137,10 +141,10 @@ def set_widget_glass(widget, opacity: float = 0.88) -> bool:
         return False
 
 
-def apply_glass_after_map(window, dark: bool = True, style: str = "acrylic") -> bool:
+def apply_glass_after_map(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
     try:
         window.update_idletasks()
-        window.after(50, lambda: apply_glass(window, dark=dark, style=style))
+        window.after(50, lambda: apply_glass(window, dark=dark, style=style, opacity=opacity))
         return True
     except Exception:
-        return apply_glass(window, dark=dark, style=style)
+        return apply_glass(window, dark=dark, style=style, opacity=opacity)
