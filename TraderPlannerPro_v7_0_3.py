@@ -515,6 +515,8 @@ class App(tk.Tk):
         self.theme_auto_start = DB.get("settings", {}).get("theme_auto_start", "08:00")
         self.theme_auto_end = DB.get("settings", {}).get("theme_auto_end", "20:00")
         self.skin = DB.get("settings", {}).get("skin", "glass")
+        self.glass_opacity = float(DB.get("settings", {}).get("glass_opacity", 0.94) or 0.94)
+        self.glass_opacity = max(0.86, min(self.glass_opacity, 0.995))
         if self.skin not in SKINS: self.skin = "glass"
         self.ai_chat_window = None
         self.ai_chat_text = None
@@ -542,7 +544,7 @@ class App(tk.Tk):
         self.build_shell()
         self.apply_language()
         self.update_idletasks()
-        apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic")
+        apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
         self.show("home")
         self.market_data.start(self.market)
         self.after(700, self.clock)
@@ -696,7 +698,7 @@ class App(tk.Tk):
             self.content.configure(bg=C["bg"])
             self._refresh_shell_theme()
         try:
-            apply_glass(self, dark=effective=="dark", style="acrylic")
+            apply_glass(self, dark=effective=="dark", style="acrylic", opacity=self.glass_opacity)
         except Exception:
             pass
         if self.theme_mode == "auto":
@@ -1177,6 +1179,17 @@ class App(tk.Tk):
         tk.Label(left_tools, text="HOME", bg=C["panel3"], fg=C["muted"],
                  font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
 
+    def _save_glass_opacity(self, var):
+        try:
+            value=max(0.86,min(float(var.get()),0.99))
+        except Exception:
+            value=0.94
+        self.glass_opacity=value
+        DB.setdefault("settings",{})["glass_opacity"]=value
+        save_db()
+        self.apply_theme()
+        self.show(self.cur)
+
     def _glass_toplevel(self, title="", geometry="", minsize=None):
         """Create a consistent native Acrylic child window."""
         dlg = tk.Toplevel(self)
@@ -1190,7 +1203,7 @@ class App(tk.Tk):
         dlg.configure(bg=C["bg"])
         dlg.transient(self)
         try:
-            apply_glass(dlg, dark=self._effective_theme()=="dark", style="acrylic")
+            apply_glass(dlg, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
         except Exception:
             pass
         return dlg
@@ -2312,6 +2325,18 @@ class App(tk.Tk):
         skin_combo=ttk.Combobox(skin_box,textvariable=skin_var,state="readonly",values=list(skin_labels.keys()),width=30,justify="center")
         skin_combo.pack(anchor="e",padx=18,pady=(0,14))
         self.btn(skin_box,self.tr("save_theme"),lambda:self._save_skin_and_theme(skin_labels,skin_var),True).pack(anchor="e",padx=18,pady=(0,14))
+        glass_box=self.card(self.content); glass_box.pack(fill="x",pady=8)
+        tk.Label(glass_box,text="Glass Transparency",bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
+        tk.Label(glass_box,text="Native Windows Acrylic intensity",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9)).pack(anchor="e",padx=18,pady=(0,10))
+        glass_row=tk.Frame(glass_box,bg=C["panel"]); glass_row.pack(fill="x",padx=18,pady=(0,10))
+        glass_var=tk.DoubleVar(value=self.glass_opacity)
+        glass_value=tk.Label(glass_row,text=f"{int(self.glass_opacity*100)}%",bg=C["panel"],fg=C["gold"],font=("Consolas",10,"bold"),width=6)
+        glass_value.pack(side="right",padx=8)
+        scale=tk.Scale(glass_row,from_=0.86,to=0.99,resolution=0.01,orient="horizontal",variable=glass_var,
+                       bg=C["panel"],fg=C["text"],highlightthickness=0,bd=0,showvalue=False,length=320,
+                       command=lambda v: glass_value.configure(text=f"{int(float(v)*100)}%"))
+        scale.pack(side="right",fill="x",expand=True,padx=8)
+        self.btn(glass_box,self.tr("save_theme"),lambda:self._save_glass_opacity(glass_var),True).pack(anchor="e",padx=18,pady=(0,14))
 
         theme_box=self.card(self.content); theme_box.pack(fill="x",pady=8)
         tk.Label(theme_box,text=self.tr("theme"),bg=C["panel"],fg=C["text"],font=("Segoe UI",13,"bold")).pack(anchor="e",padx=18,pady=(14,4))
