@@ -11,6 +11,7 @@ except Exception:
     webview = None
 
 APP = "Trader Planner Pro — TradingView Pro"
+# Production test path: use TradingView candles directly; never synthesize OHLC in this layer.
 
 INTERVALS = {
     "1m": "1",
