@@ -26,8 +26,9 @@ jobs:
           & $systemPython --version
           $pythonDir = Join-Path $env:GITHUB_WORKSPACE '.python314'
           if (Test-Path $pythonDir) { Remove-Item $pythonDir -Recurse -Force -ErrorAction SilentlyContinue }
-          & $systemPython -m venv $pythonDir
-          if ($LASTEXITCODE -ne 0) { throw "Failed to create isolated venv with system Python. Exit code $LASTEXITCODE" }
+          # Keep runner-level preinstalled packages available to reduce PyPI dependency.
+          & $systemPython -m venv --system-site-packages $pythonDir
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create isolated venv. Exit code $LASTEXITCODE" }
           $py = Join-Path $pythonDir 'Scripts/python.exe'
           if (-not (Test-Path $py)) { throw "Venv Python executable not found: $py" }
           & $py --version
@@ -37,14 +38,25 @@ jobs:
         shell: powershell
         env:
           PIP_DEFAULT_TIMEOUT: '120'
-          PIP_RETRIES: '8'
+          PIP_RETRIES: '12'
         run: |
-          & $env:TP_PYTHON -m pip install --upgrade pip --default-timeout 120 --retries 8
+          $ErrorActionPreference = 'Stop'
+          & $env:TP_PYTHON -m pip install --upgrade pip --default-timeout 120 --retries 12
           if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 8 -r requirements.txt
-          if ($LASTEXITCODE -ne 0) { throw "requirements install failed with exit code $LASTEXITCODE" }
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 8 pyinstaller==6.22.3
-          if ($LASTEXITCODE -ne 0) { throw "PyInstaller install failed with exit code $LASTEXITCODE" }
+
+          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 12 --no-input -r requirements.txt
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning 'Primary dependency install failed; retrying without cache.'
+            & $env:TP_PYTHON -m pip cache purge
+            & $env:TP_PYTHON -m pip install --prefer-binary --no-cache-dir --default-timeout 180 --retries 20 --no-input -r requirements.txt
+            if ($LASTEXITCODE -ne 0) { throw "requirements install failed after fallback retry with exit code $LASTEXITCODE" }
+          }
+
+          & $env:TP_PYTHON -c "import PyInstaller; print(PyInstaller.__version__)" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 180 --retries 20 --no-input pyinstaller==6.22.3
+            if ($LASTEXITCODE -ne 0) { throw "PyInstaller install failed with exit code $LASTEXITCODE" }
+          }
 
       - name: Syntax check
         shell: powershell
@@ -95,17 +107,10 @@ jobs:
           $url = 'https://files.jrsoftware.org/is/7/innosetup-7.1.0-x64.exe'
           Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
           $sig = Get-AuthenticodeSignature -FilePath $installer
-          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'Pyrsys B.V.') {
-            throw "Inno Setup signature verification failed: $($sig.Status) / $($sig.SignerCertificate.Subject)"
-          }
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'Pyrsys B.V.') { throw "Inno Setup signature verification failed: $($sig.Status) / $($sig.SignerCertificate.Subject)" }
           $p = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Inno Setup installation failed with exit code $($p.ExitCode)" }
-          $candidates = @(
-            'C:/Program Files/Inno Setup 7/ISCC.exe',
-            'C:/Program Files (x86)/Inno Setup 7/ISCC.exe',
-            'C:/Program Files/Inno Setup 6/ISCC.exe',
-            'C:/Program Files (x86)/Inno Setup 6/ISCC.exe'
-          )
+          $candidates = @('C:/Program Files/Inno Setup 7/ISCC.exe','C:/Program Files (x86)/Inno Setup 7/ISCC.exe','C:/Program Files/Inno Setup 6/ISCC.exe','C:/Program Files (x86)/Inno Setup 6/ISCC.exe')
           $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $iscc) { throw 'ISCC.exe was not found after Inno Setup installation.' }
           "TP_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
