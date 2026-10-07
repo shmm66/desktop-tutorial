@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  checks: write
 
 jobs:
   package:
@@ -72,13 +73,33 @@ jobs:
           "TP_PYTEST_EXIT=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           exit 0
 
-      - name: Upload pytest report
+      - name: Publish pytest diagnostic check
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: pytest-report
-          path: pytest-report.txt
-          if-no-files-found: error
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $report = if (Test-Path pytest-report.txt) { Get-Content pytest-report.txt -Raw } else { 'pytest-report.txt was not created.' }
+          $summary = $report
+          if ($summary.Length -gt 60000) { $summary = $summary.Substring($summary.Length - 60000) }
+          $conclusion = if ([int]$env:TP_PYTEST_EXIT -eq 0) { 'success' } else { 'failure' }
+          $payload = @{
+            name = 'pytest-diagnostics'
+            head_sha = $env:GITHUB_SHA
+            status = 'completed'
+            conclusion = $conclusion
+            output = @{
+              title = "pytest result: $conclusion"
+              summary = $summary
+              text = "Run: $env:GITHUB_RUN_ID`nCommit: $env:GITHUB_SHA"
+            }
+          } | ConvertTo-Json -Depth 8
+          Invoke-RestMethod -Method Post `
+            -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/check-runs" `
+            -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" } `
+            -ContentType "application/json" `
+            -Body $payload | Out-Null
 
       - name: Enforce pytest result
         shell: powershell
