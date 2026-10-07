@@ -14,24 +14,25 @@ permissions:
 
 jobs:
   package:
-    runs-on: windows-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Python 3.14
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.14'
-          cache: 'pip'
-          cache-dependency-path: requirements.txt
-
-      - name: Pin Python and pip diagnostics
+      - name: Bootstrap system Python 3.14 and isolated venv
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          python --version
-          python -m pip --version
-          $py = (Get-Command python).Source
+          $systemPython = 'C:/Program Files/Python314/python.exe'
+          if (-not (Test-Path $systemPython)) { throw "System Python 3.14 not found: $systemPython" }
+          & $systemPython --version
+          $pythonDir = Join-Path $env:GITHUB_WORKSPACE '.python314'
+          if (Test-Path $pythonDir) { Remove-Item $pythonDir -Recurse -Force -ErrorAction SilentlyContinue }
+          & $systemPython -m venv --system-site-packages $pythonDir
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create isolated venv. Exit code $LASTEXITCODE" }
+          $py = Join-Path $pythonDir 'Scripts/python.exe'
+          if (-not (Test-Path $py)) { throw "Venv Python executable not found: $py" }
+          & $py --version
+          & $py -m pip --version
           "TP_PYTHON=$py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install build dependencies
@@ -52,8 +53,11 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "requirements install failed after fallback retry with exit code $LASTEXITCODE" }
           }
 
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 180 --retries 20 --no-input pyinstaller==6.22.3 pytest==9.1.1
-          if ($LASTEXITCODE -ne 0) { throw "Test/build dependency install failed with exit code $LASTEXITCODE" }
+          & $env:TP_PYTHON -c "import PyInstaller; print(PyInstaller.__version__)" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 180 --retries 20 --no-input pyinstaller==6.22.3
+            if ($LASTEXITCODE -ne 0) { throw "PyInstaller install failed with exit code $LASTEXITCODE" }
+          }
 
       - name: Syntax check
         shell: powershell
