@@ -30,6 +30,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           python --version
           python -m pip --version
+          $py = (Get-Command python).Source
+          "TP_PYTHON=$py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install build dependencies
         shell: powershell
