@@ -63,7 +63,19 @@ jobs:
       - name: Run tests
         shell: powershell
         run: |
-          & $env:TP_PYTHON -m pytest -q
+          $ErrorActionPreference = 'Continue'
+          & $env:TP_PYTHON -m pytest -q --tb=long *> pytest-report.txt
+          $code = $LASTEXITCODE
+          Get-Content pytest-report.txt
+          if ($code -ne 0) { throw "pytest failed with exit code $code; see pytest-report.txt" }
+
+      - name: Upload pytest report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: pytest-report
+          path: pytest-report.txt
+          if-no-files-found: warn
 
       - name: Prepare exact education image assets
         shell: powershell
