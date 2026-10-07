@@ -10,8 +10,33 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
+  runner_health:
+    name: Self-hosted runner health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Windows runner status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_RUNNER: DESKTOP-837FK0J
+        run: |
+          set -euo pipefail
+          runners="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100")"
+          match="$(printf '%s' "$runners" | jq -c --arg n "$EXPECTED_RUNNER" '.runners[] | select(.name == $n) | {name,status,busy,labels:[.labels[].name]}')"
+          if [ -z "$match" ]; then
+            echo "::warning::Expected runner $EXPECTED_RUNNER was not returned by GitHub."
+            exit 0
+          fi
+          echo "Runner record: $match"
+          status="$(printf '%s' "$match" | jq -r '.status')"
+          busy="$(printf '%s' "$match" | jq -r '.busy')"
+          echo "Runner status=$status busy=$busy"
+          if [ "$status" != "online" ]; then
+            echo "::warning::Windows self-hosted runner is $status; package job may remain queued."
+          fi
+
   package:
     runs-on: self-hosted
     steps:
