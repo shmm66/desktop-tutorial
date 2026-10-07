@@ -60,14 +60,16 @@ jobs:
           $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','branding_assets.py','prepare_branding.py','academy_visuals.py','market_data.py','calendar_utils.py','ai_assistant.py','news_data.py','webview_runner.py','prepare_education_assets.py','glass_theme.py','academy_diagrams.py','google_oauth.py','statement_report.py','tradingview_runner.py')
           foreach ($file in $files) { & $env:TP_PYTHON -m py_compile $file }
 
-      - name: Run tests
+      - name: Run tests and preserve report
         shell: powershell
         run: |
           $ErrorActionPreference = 'Continue'
-          & $env:TP_PYTHON -m pytest -q --tb=long *> pytest-report.txt
+          $output = & $env:TP_PYTHON -m pytest -q --tb=long 2>&1 | Out-String
           $code = $LASTEXITCODE
+          $output | Set-Content -Path pytest-report.txt -Encoding utf8
+          "pytest_exit_code=$code" | Add-Content -Path pytest-report.txt -Encoding utf8
           Get-Content pytest-report.txt
-          if ($code -ne 0) { throw "pytest failed with exit code $code; see pytest-report.txt" }
+          "TP_PYTEST_EXIT=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload pytest report
         if: always()
@@ -75,7 +77,12 @@ jobs:
         with:
           name: pytest-report
           path: pytest-report.txt
-          if-no-files-found: warn
+          if-no-files-found: error
+
+      - name: Enforce pytest result
+        shell: powershell
+        run: |
+          if ([int]$env:TP_PYTEST_EXIT -ne 0) { throw "pytest failed with exit code $env:TP_PYTEST_EXIT; see pytest-report artifact" }
 
       - name: Prepare exact education image assets
         shell: powershell
