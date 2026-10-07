@@ -51,8 +51,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "requirements install failed after fallback retry with exit code $LASTEXITCODE" }
           }
 
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 180 --retries 20 --no-input pyinstaller==6.22.3
-          if ($LASTEXITCODE -ne 0) { throw "PyInstaller install failed with exit code $LASTEXITCODE" }
+          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 180 --retries 20 --no-input pyinstaller==6.22.3 pytest==9.1.1
+          if ($LASTEXITCODE -ne 0) { throw "Test/build dependency install failed with exit code $LASTEXITCODE" }
 
       - name: Syntax check
         shell: powershell
