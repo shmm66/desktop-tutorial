@@ -502,10 +502,12 @@ def test_v831_academy_scrolls_long_source_cards():
     source=Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert source.count('canvas.configure(scrollregion=canvas.bbox("all"))') >= 3
 
-def test_v831_glass_alpha_is_translucent():
+def test_v831_glass_alpha_is_translucent_and_configurable():
     from pathlib import Path
     source=Path("glass_theme.py").read_text(encoding="utf-8")
-    assert 'window.wm_attributes("-alpha", 0.965)' in source
+    assert 'window.wm_attributes("-alpha"' in source
+    assert "opacity: float = 0.94" in source
+    assert "max(0.86, min(float(opacity), 0.995))" in source
 
 
 def test_v10_trading_desk_is_native_integrated():
