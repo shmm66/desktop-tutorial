@@ -129,6 +129,18 @@ jobs:
           if (-not $installer) { throw 'Installer EXE was not produced.' }
           Write-Host "Installer ready: $($installer.FullName)"
 
+      - name: Write build manifest
+        shell: powershell
+        run: |
+          $manifest = @()
+          $manifest += "Trader Planner Pro V10"
+          $manifest += "Commit: $env:GITHUB_SHA"
+          $manifest += "Ref: $env:GITHUB_REF"
+          $manifest += "Run: $env:GITHUB_RUN_ID"
+          $manifest += "Runner: $env:RUNNER_NAME"
+          $manifest += "Timestamp UTC: $([DateTime]::UtcNow.ToString('o'))"
+          $manifest | Out-File -FilePath "build-manifest.txt" -Encoding utf8
+
       - name: Upload verified build
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
@@ -136,4 +148,5 @@ jobs:
           path: |
             dist/TraderPlannerPro.exe
             **/*Setup*.exe
+            build-manifest.txt
           if-no-files-found: error
