@@ -70,14 +70,7 @@ jobs:
           "pytest_exit_code=$code" | Add-Content -Path pytest-report.txt -Encoding utf8
           Get-Content pytest-report.txt
           "TP_PYTEST_EXIT=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Upload pytest report
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: pytest-report
-          path: pytest-report.txt
-          if-no-files-found: error
+          exit 0
 
       - name: Enforce pytest result
         shell: powershell
