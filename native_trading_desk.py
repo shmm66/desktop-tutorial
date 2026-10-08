@@ -223,7 +223,7 @@ def _fetch_global():
         return {}
 
 class NativeTradingDesk(tk.Frame):
-    """Native Tk/Matplotlib Trading Desk. No browser, HTML or WebView."""
+    """Native Tk/Matplotlib Trading Desk."""
 
     def __init__(self, parent, colors, language="en"):
         super().__init__(parent, bg=colors["bg"])
