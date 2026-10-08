@@ -25,23 +25,15 @@ jobs:
           python-version: '3.13'
           cache: pip
 
-      - name: Bootstrap isolated venv
+      - name: Select setup-python interpreter
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $systemPython = (Get-Command python).Source
-          if (-not $systemPython) { throw 'Python executable not found after setup-python.' }
-          & $systemPython --version
-          $pythonDir = Join-Path $env:GITHUB_WORKSPACE '.python313'
-          if (Test-Path $pythonDir) { Remove-Item $pythonDir -Recurse -Force -ErrorAction SilentlyContinue }
-          & $systemPython -m venv $pythonDir
-          if ($LASTEXITCODE -ne 0) { throw "Failed to create isolated venv. Exit code $LASTEXITCODE" }
-          $py = Join-Path $pythonDir 'Scripts/python.exe'
-          if (-not (Test-Path $py)) { throw "Venv Python executable not found: $py" }
+          $py = Join-Path $env:pythonLocation 'python.exe'
+          if (-not (Test-Path $py)) { throw "Python executable not found: $py" }
           & $py --version
           & $py -m pip --version
           "TP_PYTHON=$py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Install build dependencies
         shell: powershell
         env:
