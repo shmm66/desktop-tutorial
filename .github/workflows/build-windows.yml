@@ -14,20 +14,26 @@ permissions:
 
 jobs:
   package:
-    runs-on: self-hosted
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Bootstrap system Python 3.14 and isolated venv
+      - name: Provision isolated Python 3.13 environment
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Bootstrap isolated venv
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $systemPython = 'C:/Program Files/Python314/python.exe'
-          if (-not (Test-Path $systemPython)) { throw "System Python 3.14 not found: $systemPython" }
+          $systemPython = (Get-Command python).Source
+          if (-not $systemPython) { throw 'Python executable not found after setup-python.' }
           & $systemPython --version
-          $pythonDir = Join-Path $env:GITHUB_WORKSPACE '.python314'
+          $pythonDir = Join-Path $env:GITHUB_WORKSPACE '.python313'
           if (Test-Path $pythonDir) { Remove-Item $pythonDir -Recurse -Force -ErrorAction SilentlyContinue }
-          & $systemPython -m venv --system-site-packages $pythonDir
+          & $systemPython -m venv $pythonDir
           if ($LASTEXITCODE -ne 0) { throw "Failed to create isolated venv. Exit code $LASTEXITCODE" }
           $py = Join-Path $pythonDir 'Scripts/python.exe'
           if (-not (Test-Path $py)) { throw "Venv Python executable not found: $py" }
@@ -38,41 +44,28 @@ jobs:
       - name: Install build dependencies
         shell: powershell
         env:
-          PIP_DEFAULT_TIMEOUT: '180'
-          PIP_RETRIES: '20'
+          PIP_DEFAULT_TIMEOUT: '120'
+          PIP_RETRIES: '10'
         run: |
           $ErrorActionPreference = 'Stop'
-          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 180 --retries 20 --no-input
+          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 120 --retries 10 --no-input
           if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
 
           function Install-ReliablePackage([string]$Spec) {
-            # CPython 3.14-compatible Matplotlib wheel pin.
             if ($Spec -eq 'matplotlib>=3.9,<4') { $Spec = 'matplotlib==3.11.2' }
 
-            # The self-hosted runner has repeatedly received TCP resets from files.pythonhosted.org.
-            # Try a mirror that serves wheels itself before falling back to official PyPI.
-            $indexes = @(
-              'https://mirrors.aliyun.com/pypi/simple/',
-              'https://pypi.mirrors.ustc.edu.cn/simple/',
-              'https://pypi.org/simple/'
-            )
-
             $installed = $false
-            foreach ($index in $indexes) {
-              foreach ($attempt in 1..2) {
-                Write-Host "Installing $Spec from $index (attempt $attempt/2)"
-                $pipArgs = @('-m','pip','install','--prefer-binary','--index-url',$index,'--default-timeout','90','--retries','6','--no-input')
-                if ($attempt -gt 1) { $pipArgs += '--no-cache-dir' }
-                $pipArgs += $Spec
-                & $env:TP_PYTHON @pipArgs
-                if ($LASTEXITCODE -eq 0) { $installed = $true; break }
-                Write-Warning "Install failed for $Spec from $index on attempt $attempt."
-                Start-Sleep -Seconds (3 * $attempt)
-              }
-              if ($installed) { break }
+            foreach ($attempt in 1..3) {
+              Write-Host "Installing $Spec (attempt $attempt/3)"
+              $pipArgs = @('-m','pip','install','--prefer-binary','--default-timeout','120','--retries','10','--no-input')
+              if ($attempt -gt 1) { $pipArgs += '--no-cache-dir' }
+              $pipArgs += $Spec
+              & $env:TP_PYTHON @pipArgs
+              if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+              Write-Warning "Install failed for $Spec on attempt $attempt."
+              Start-Sleep -Seconds (5 * $attempt)
             }
-
-            if (-not $installed) { throw "Dependency install failed after mirror rotation: $Spec" }
+            if (-not $installed) { throw "Dependency install failed after retries: $Spec" }
           }
 
           $requirements = Get-Content -Path 'requirements.txt' |
