@@ -15,6 +15,7 @@ permissions:
 jobs:
   package:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -45,43 +46,17 @@ jobs:
         shell: powershell
         env:
           PIP_DEFAULT_TIMEOUT: '120'
-          PIP_RETRIES: '10'
+          PIP_RETRIES: '8'
         run: |
           $ErrorActionPreference = 'Stop'
-          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 120 --retries 10 --no-input
+          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 120 --retries 8 --no-input
           if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
 
-          function Install-ReliablePackage([string]$Spec) {
-            if ($Spec -eq 'matplotlib>=3.9,<4') { $Spec = 'matplotlib==3.11.2' }
-
-            $installed = $false
-            foreach ($attempt in 1..3) {
-              Write-Host "Installing $Spec (attempt $attempt/3)"
-              $pipArgs = @('-m','pip','install','--prefer-binary','--default-timeout','120','--retries','10','--no-input')
-              if ($attempt -gt 1) { $pipArgs += '--no-cache-dir' }
-              $pipArgs += $Spec
-              & $env:TP_PYTHON @pipArgs
-              if ($LASTEXITCODE -eq 0) { $installed = $true; break }
-              Write-Warning "Install failed for $Spec on attempt $attempt."
-              Start-Sleep -Seconds (5 * $attempt)
-            }
-            if (-not $installed) { throw "Dependency install failed after retries: $Spec" }
-          }
-
-          $requirements = Get-Content -Path 'requirements.txt' |
-            ForEach-Object { $_.Trim() } |
-            Where-Object { $_ -and -not $_.StartsWith('#') }
-
-          foreach ($spec in $requirements) {
-            Install-ReliablePackage $spec
-          }
+          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 8 --no-input -r requirements.txt pyinstaller==6.22.3
+          if ($LASTEXITCODE -ne 0) { throw "dependency install failed with exit code $LASTEXITCODE" }
 
           & $env:TP_PYTHON -m pip check
           if ($LASTEXITCODE -ne 0) { throw "pip dependency consistency check failed." }
-
-          # Install explicitly; with ErrorActionPreference=Stop a missing module check would terminate the PowerShell step.
-          Install-ReliablePackage 'pyinstaller==6.22.3'
-
       - name: Syntax check
         shell: powershell
         run: |
