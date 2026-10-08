@@ -44,7 +44,7 @@ jobs:
           & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 120 --retries 8 --no-input
           if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
 
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 8 --no-input -r requirements.txt pyinstaller==6.22.3 pytest>=8,<9
+          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 8 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
           if ($LASTEXITCODE -ne 0) { throw "dependency install failed with exit code $LASTEXITCODE" }
 
           & $env:TP_PYTHON -m pip check
