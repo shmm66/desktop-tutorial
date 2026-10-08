@@ -43,7 +43,7 @@ def test_native_trading_desk_has_no_browser_chart_dependency():
     source = (ROOT / "native_trading_desk.py").read_text(encoding="utf-8").lower()
     assert "class nativetradingdesk" in source
     assert "figurecanvastkagg" in source
-    assert "navigationtoolbartk2" in source
+    assert "navigationtoolbar2tk" in source
     assert "webview" not in source
     assert "tradingview" not in source
 
@@ -52,7 +52,7 @@ def test_tradingview_pro_embed_is_official_and_real_time_or_fail_safe():
     source = (ROOT / "tradingview_runner.py").read_text(encoding="utf-8")
     assert "def tradingview_url" in source
     assert "https://www.tradingview.com/chart/?symbol=" in source
-    assert '"interval="' in source
+    assert "&interval=" in source
     assert "webview.create_window" in source
     assert 'gui="edgechromium"' in source
     assert "https://www.tradingview.com/chart/" in source
