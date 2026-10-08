@@ -46,22 +46,33 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
 
           function Install-ReliablePackage([string]$Spec) {
-            # Use the current CPython 3.14-compatible Matplotlib wheel explicitly.
-            # This avoids resolver/index ambiguity seen in the previous runner attempt.
+            # CPython 3.14-compatible Matplotlib wheel pin.
             if ($Spec -eq 'matplotlib>=3.9,<4') { $Spec = 'matplotlib==3.11.2' }
 
+            # The self-hosted runner has repeatedly received TCP resets from files.pythonhosted.org.
+            # Try a mirror that serves wheels itself before falling back to official PyPI.
+            $indexes = @(
+              'https://mirrors.aliyun.com/pypi/simple/',
+              'https://pypi.mirrors.ustc.edu.cn/simple/',
+              'https://pypi.org/simple/'
+            )
+
             $installed = $false
-            foreach ($attempt in 1..3) {
-              Write-Host "Installing $Spec (attempt $attempt/3)"
-              $pipArgs = @('-m','pip','install','--prefer-binary','--default-timeout','180','--retries','20','--no-input')
-              if ($attempt -gt 1) { $pipArgs += '--no-cache-dir' }
-              $pipArgs += $Spec
-              & $env:TP_PYTHON @pipArgs
-              if ($LASTEXITCODE -eq 0) { $installed = $true; break }
-              Write-Warning "Install failed for $Spec on attempt $attempt."
-              Start-Sleep -Seconds (5 * $attempt)
+            foreach ($index in $indexes) {
+              foreach ($attempt in 1..2) {
+                Write-Host "Installing $Spec from $index (attempt $attempt/2)"
+                $pipArgs = @('-m','pip','install','--prefer-binary','--index-url',$index,'--default-timeout','90','--retries','6','--no-input')
+                if ($attempt -gt 1) { $pipArgs += '--no-cache-dir' }
+                $pipArgs += $Spec
+                & $env:TP_PYTHON @pipArgs
+                if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+                Write-Warning "Install failed for $Spec from $index on attempt $attempt."
+                Start-Sleep -Seconds (3 * $attempt)
+              }
+              if ($installed) { break }
             }
-            if (-not $installed) { throw "Dependency install failed after retries: $Spec" }
+
+            if (-not $installed) { throw "Dependency install failed after mirror rotation: $Spec" }
           }
 
           $requirements = Get-Content -Path 'requirements.txt' |
