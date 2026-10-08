@@ -418,7 +418,8 @@ def test_v810_real_glass_and_safe_installer():
     from pathlib import Path
     glass = Path("glass_theme.py").read_text(encoding="utf-8")
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'wintypes.DWORD(38)' in glass
+    assert "_set_attr(dwmapi, hwnd, 38" in glass
+    assert "requested = wintypes.DWORD(3 if acrylic else 2)" in glass
     assert 'pywinstyles.apply_style(window, native_style)' in glass
     assert 'MyAppVersion "10.0.0"' in iss
     assert 'PrivilegesRequired=lowest' in iss
