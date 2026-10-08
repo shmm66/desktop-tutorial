@@ -79,10 +79,8 @@ jobs:
           & $env:TP_PYTHON -m pip check
           if ($LASTEXITCODE -ne 0) { throw "pip dependency consistency check failed." }
 
-          & $env:TP_PYTHON -c "import PyInstaller; print(PyInstaller.__version__)" 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            Install-ReliablePackage 'pyinstaller==6.22.3'
-          }
+          # Install explicitly; with ErrorActionPreference=Stop a missing module check would terminate the PowerShell step.
+          Install-ReliablePackage 'pyinstaller==6.22.3'
 
       - name: Syntax check
         shell: powershell
