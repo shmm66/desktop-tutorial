@@ -38,25 +38,46 @@ jobs:
       - name: Install build dependencies
         shell: powershell
         env:
-          PIP_DEFAULT_TIMEOUT: '120'
-          PIP_RETRIES: '12'
+          PIP_DEFAULT_TIMEOUT: '180'
+          PIP_RETRIES: '20'
         run: |
           $ErrorActionPreference = 'Stop'
-          & $env:TP_PYTHON -m pip install --upgrade pip --default-timeout 120 --retries 12
+          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 180 --retries 20 --no-input
           if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
 
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 12 --no-input -r requirements.txt
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning 'Primary dependency install failed; retrying without cache.'
-            & $env:TP_PYTHON -m pip cache purge
-            & $env:TP_PYTHON -m pip install --prefer-binary --no-cache-dir --default-timeout 180 --retries 20 --no-input -r requirements.txt
-            if ($LASTEXITCODE -ne 0) { throw "requirements install failed after fallback retry with exit code $LASTEXITCODE" }
+          function Install-ReliablePackage([string]$Spec) {
+            # Use the current CPython 3.14-compatible Matplotlib wheel explicitly.
+            # This avoids resolver/index ambiguity seen in the previous runner attempt.
+            if ($Spec -eq 'matplotlib>=3.9,<4') { $Spec = 'matplotlib==3.11.2' }
+
+            $installed = $false
+            foreach ($attempt in 1..3) {
+              Write-Host "Installing $Spec (attempt $attempt/3)"
+              $pipArgs = @('-m','pip','install','--prefer-binary','--default-timeout','180','--retries','20','--no-input')
+              if ($attempt -gt 1) { $pipArgs += '--no-cache-dir' }
+              $pipArgs += $Spec
+              & $env:TP_PYTHON @pipArgs
+              if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+              Write-Warning "Install failed for $Spec on attempt $attempt."
+              Start-Sleep -Seconds (5 * $attempt)
+            }
+            if (-not $installed) { throw "Dependency install failed after retries: $Spec" }
           }
+
+          $requirements = Get-Content -Path 'requirements.txt' |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -and -not $_.StartsWith('#') }
+
+          foreach ($spec in $requirements) {
+            Install-ReliablePackage $spec
+          }
+
+          & $env:TP_PYTHON -m pip check
+          if ($LASTEXITCODE -ne 0) { throw "pip dependency consistency check failed." }
 
           & $env:TP_PYTHON -c "import PyInstaller; print(PyInstaller.__version__)" 2>$null
           if ($LASTEXITCODE -ne 0) {
-            & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 180 --retries 20 --no-input pyinstaller==6.22.3
-            if ($LASTEXITCODE -ne 0) { throw "PyInstaller install failed with exit code $LASTEXITCODE" }
+            Install-ReliablePackage 'pyinstaller==6.22.3'
           }
 
       - name: Syntax check
