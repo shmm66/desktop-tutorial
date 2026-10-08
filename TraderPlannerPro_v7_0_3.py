@@ -2464,8 +2464,87 @@ class App(tk.Tk):
             b.pack(side="left",fill="x",expand=True,padx=3)
             tk.Label(b,text=title,bg=C["panel3"],fg=C["muted"],font=("Segoe UI",7,"bold")).pack(pady=(8,2))
             tk.Label(b,text=val,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold")).pack(pady=(0,8))
+        native_card = self.card(self.content)
+        native_card.pack(fill="both", expand=True, pady=(0, 8))
+        tk.Label(native_card, text="NATIVE LIVE CHART", bg=C["panel"], fg=C["accent"],
+                 font=("Segoe UI", 13, "bold")).pack(anchor="e", padx=16, pady=(12, 4))
+        shell = tk.Frame(native_card, bg=C["bg"], highlightthickness=0)
+        shell.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        try:
+            NativeTradingDesk(shell, C, getattr(self, "language", "en")).pack(fill="both", expand=True)
+        except Exception as exc:
+            tk.Label(shell, text=f"Native chart unavailable: {exc}", bg=C["bg"], fg=C["danger"],
+                     font=("Segoe UI", 10)).pack(expand=True, padx=20, pady=20)
+
         self._chart_test_hint = symbol_var
         self._chart_interval_hint = interval_var
+
+    def settings(self):
+        self.heading(self.tr("settings_title"), self.tr("settings_sub"))
+        grid = self.card(self.content)
+        grid.pack(fill="x", pady=(4, 10))
+        grid.columnconfigure(1, weight=1)
+
+        tk.Label(grid, text=self.tr("language"), bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 10, "bold")).grid(row=0, column=1, sticky="e", padx=14, pady=(16, 6))
+        language_var = tk.StringVar(value=self.language)
+        language_box = ttk.Combobox(grid, textvariable=language_var,
+                                    values=["fa", "en"], state="readonly", width=18)
+        language_box.grid(row=0, column=0, sticky="w", padx=14, pady=(16, 6))
+        tk.Label(grid, text=self.tr("language_help"), bg=C["panel"], fg=C["muted"],
+                 justify="right", wraplength=650).grid(row=1, column=0, columnspan=2, sticky="e", padx=14, pady=(0, 10))
+
+        tk.Label(grid, text=self.tr("theme"), bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 10, "bold")).grid(row=2, column=1, sticky="e", padx=14, pady=6)
+        theme_var = tk.StringVar(value=self.theme_mode)
+        theme_box = ttk.Combobox(grid, textvariable=theme_var,
+                                 values=["dark", "light", "auto"], state="readonly", width=18)
+        theme_box.grid(row=2, column=0, sticky="w", padx=14, pady=6)
+
+        tk.Label(grid, text="Skin", bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 10, "bold")).grid(row=3, column=1, sticky="e", padx=14, pady=6)
+        skin_var = tk.StringVar(value=self.skin)
+        skin_values = list(SKINS.keys())
+        skin_box = ttk.Combobox(grid, textvariable=skin_var,
+                                values=skin_values, state="readonly", width=18)
+        skin_box.grid(row=3, column=0, sticky="w", padx=14, pady=6)
+
+        tk.Label(grid, text="Glass opacity", bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 10, "bold")).grid(row=4, column=1, sticky="e", padx=14, pady=6)
+        opacity_var = tk.DoubleVar(value=self.glass_opacity)
+        opacity = tk.Scale(grid, variable=opacity_var, from_=0.86, to=0.995,
+                           resolution=0.005, orient="horizontal", length=280,
+                           bg=C["panel"], fg=C["text"], highlightthickness=0, troughcolor=C["soft"],
+                           activebackground=C["accent"])
+        opacity.grid(row=4, column=0, sticky="w", padx=14, pady=6)
+
+        status = tk.Label(grid, text="", bg=C["panel"], fg=C["accent"], justify="right")
+        status.grid(row=5, column=0, columnspan=2, sticky="e", padx=14, pady=(6, 16))
+
+        def save_settings():
+            self.language = language_var.get() if language_var.get() in {"fa", "en"} else "fa"
+            self.theme_mode = theme_var.get() if theme_var.get() in {"dark", "light", "auto"} else "dark"
+            self.skin = skin_var.get() if skin_var.get() in SKINS else "glass"
+            self.glass_opacity = max(0.86, min(float(opacity_var.get()), 0.995))
+            DB.setdefault("settings", {}).update({
+                "language": self.language,
+                "theme": self.theme_mode,
+                "skin": self.skin,
+                "glass_opacity": self.glass_opacity,
+                "theme_auto_start": self.theme_auto_start,
+                "theme_auto_end": self.theme_auto_end,
+            })
+            save_db()
+            self.apply_theme()
+            self.refresh_shell_theme()
+            self.refresh_profile_selector()
+            status.config(text=self.tr("language_saved"))
+            self.after(120, lambda: self.show("settings"))
+
+        actions = self.card(self.content)
+        actions.pack(fill="x", pady=4)
+        self.btn(actions, self.tr("save_theme"), save_settings, True).pack(side="right", padx=14, pady=12)
+        self.btn(actions, self.tr("nav_home"), self.go_home).pack(side="right", padx=4, pady=12)
 
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
