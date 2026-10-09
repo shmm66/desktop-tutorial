@@ -100,8 +100,81 @@ def _write_startup_error(exc):
         pass
 
 
+def _run_ui_smoke_test():
+    """Render every primary page on the real Tk toolkit without network calls."""
+    # Keep the smoke test deterministic and avoid network waits. Patch before
+    # importing the main module so its imported callback also uses the stub.
+    import news_data
+    import market_data
+    news_data.fetch_market_news = lambda callback, include_forex=False: callback([])
+    market_data.MarketDataService.start = lambda self, market: None
+
+    from TraderPlannerPro_v7_0_3 import App
+
+    pages = (
+        "home", "daily", "weekly", "plan", "check", "journal",
+        "academy", "ai", "news", "calculators", "chart", "settings",
+    )
+    app = App()
+    failures = []
+    try:
+        app.withdraw()
+        startup_job = getattr(app, "_finish_startup_job", None)
+        if startup_job:
+            try:
+                app.after_cancel(startup_job)
+            except Exception:
+                pass
+            app._finish_startup_job = None
+
+        def descendants(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from descendants(child)
+
+        for page in pages:
+            try:
+                app.show(page)
+                app.update_idletasks()
+                children = app.content.winfo_children()
+                if not children:
+                    failures.append(f"{page}: page rendered no widgets")
+                    continue
+                texts = []
+                for widget in descendants(app.content):
+                    try:
+                        value = str(widget.cget("text"))
+                        if value:
+                            texts.append(value)
+                    except Exception:
+                        pass
+                recovery = next((value for value in texts if "SAFE RECOVERY" in value), None)
+                if recovery:
+                    detail = next((value for value in texts if "SAFE RECOVERY" not in value and value not in {"Trader Planner Pro"}), "unknown page error")
+                    failures.append(f"{page}: recovered after render error ({detail})")
+                else:
+                    print(f"UI page OK: {page}")
+            except Exception as exc:
+                failures.append(f"{page}: {type(exc).__name__}: {exc}")
+
+        if failures:
+            raise RuntimeError("Tk UI section smoke test failed:\\n- " + "\\n- ".join(failures))
+        print(f"{APP} {VERSION} UI smoke-test: {len(pages)} pages rendered OK")
+    finally:
+        try:
+            app.close_app()
+        except Exception:
+            try:
+                app.destroy()
+            except Exception:
+                pass
+
+
 def main():
     try:
+        if len(sys.argv) > 1 and sys.argv[1] == "--ui-smoke-test":
+            _run_ui_smoke_test()
+            return
         if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
             # Headless CI validation for Windows service runners.
             import importlib
