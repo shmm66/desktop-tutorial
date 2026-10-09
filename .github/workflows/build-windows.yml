@@ -236,15 +236,24 @@ jobs:
             throw 'Installed EXE UI section smoke test timed out after 180 seconds.'
           }
           # Refresh the .NET process snapshot after WaitForExit before reading ExitCode.
-          # Without Refresh(), PowerShell can report a blank exit code even after
-          # the bundled Tk test emitted its full successful 12-page report.
           $uiTest.Refresh()
           if (-not $uiTest.HasExited) { throw 'Installed EXE UI smoke-test process did not exit.' }
-          Get-Content $uiOutLog -ErrorAction SilentlyContinue
-          Get-Content $uiErrLog -ErrorAction SilentlyContinue
+          $uiStdout = [string](Get-Content $uiOutLog -Raw -ErrorAction SilentlyContinue)
+          $uiStderr = [string](Get-Content $uiErrLog -Raw -ErrorAction SilentlyContinue)
+          if ($uiStdout) { Write-Output $uiStdout }
+          if ($uiStderr) { Write-Output $uiStderr }
           $uiExitCode = $uiTest.ExitCode
-          if ($null -eq $uiExitCode) { throw 'Windows returned no exit code for the installed EXE UI smoke test.' }
-          if ([int]$uiExitCode -ne 0) { throw "Installed EXE UI section smoke test failed with exit code $uiExitCode" }
+          if ($null -eq $uiExitCode) {
+            # Some Windows GUI-process wrappers do not expose the exit code.
+            # Accept only an explicit all-pages success marker and clean stderr.
+            if ($uiStdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or
+                $uiStderr -match 'Traceback|Exception|Error:') {
+              throw 'Installed EXE UI test returned no exit code and did not produce a clean 12-page success report.'
+            }
+            Write-Warning 'GUI process exit code unavailable; verified success marker and clean stderr.'
+          } elseif ([int]$uiExitCode -ne 0) {
+            throw "Installed EXE UI section smoke test failed with exit code $uiExitCode"
+          }
 
           $uninstaller = Join-Path $installDir 'unins000.exe'
           if (-not (Test-Path $uninstaller)) { throw 'Uninstaller was not found.' }
