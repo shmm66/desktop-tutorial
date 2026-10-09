@@ -99,3 +99,20 @@ def test_launcher_exposes_real_tk_page_smoke_test():
     assert "SAFE RECOVERY" in source
     for page_list_fragment in expected_pages:
         assert page_list_fragment in source
+
+
+
+def test_weekly_and_journal_page_helpers_are_implemented():
+    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "def _week_dates(self, offset=0):" in source
+    assert "def _week_task_stats(self, dates):" in source
+    assert "def _trade_metrics(self, rows):" in source
+    assert '"profit_factor": profit_factor' in source
+    assert '"avg_r": net_r / count if count else 0.0' in source
+
+
+def test_ai_page_routes_around_ai_service_name_collision():
+    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "self.ai = AIOrchestrator()" in source
+    assert "renderer = self.ai_page if key == \"ai\" else getattr(self, key)" in source
+    assert "def ai_page(self):" in source
