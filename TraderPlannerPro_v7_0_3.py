@@ -29,7 +29,6 @@ from ai_assistant import AIOrchestrator
 from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 from google_oauth import google_status, login_google, logout_google, send_gmail, find_client_file
 from statement_report import create_statement
-from native_trading_desk import NativeTradingDesk
 
 APP = "Trader Planner Pro"
 VERSION = "10.0.0"
@@ -546,11 +545,39 @@ class App(tk.Tk):
         self.apply_language()
         self.update_idletasks()
         apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
-        self.show("home")
-        self.market_data.start(self.market)
-        self.after(700, self.clock)
-        self.after(7000, self._market_loading_timeout)
-        self.check_reminders()
+        # Let Windows paint the shell before the first dashboard render.
+        self.after(80, self._finish_startup)
+
+    def _finish_startup(self):
+        """Start recurring services after the initial native window is visible."""
+        try:
+            if not self.winfo_exists():
+                return
+            self.show("home")
+            self.market_data.start(self.market)
+            self.after(700, self.clock)
+            self._ensure_home_timeout(7000)
+            self.check_reminders()
+        except Exception as exc:
+            self._show_page_error("startup", exc)
+
+    def report_callback_exception(self, exc, value, tb):
+        """Persist Tk callback failures without opening recursive error dialogs."""
+        if getattr(self, "_tpp_reporting_callback_error", False):
+            return
+        self._tpp_reporting_callback_error = True
+        try:
+            import traceback
+            log_dir = ROOT / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with (log_dir / "ui_errors.log").open("a", encoding="utf-8") as log:
+                log.write(f"\n[{datetime.now().isoformat(timespec='seconds')}] Tk callback error\n")
+                log.write("".join(traceback.format_exception(exc, value, tb)))
+                log.write("\n")
+        except BaseException:
+            pass
+        finally:
+            self._tpp_reporting_callback_error = False
 
     def _home_shortcut(self, event=None):
         widget = getattr(event, "widget", None)
@@ -2466,18 +2493,35 @@ class App(tk.Tk):
             tk.Label(b,text=val,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold")).pack(pady=(0,8))
         native_card = self.card(self.content)
         native_card.pack(fill="both", expand=True, pady=(0, 8))
-        tk.Label(native_card, text="NATIVE LIVE CHART", bg=C["panel"], fg=C["accent"],
-                 font=("Segoe UI", 13, "bold")).pack(anchor="e", padx=16, pady=(12, 4))
+        native_head = tk.Frame(native_card, bg=C["panel"])
+        native_head.pack(fill="x", padx=16, pady=(12, 4))
+        tk.Label(native_head, text="NATIVE LIVE CHART • OPTIONAL", bg=C["panel"], fg=C["accent"],
+                 font=("Segoe UI", 13, "bold")).pack(side="right")
         shell = tk.Frame(native_card, bg=C["bg"], highlightthickness=0)
         shell.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-        try:
-            NativeTradingDesk(shell, C, getattr(self, "language", "en")).pack(fill="both", expand=True)
-        except Exception as exc:
-            tk.Label(shell, text=f"Native chart unavailable: {exc}", bg=C["bg"], fg=C["danger"],
-                     font=("Segoe UI", 10)).pack(expand=True, padx=20, pady=20)
+        self.btn(native_head, "LOAD NATIVE CHART",
+                 lambda: self._load_native_trading_desk(shell), True).pack(side="left")
+        tk.Label(shell, text="The native chart is optional. Load it only when needed; "
+                 "the TradingView Pro terminal is available from the button above.",
+                 bg=C["bg"], fg=C["muted"], font=("Segoe UI", 10),
+                 wraplength=900, justify="center").pack(expand=True, padx=24, pady=30)
 
         self._chart_test_hint = symbol_var
         self._chart_interval_hint = interval_var
+
+    def _load_native_trading_desk(self, holder):
+        """Load the optional Matplotlib chart only after a deliberate user action."""
+        if getattr(holder, "_tpp_native_chart_loaded", False):
+            return
+        try:
+            for widget in holder.winfo_children():
+                widget.destroy()
+            from native_trading_desk import NativeTradingDesk
+            NativeTradingDesk(holder, C, getattr(self, "language", "en")).pack(fill="both", expand=True)
+            holder._tpp_native_chart_loaded = True
+        except Exception as exc:
+            tk.Label(holder, text=f"Native chart unavailable: {exc}", bg=C["bg"], fg=C["danger"],
+                     font=("Segoe UI", 10), wraplength=900).pack(expand=True, padx=20, pady=20)
 
     def settings(self):
         self.heading(self.tr("settings_title"), self.tr("settings_sub"))
