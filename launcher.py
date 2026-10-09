@@ -158,7 +158,7 @@ def _run_ui_smoke_test():
                 failures.append(f"{page}: {type(exc).__name__}: {exc}")
 
         if failures:
-            raise RuntimeError("Tk UI section smoke test failed:\\n- " + "\\n- ".join(failures))
+            raise RuntimeError("Tk UI section smoke test failed:\n- " + "\n- ".join(failures))
         print(f"{APP} {VERSION} UI smoke-test: {len(pages)} pages rendered OK")
     finally:
         try:
