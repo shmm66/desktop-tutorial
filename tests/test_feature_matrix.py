@@ -106,8 +106,8 @@ def test_glass_callbacks_are_bounded_when_theme_is_applied_repeatedly(monkeypatc
 
     monkeypatch.setattr(glass_theme, "is_windows", lambda: True)
     monkeypatch.setattr(glass_theme, "_configure_window_transparency", lambda *_a: None)
-    monkeypatch.setattr(glass_theme, "_set_dwm_backdrop", lambda **_k: False)
-    monkeypatch.setattr(glass_theme, "_apply_pywinstyles", lambda **_k: False)
+    monkeypatch.setattr(glass_theme, "_set_dwm_backdrop", lambda *_a, **_k: False)
+    monkeypatch.setattr(glass_theme, "_apply_pywinstyles", lambda *_a, **_k: False)
 
     window = FakeWindow()
     for _ in range(100):
