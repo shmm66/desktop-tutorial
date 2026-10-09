@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import threading
+import time
 import urllib.request
 from pathlib import Path
 
@@ -13,14 +14,44 @@ OLLAMA_BASE = "http://localhost:11434/api"
 DEFAULT_MODEL = os.getenv("TRADER_PLANNER_AI_MODEL", "gpt-5.6-sol")
 REASONING_EFFORT = "max"
 MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
+
+# Keep the application shell light: the Agents SDK is imported only when a
+# cloud response is requested, not while the desktop window is booting.
 AGENT_SDK_AVAILABLE = False
-try:
-    from agents import Agent, ModelSettings, Runner
-    from openai.types.shared import Reasoning
-    AGENT_SDK_AVAILABLE = True
-except Exception:
-    Agent = ModelSettings = Runner = Reasoning = None
+_AGENT_SDK_CHECKED = False
+_AGENT_SDK_LOCK = threading.Lock()
+Agent = ModelSettings = Runner = Reasoning = None
+
+# Status widgets must never wait for a local HTTP request. Probe Ollama in a
+# daemon thread and let the UI read the last known result immediately.
+_OLLAMA_STATUS_LOCK = threading.Lock()
+_OLLAMA_STATUS_CACHE = {
+    "checked_at": 0.0,
+    "online": False,
+    "models": [],
+    "refreshing": False,
+}
 CHATGPT_WEB_URL = "https://chatgpt.com/"
+
+
+def _ensure_agents_sdk() -> bool:
+    global Agent, ModelSettings, Runner, Reasoning
+    global AGENT_SDK_AVAILABLE, _AGENT_SDK_CHECKED
+    if _AGENT_SDK_CHECKED:
+        return AGENT_SDK_AVAILABLE
+    with _AGENT_SDK_LOCK:
+        if _AGENT_SDK_CHECKED:
+            return AGENT_SDK_AVAILABLE
+        try:
+            from agents import Agent as _Agent, ModelSettings as _ModelSettings, Runner as _Runner
+            from openai.types.shared import Reasoning as _Reasoning
+            Agent, ModelSettings, Runner, Reasoning = _Agent, _ModelSettings, _Runner, _Reasoning
+            AGENT_SDK_AVAILABLE = True
+        except Exception:
+            Agent = ModelSettings = Runner = Reasoning = None
+            AGENT_SDK_AVAILABLE = False
+        _AGENT_SDK_CHECKED = True
+    return AGENT_SDK_AVAILABLE
 
 ROLES = {
     "orchestrator": "Master Agent: triage the question, use the right specialist, connect the journal, strategy, psychology and Academy context, and produce one actionable answer.",
@@ -53,6 +84,35 @@ def ollama_status():
         return True, models
     except Exception:
         return False, []
+
+
+def _refresh_ollama_status() -> None:
+    try:
+        online, models = ollama_status()
+    except Exception:
+        online, models = False, []
+    with _OLLAMA_STATUS_LOCK:
+        _OLLAMA_STATUS_CACHE["online"] = bool(online)
+        _OLLAMA_STATUS_CACHE["models"] = list(models or [])
+        _OLLAMA_STATUS_CACHE["checked_at"] = time.monotonic()
+        _OLLAMA_STATUS_CACHE["refreshing"] = False
+
+
+def _cached_ollama_status():
+    now = time.monotonic()
+    with _OLLAMA_STATUS_LOCK:
+        stale = now - float(_OLLAMA_STATUS_CACHE["checked_at"]) >= 20.0
+        if stale and not _OLLAMA_STATUS_CACHE["refreshing"]:
+            _OLLAMA_STATUS_CACHE["refreshing"] = True
+            try:
+                threading.Thread(
+                    target=_refresh_ollama_status,
+                    name="TraderPlannerOllamaStatus",
+                    daemon=True,
+                ).start()
+            except Exception:
+                _OLLAMA_STATUS_CACHE["refreshing"] = False
+        return bool(_OLLAMA_STATUS_CACHE["online"]), list(_OLLAMA_STATUS_CACHE["models"])
 
 
 def ollama_chat(model, messages):
@@ -95,26 +155,23 @@ def clear_openai_key():
 
 
 def cloud_status():
+    # This check is intentionally local-only. Importing OpenAI/Agents merely to
+    # paint a status badge made cold startup slower; the SDK initializes on the
+    # first actual cloud request instead.
     key = _read_openai_key()
     if not key:
-        return {"enabled": False, "model": DEFAULT_MODEL, "message": "Add an OpenAI API key or enable Ollama.", "agents_sdk": AGENT_SDK_AVAILABLE}
-    try:
-        from openai import OpenAI  # noqa: F401
-        if not AGENT_SDK_AVAILABLE:
-            return {
-                "enabled": False,
-                "model": DEFAULT_MODEL,
-                "message": "OpenAI Agents SDK is unavailable in this build.",
-                "agents_sdk": False,
-            }
         return {
-            "enabled": True,
+            "enabled": False,
             "model": DEFAULT_MODEL,
-            "message": "Cloud master agent is ready.",
-            "agents_sdk": True,
+            "message": "Add an OpenAI API key or enable Ollama.",
+            "agents_sdk": AGENT_SDK_AVAILABLE,
         }
-    except Exception:
-        return {"enabled": False, "model": DEFAULT_MODEL, "agents_sdk": AGENT_SDK_AVAILABLE}
+    return {
+        "enabled": True,
+        "model": DEFAULT_MODEL,
+        "message": "Cloud agent will initialize on the first request.",
+        "agents_sdk": AGENT_SDK_AVAILABLE,
+    }
 
 
 def _fallback(role, user_message, context):
@@ -188,7 +245,7 @@ class AIOrchestrator:
         self.active_role = "orchestrator"
 
     def status(self):
-        ollama_online, ollama_models = ollama_status()
+        ollama_online, ollama_models = _cached_ollama_status()
         cloud = cloud_status()
         return {
             "online": cloud["enabled"] or ollama_online,
@@ -205,8 +262,8 @@ class AIOrchestrator:
     def _build_cloud_agents(self):
         if self._cloud_agents is not None:
             return self._cloud_agents
-        if not AGENT_SDK_AVAILABLE:
-            raise RuntimeError("OpenAI Agents SDK is not installed.")
+        if not _ensure_agents_sdk():
+            raise RuntimeError("OpenAI Agents SDK is not installed or could not be loaded.")
         common = (
             "You are a production-grade specialist inside Trader Planner Pro. "
             "Use the supplied app context as the source of truth. "
@@ -253,8 +310,8 @@ class AIOrchestrator:
         api_key = _read_openai_key()
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured.")
-        if not AGENT_SDK_AVAILABLE:
-            raise RuntimeError("OpenAI Agents SDK is not installed.")
+        if not _ensure_agents_sdk():
+            raise RuntimeError("OpenAI Agents SDK is not installed or could not be loaded.")
 
         # The Agents SDK reads OPENAI_API_KEY when the provider/client is resolved.
         os.environ["OPENAI_API_KEY"] = api_key
