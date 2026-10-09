@@ -69,6 +69,65 @@ def test_glass_theme_does_not_accumulate_map_callbacks():
     assert "_tpp_glass_after_id" in source
     assert "after_cancel" in source
     assert "_tpp_glass_applying" in source
+    apply_body = source.split("def apply_glass(", 1)[1].split(
+        "def apply_glass_to_toplevel(", 1
+    )[0]
+    assert "window.after(" not in apply_body
+    assert "window.after(50, lambda:" not in source
+
+
+def test_glass_callbacks_are_bounded_when_theme_is_applied_repeatedly(monkeypatch):
+    import glass_theme
+
+    class FakeWindow:
+        def __init__(self):
+            self.jobs = {}
+            self.after_count = 0
+            self.cancel_count = 0
+
+        def winfo_exists(self):
+            return True
+
+        def wm_attributes(self, *_args):
+            return None
+
+        def configure(self, **_kwargs):
+            return None
+
+        def after(self, _delay, callback):
+            self.after_count += 1
+            job_id = f"job-{self.after_count}"
+            self.jobs[job_id] = callback
+            return job_id
+
+        def after_cancel(self, job_id):
+            self.cancel_count += 1
+            self.jobs.pop(job_id, None)
+
+    monkeypatch.setattr(glass_theme, "is_windows", lambda: True)
+    monkeypatch.setattr(glass_theme, "_configure_window_transparency", lambda *_a: None)
+    monkeypatch.setattr(glass_theme, "_set_dwm_backdrop", lambda **_k: False)
+    monkeypatch.setattr(glass_theme, "_apply_pywinstyles", lambda **_k: False)
+
+    window = FakeWindow()
+    for _ in range(100):
+        glass_theme.apply_glass(window)
+    assert window.after_count == 0
+
+    for _ in range(100):
+        assert glass_theme.apply_glass_after_map(window)
+    assert window.after_count == 1
+    callback = next(iter(window.jobs.values()))
+    callback()
+    assert window.after_count == 1
+
+
+def test_ai_status_checks_are_cache_first_and_sdk_load_is_lazy():
+    source = (ROOT / "ai_assistant.py").read_text(encoding="utf-8")
+    assert "ollama_online, ollama_models = _cached_ollama_status()" in source
+    sdk_loader = source.split("def _ensure_agents_sdk()", 1)[1].split("def ", 1)[0]
+    assert "from agents import Agent" in sdk_loader
+    assert "def _cached_ollama_status()" in source
 
 
 def test_native_chart_is_lazy_loaded_and_startup_is_deferred():
