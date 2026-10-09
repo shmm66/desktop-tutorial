@@ -225,7 +225,7 @@ def test_v760_persistent_navigation_and_embedded_ai_are_present():
     assert "self.quickbar" in source
     assert "def _render_page(self, key, token):" in source
     assert "def _replace_page_ai_waiting(self,chat,answer):" in source
-    assert "def ai(self):" in source and "ai_quick_strategy" in source
+    assert "def ai_page(self):" in source and "ai_quick_strategy" in source
 
 
 def test_v770_google_ai_and_statement_services_exist():
