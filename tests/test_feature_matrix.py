@@ -12,7 +12,7 @@ def test_core_desktop_feature_matrix():
         "def check(self):",
         "def journal(self):",
         "def academy(self):",
-        "def ai(self):",
+        "def ai_page(self):",
         "def news(self):",
         "def calculators(self):",
         "def settings(self):",
