@@ -86,8 +86,18 @@ jobs:
       - name: Run real Tk UI section smoke test
         shell: powershell
         run: |
-          & $env:TP_PYTHON launcher.py --ui-smoke-test
-          if ($LASTEXITCODE -ne 0) { throw "Tk UI section smoke test failed with exit code $LASTEXITCODE" }
+          $outLog = Join-Path $env:RUNNER_TEMP 'tpp-ui-smoke.stdout.log'
+          $errLog = Join-Path $env:RUNNER_TEMP 'tpp-ui-smoke.stderr.log'
+          $smoke = Start-Process -FilePath $env:TP_PYTHON -ArgumentList @('-u','launcher.py','--ui-smoke-test') -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+          if (-not $smoke.WaitForExit(180000)) {
+            Stop-Process -Id $smoke.Id -Force -ErrorAction SilentlyContinue
+            Get-Content $outLog -ErrorAction SilentlyContinue
+            Get-Content $errLog -ErrorAction SilentlyContinue
+            throw 'Tk UI section smoke test timed out after 180 seconds.'
+          }
+          Get-Content $outLog -ErrorAction SilentlyContinue
+          Get-Content $errLog -ErrorAction SilentlyContinue
+          if ($smoke.ExitCode -ne 0) { throw "Tk UI section smoke test failed with exit code $($smoke.ExitCode)" }
 
       - name: Build Windows icon
         shell: powershell
@@ -189,7 +199,17 @@ jobs:
           $appTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
           if ($appTest.ExitCode -ne 0) { throw "Installed EXE self-test failed with exit code $($appTest.ExitCode)" }
 
-          $uiTest = Start-Process -FilePath $installedExe -ArgumentList '--ui-smoke-test' -Wait -PassThru
+          $uiOutLog = Join-Path $env:RUNNER_TEMP 'tpp-installed-ui.stdout.log'
+          $uiErrLog = Join-Path $env:RUNNER_TEMP 'tpp-installed-ui.stderr.log'
+          $uiTest = Start-Process -FilePath $installedExe -ArgumentList '--ui-smoke-test' -PassThru -RedirectStandardOutput $uiOutLog -RedirectStandardError $uiErrLog
+          if (-not $uiTest.WaitForExit(180000)) {
+            Stop-Process -Id $uiTest.Id -Force -ErrorAction SilentlyContinue
+            Get-Content $uiOutLog -ErrorAction SilentlyContinue
+            Get-Content $uiErrLog -ErrorAction SilentlyContinue
+            throw 'Installed EXE UI section smoke test timed out after 180 seconds.'
+          }
+          Get-Content $uiOutLog -ErrorAction SilentlyContinue
+          Get-Content $uiErrLog -ErrorAction SilentlyContinue
           if ($uiTest.ExitCode -ne 0) { throw "Installed EXE UI section smoke test failed with exit code $($uiTest.ExitCode)" }
 
           $uninstaller = Join-Path $installDir 'unins000.exe'
