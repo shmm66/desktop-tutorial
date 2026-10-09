@@ -133,6 +133,7 @@ def _run_ui_smoke_test():
                 yield from descendants(child)
 
         for page in pages:
+            print(f"UI page start: {page}", flush=True)
             try:
                 app.show(page)
                 app.update_idletasks()
@@ -153,13 +154,13 @@ def _run_ui_smoke_test():
                     detail = next((value for value in texts if "SAFE RECOVERY" not in value and value not in {"Trader Planner Pro"}), "unknown page error")
                     failures.append(f"{page}: recovered after render error ({detail})")
                 else:
-                    print(f"UI page OK: {page}")
+                    print(f"UI page OK: {page}", flush=True)
             except Exception as exc:
                 failures.append(f"{page}: {type(exc).__name__}: {exc}")
 
         if failures:
             raise RuntimeError("Tk UI section smoke test failed:\n- " + "\n- ".join(failures))
-        print(f"{APP} {VERSION} UI smoke-test: {len(pages)} pages rendered OK")
+        print(f"{APP} {VERSION} UI smoke-test: {len(pages)} pages rendered OK", flush=True)
     finally:
         try:
             app.close_app()
