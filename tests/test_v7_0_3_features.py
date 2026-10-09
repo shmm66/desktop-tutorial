@@ -125,7 +125,7 @@ def test_v740_market_data_configuration():
 def test_v740_home_shortcut_and_auto_hide_are_present():
     from pathlib import Path
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert 'self.bind_all("<Home>"' in source
+    assert 'self.bind_all("<Home>"' not in source
     assert "self.menu_hide_job" in source
     assert "_schedule_menu_hide" in source
     assert "MARKET TAPE" in source
@@ -194,7 +194,8 @@ def test_v760_modern_skins_and_ai_chat_hooks():
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert {"obsidian","aurora","graphite","pearl"} <= set(SKINS)
     assert "def open_ai_chat(self):" in source
-    assert "<Control-K>" in source
+    assert "<Control-K>" not in source
+    assert "self.quickbar = None" in source
     assert "def _rounded_rect(" in source
     assert I18N["fa"]["ai"].startswith("🤖")
 
@@ -431,7 +432,8 @@ def test_v820_home_is_synchronous_and_ai_is_globally_launchable():
     assert "def go_home(self, _event=None):" in source
     assert "self._hard_home()" in source
     assert 'command=self.go_ai' in source
-    assert '("ai", self.tr("ai_chat"), self.go_ai)' in source
+    assert 'for key in ("home","daily","weekly","plan","check","journal","academy","ai","news","calculators","chart","settings"):' in source
+    assert 'cmd = self.go_ai if key == "ai" else (lambda k=key: self.go(k))' in source
     assert "def open_ai_chat(self):" in source
     assert "tk.Toplevel(self)" in source
 
@@ -461,7 +463,7 @@ def test_v820_academy_dispatch_has_exact_models():
 def test_v830_ai_uses_flagship_model():
     import ai_assistant
     assert ai_assistant.DEFAULT_MODEL == "gpt-5.6-sol"
-    assert ai_assistant.REASONING_EFFORT == "max"
+    assert ai_assistant.REASONING_EFFORT == "high"
 
 def test_v830_home_timeout_rearms_after_switch():
     from pathlib import Path

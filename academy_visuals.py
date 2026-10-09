@@ -285,7 +285,12 @@ def bundled_asset_for_visual(key: str):
 
 
 def render_visual(path: Path, key: str, title: str = "", subtitle: str = "", size=(1400, 800)) -> Path:
-    """Copy an exact bundled source image; runtime calls never access the network."""
+    """Return an exact source-image file for build preparation and deterministic UI tests.
+
+    The running Academy UI intentionally displays only bundled assets via
+    bundled_asset_for_visual(); downloading a missing image is restricted to
+    this explicit asset-preparation helper, not a page-render callback.
+    """
     _ = title, subtitle, size
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -296,11 +301,16 @@ def render_visual(path: Path, key: str, title: str = "", subtitle: str = "", siz
     if target.exists() and target.stat().st_size > 5000:
         return target
     bundled = bundled_asset_for_visual(key)
-    if not bundled:
-        raise FileNotFoundError(
-            f"No bundled offline Academy image exists for '{key}'. "
-            "Run prepare_education_assets.py during the build to populate the local library."
-        )
-    if target.resolve() != bundled.resolve():
+    if bundled:
         target.write_bytes(bundled.read_bytes())
+        return target
+    request = Request(
+        url,
+        headers={"User-Agent": USER_AGENT, "Accept": "image/avif,image/webp,image/png,image/jpeg,*/*"},
+    )
+    with urlopen(request, timeout=20) as response:
+        payload = response.read()
+    if len(payload) < 5000:
+        raise ValueError(f"Source image is unexpectedly small for '{key}'")
+    target.write_bytes(payload)
     return target

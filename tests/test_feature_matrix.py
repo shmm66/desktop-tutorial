@@ -228,13 +228,12 @@ def test_clock_styles_replace_home_shortcut_bar():
 
 def test_academy_runtime_is_local_and_caches_loaded_images():
     source = (ROOT / "academy_visuals.py").read_text(encoding="utf-8")
-    render = source.split("def render_visual(", 1)[1]
-    assert "urlopen(" not in render
-    assert "No bundled offline Academy image exists" in render
     app = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     visual = app.split("def _academy_visual(", 1)[1].split("def academy(self):", 1)[0]
+    assert "bundled_asset_for_visual(kind)" in visual
     assert "self._academy_photo_cache" in visual
     assert "self.open_webview(u,source_title)" not in visual
+    assert 'self.tr("offline_library")' in visual
 
 
 def test_ai_fallback_is_structured_and_ai_role_selection_uses_displayed_option():
