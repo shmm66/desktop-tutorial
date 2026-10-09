@@ -33,7 +33,7 @@ def show_splash():
         from PIL import Image, ImageTk
         from logo_3d import create_logo_image
         p = Path(tempfile.gettempdir()) / "TraderPlannerPro_3D" / "logo.png"
-        create_logo_image(p, 620)
+        create_logo_image(p, 420)
         image = Image.open(p).convert("RGBA")
         image.thumbnail((330, 330), Image.Resampling.LANCZOS)
         logo_photo = ImageTk.PhotoImage(image)
