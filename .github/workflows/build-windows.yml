@@ -88,6 +88,14 @@ jobs:
         run: |
           & $env:TP_PYTHON build_icon.py
 
+      - name: Prepare branded installer assets
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON prepare_branding.py
+          if ($LASTEXITCODE -ne 0) { throw "Branding asset generation failed with exit code $LASTEXITCODE" }
+          $assets = @('assets/trader_planner_logo.ico','assets/installer_wizard.bmp','assets/installer_small.bmp')
+          foreach ($asset in $assets) { if (-not (Test-Path $asset)) { throw "Required installer asset was not generated: $asset" } }
+
       - name: Build EXE
         shell: powershell
         run: >-
