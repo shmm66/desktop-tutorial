@@ -95,77 +95,51 @@ def _configure_window_transparency(window, dark: bool, opacity: float = 0.94):
 
 
 def apply_glass(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
-    """Apply native Windows glass without installing event handlers repeatedly.
+    """Apply the native Windows backdrop once, without recursive Tk scheduling.
 
-    Older versions added a new <Map> binding on every theme update. Some
-    Windows backdrops and style helpers generate additional map/unmap events,
-    so those bindings could recursively schedule more after callbacks.
-    We now use one debounced, cancellable deferred application per window.
+    This function deliberately never calls after. Deferred application is
+    owned exclusively by apply_glass_after_map, which debounces its single
+    pending callback. This separation prevents repeated theme/map events from
+    building an unbounded callback-registration chain.
     """
     if not is_windows():
         return False
-
-    def _apply_once() -> bool:
-        if getattr(window, "_tpp_glass_applying", False):
+    if getattr(window, "_tpp_glass_applying", False):
+        return False
+    try:
+        if not window.winfo_exists():
             return False
+    except Exception:
+        return False
+
+    # If a deferred map callback is pending, this immediate application wins.
+    pending = getattr(window, "_tpp_glass_after_id", None)
+    if pending:
         try:
-            if not window.winfo_exists():
-                return False
+            window.after_cancel(pending)
         except Exception:
             pass
-
-        try:
-            setattr(window, "_tpp_glass_applying", True)
-        except Exception:
-            pass
-
-        try:
-            try:
-                window.wm_attributes("-alpha", max(0.86, min(float(opacity), 0.995)))
-            except Exception:
-                pass
-            _configure_window_transparency(window, dark, opacity)
-            native_ok = _set_dwm_backdrop(window, dark=dark, acrylic=(style != "mica"))
-            pywin_ok = _apply_pywinstyles(window, dark=dark, style=style)
-            return native_ok or pywin_ok
-        except Exception:
-            return False
-        finally:
-            try:
-                setattr(window, "_tpp_glass_applying", False)
-            except Exception:
-                pass
-
-    def _apply_deferred() -> None:
         try:
             setattr(window, "_tpp_glass_after_id", None)
         except Exception:
             pass
-        _apply_once()
 
-    # Cancel pending work so rapid theme/opacity changes never queue a pile
-    # of Tk callbacks. One delayed pass handles the first native-window map.
     try:
-        pending = getattr(window, "_tpp_glass_after_id", None)
-        if pending:
-            try:
-                window.after_cancel(pending)
-            except Exception:
-                pass
-            try:
-                setattr(window, "_tpp_glass_after_id", None)
-            except Exception:
-                pass
-
-        result = _apply_once()
-        job = window.after(120, _apply_deferred)
+        setattr(window, "_tpp_glass_applying", True)
+    except Exception:
+        pass
+    try:
+        _configure_window_transparency(window, dark, opacity)
+        native_ok = _set_dwm_backdrop(window, dark=dark, acrylic=(style != "mica"))
+        pywin_ok = _apply_pywinstyles(window, dark=dark, style=style)
+        return native_ok or pywin_ok
+    except Exception:
+        return False
+    finally:
         try:
-            setattr(window, "_tpp_glass_after_id", job)
+            setattr(window, "_tpp_glass_applying", False)
         except Exception:
             pass
-        return result
-    except Exception:
-        return _apply_once()
 
 
 def apply_glass_to_toplevel(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
@@ -188,9 +162,29 @@ def set_widget_glass(widget, opacity: float = 0.88) -> bool:
 
 
 def apply_glass_after_map(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
+    """Schedule at most one post-map glass application for a window."""
+    if not is_windows():
+        return False
     try:
-        window.update_idletasks()
-        window.after(50, lambda: apply_glass(window, dark=dark, style=style, opacity=opacity))
+        if not window.winfo_exists():
+            return False
+        if getattr(window, "_tpp_glass_after_id", None):
+            return True
+
+        def _apply_after_map() -> None:
+            try:
+                setattr(window, "_tpp_glass_after_id", None)
+            except Exception:
+                pass
+            try:
+                if window.winfo_exists():
+                    apply_glass(window, dark=dark, style=style, opacity=opacity)
+            except Exception:
+                # Window teardown and DWM failures must never crash the Tk loop.
+                pass
+
+        job = window.after(50, _apply_after_map)
+        setattr(window, "_tpp_glass_after_id", job)
         return True
     except Exception:
         return apply_glass(window, dark=dark, style=style, opacity=opacity)
