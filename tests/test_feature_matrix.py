@@ -245,3 +245,9 @@ def test_ai_fallback_is_structured_and_ai_role_selection_uses_displayed_option()
     app_source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert 'role_var=tk.StringVar(value=role_labels["orchestrator"])' in app_source
     assert 'role=next((k for k,v in role_labels.items() if v==role_var.get()),"orchestrator")' in app_source
+
+
+def test_offline_strategy_fallback_uses_the_user_language():
+    from ai_assistant import _fallback
+    answer = _fallback("strategy", "لطفاً ستاپ را بررسی کن", "Market: Crypto")
+    assert "بررسی ساختاری ستاپ" in answer

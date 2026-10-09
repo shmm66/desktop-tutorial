@@ -178,7 +178,7 @@ def _fallback(role, user_message, context):
     """Give concrete, structured next steps when no live model is configured."""
     message = str(user_message or "").strip()
     lower = f"{message} {context}".lower()
-    is_fa = any("\\u0600" <= character <= "\\u06ff" for character in message)
+    is_fa = any("\u0600" <= character <= "\u06ff" for character in message)
     market_line = next((line.strip() for line in str(context).splitlines() if line.lower().startswith("market:")), "")
     profile_line = next((line.strip() for line in str(context).splitlines() if line.lower().startswith("profile:")), "")
     context_tail = " | ".join(value for value in (market_line, profile_line) if value)
