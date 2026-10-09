@@ -161,6 +161,16 @@ def test_launcher_exposes_real_tk_page_smoke_test():
 
 
 
+def test_splash_waits_for_app_preload_instead_of_closing_early():
+    source = (ROOT / "launcher.py").read_text(encoding="utf-8")
+    assert "def show_splash(ready_event=None):" in source
+    assert "def _preload_app_class(result, ready_event):" in source
+    assert "name=\"TraderPlannerModulePreload\"" in source
+    assert "show_splash(preload_ready)" in source
+    assert "elif ready_event is not None and not ready_event.is_set():" in source
+    assert source.index("target=_preload_app_class") < source.index("show_splash(preload_ready)")
+
+
 def test_weekly_and_journal_page_helpers_are_implemented():
     source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def _week_dates(self, offset=0):" in source
