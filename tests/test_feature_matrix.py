@@ -116,3 +116,12 @@ def test_ai_page_routes_around_ai_service_name_collision():
     assert "self.ai = AIOrchestrator()" in source
     assert "renderer = self.ai_page if key == \"ai\" else getattr(self, key)" in source
     assert "def ai_page(self):" in source
+
+
+
+def test_home_and_journal_render_helpers_exist():
+    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "def render_home_summary(self, parent, rows):" in source
+    assert "def _metric_card(self, parent, title, value, accent):" in source
+    assert "Journal Snapshot • Recent Trades" in source
+    assert "def _trade_metrics(self, rows):" in source
