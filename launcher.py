@@ -3,11 +3,12 @@ import tkinter as tk
 from pathlib import Path
 import tempfile
 import sys
+import threading
 
 APP = "Trader Planner Pro"
 VERSION = "10.0.0"
 
-def show_splash():
+def show_splash(ready_event=None):
     root = tk.Tk()
     root.overrideredirect(True)
     root.configure(bg="#061019")
@@ -73,6 +74,8 @@ def show_splash():
         nonlocal idx, tick
         tick += 1
         target, label = phases[min(idx, len(phases)-1)]
+        if idx == len(phases)-1 and ready_event is not None and not ready_event.is_set():
+            target, label = 94, "Loading core modules…"
         current = x0 + (bar_w * target / 100.0)
         canvas.coords(progress, x0, y0, current, y0+5)
         canvas.itemconfigure(status, text=label)
@@ -82,11 +85,26 @@ def show_splash():
         if idx < len(phases)-1:
             idx += 1
             root.after(190, animate)
+        elif ready_event is not None and not ready_event.is_set():
+            # Keep the splash visible while the application's modules finish
+            # importing; never expose a blank pause between splash and window.
+            root.after(120, animate)
         else:
-            root.after(260, root.destroy)
+            root.after(180, root.destroy)
 
     root.after(90, animate)
     root.mainloop()
+
+def _preload_app_class(result, ready_event):
+    """Import the app module off the Tk thread while the splash is visible."""
+    try:
+        from TraderPlannerPro_v7_0_3 import App
+        result["App"] = App
+    except BaseException as exc:
+        result["error"] = exc
+    finally:
+        ready_event.set()
+
 
 def _write_startup_error(exc):
     try:
@@ -218,9 +236,19 @@ def main():
         if len(sys.argv) > 1 and sys.argv[1] == "--tradingview":
             from tradingview_runner import main as tradingview_main
             raise SystemExit(tradingview_main(sys.argv[2:]))
-        show_splash()
-        from TraderPlannerPro_v7_0_3 import App
-        app=App()
+        preload_result = {}
+        preload_ready = threading.Event()
+        threading.Thread(
+            target=_preload_app_class,
+            args=(preload_result, preload_ready),
+            name="TraderPlannerModulePreload",
+            daemon=True,
+        ).start()
+        show_splash(preload_ready)
+        if "error" in preload_result:
+            raise preload_result["error"]
+        App = preload_result["App"]
+        app = App()
         try: app.state("zoomed")
         except Exception: pass
         try:
