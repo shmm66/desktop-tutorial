@@ -1,4 +1,5 @@
 name: CI + Windows EXE + Installer
+# Triggered build includes regression coverage for bounded Acrylic callbacks and lazy AI startup.
 # V10.0.0 production build
 
 on:
