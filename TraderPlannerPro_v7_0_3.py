@@ -732,10 +732,13 @@ class App(tk.Tk):
         if not initial and hasattr(self, "content"):
             self.content.configure(bg=C["bg"])
             self._refresh_shell_theme()
-        try:
-            apply_glass(self, dark=effective=="dark", style="acrylic", opacity=self.glass_opacity)
-        except Exception:
-            pass
+        # The constructor applies glass once, after the native shell exists.
+        # Avoid a pre-shell DWM pass that is immediately repeated after build_shell.
+        if not initial:
+            try:
+                apply_glass(self, dark=effective=="dark", style="acrylic", opacity=self.glass_opacity)
+            except Exception:
+                pass
         if self.theme_mode == "auto":
             if self.theme_auto_job:
                 try: self.after_cancel(self.theme_auto_job)
@@ -754,8 +757,8 @@ class App(tk.Tk):
         if effective != getattr(self, "_last_effective_theme", effective):
             self.apply_theme()
             self.show(self.cur)
-        else:
-            self.apply_theme()
+        # When nothing changed, do not repaint the whole shell or reapply DWM
+        # Acrylic every minute. The timer is only a theme-transition watcher.
         if self.theme_mode == "auto":
             self.theme_auto_job = self.after(60000, self._theme_watch)
 
