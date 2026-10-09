@@ -482,7 +482,13 @@ def test_v830_native_acrylic_reapply_is_debounced_without_map_recursion():
     assert 'window.bind("<Map>"' not in source
     assert "_tpp_glass_after_id" in source
     assert "after_cancel" in source
-    assert "window.after(120, _apply_deferred)" in source
+    apply_body = source.split("def apply_glass(", 1)[1].split(
+        "def apply_glass_to_toplevel(", 1
+    )[0]
+    after_map_body = source.split("def apply_glass_after_map(", 1)[1]
+    assert "window.after(" not in apply_body
+    assert "window.after(50, _apply_after_map)" in after_map_body
+    assert "window.after(120, _apply_deferred)" not in source
 
 def test_v830_news_cache_first():
     from news_data import cached_news
@@ -492,9 +498,14 @@ def test_v830_news_cache_first():
 def test_v831_agents_sdk_handoffs_are_defined():
     from pathlib import Path
     source=Path("ai_assistant.py").read_text(encoding="utf-8")
-    assert "from agents import Agent, ModelSettings, Runner" in source
+    assert "def _ensure_agents_sdk()" in source
+    sdk_loader = source.split("def _ensure_agents_sdk()", 1)[1].split(
+        "def ", 1
+    )[0]
+    assert "from agents import Agent as _Agent, ModelSettings as _ModelSettings, Runner as _Runner" in sdk_loader
     assert "handoffs=list(specialists.values())" in source
     assert 'Reasoning(mode="pro", effort=REASONING_EFFORT, context="all_turns")' in source
+    assert "def _cached_ollama_status()" in source
 
 def test_v831_home_has_fallback_path():
     from pathlib import Path
