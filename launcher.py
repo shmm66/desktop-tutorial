@@ -217,6 +217,12 @@ def main():
         app.mainloop()
     except Exception as exc:
         _write_startup_error(exc)
+        # CI test modes must report failures to stderr and exit, never open a
+        # modal dialog that can hang a non-interactive Windows runner.
+        if len(sys.argv) > 1 and sys.argv[1] in {"--self-test", "--ui-smoke-test"}:
+            import traceback
+            traceback.print_exc()
+            raise
         try:
             root=tk.Tk(); root.withdraw()
             from tkinter import messagebox
