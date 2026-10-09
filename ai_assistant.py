@@ -12,7 +12,7 @@ ROOT = Path.home() / "TraderPlannerPro"
 AI_SECRET = ROOT / "openai_key.json"
 OLLAMA_BASE = "http://localhost:11434/api"
 DEFAULT_MODEL = os.getenv("TRADER_PLANNER_AI_MODEL", "gpt-5.6-sol")
-REASONING_EFFORT = "max"
+REASONING_EFFORT = "high"
 MODEL_FALLBACKS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
 
 # Keep the application shell light: the Agents SDK is imported only when a
@@ -175,58 +175,50 @@ def cloud_status():
 
 
 def _fallback(role, user_message, context):
-    lower = f"{user_message} {context}".lower()
+    """Give concrete, structured next steps when no live model is configured."""
+    message = str(user_message or "").strip()
+    lower = f"{message} {context}".lower()
+    is_fa = any("\\u0600" <= character <= "\\u06ff" for character in message)
+    market_line = next((line.strip() for line in str(context).splitlines() if line.lower().startswith("market:")), "")
+    profile_line = next((line.strip() for line in str(context).splitlines() if line.lower().startswith("profile:")), "")
+    context_tail = " | ".join(value for value in (market_line, profile_line) if value)
     if role == "orchestrator":
-        return (
-            "Master Agent\\n"
-            "I will break the request into context, setup, trigger, invalidation, target, risk and next action. "
-            "I will keep SMC, ICT and candlestick terminology separate and only use supplied live-data context."
-        )
-    if role == "form":
-        return (
-            "Form Coach\n"
-            "• Symbol / market / direction\n"
-            "• Entry / SL / TP / position size\n"
-            "• Setup + market structure + liquidity\n"
-            "• Emotion before/during/after\n"
-            "• Result in R + lesson\n"
-            "Complete the checklist before saving."
-        )
+        if any(token in lower for token in ("fvg","bos","ict","smc","order block","liquidity","ستاپ","ایمبالانس","نقدینگی")): role = "strategy"
+        elif any(token in lower for token in ("journal","ژورنال","trade log","معامله")): role = "form"
+        elif any(token in lower for token in ("fomo","revenge","فومو","انتقام","روانشناسی")): role = "psychology"
+        elif any(token in lower for token in ("routine","روتین","برنامه روزانه")): role = "planner"
     if role == "strategy":
-        if "engulf" in lower:
-            return (
-                "This is a candlestick pattern, not an ICT model. "
-                "Bullish engulfing and bearish engulfing are separate patterns. "
-                "Use context and confirmation rather than treating the pattern as a standalone signal."
-            )
-        return (
-            "Strategy Coach\n"
-            "Separate: context → setup → trigger → invalidation → target. "
-            "Use only the documented Academy definition for the selected model."
-        )
+        if is_fa:
+            return ("بررسی ساختاری ستاپ — راهنمای آفلاین\n" + (context_tail + chr(10) if context_tail else "") +
+                "۱) زمینه: بایاس و ساختار تایم‌فریم بالاتر را مشخص کن؛ بدون نماد و تایم‌فریم بازار را فرض نمی‌کنم.\n"
+                "۲) ستاپ: ناحیه نقدینگی، سقف/کف مهم و FVG یا Order Block را روی نمودار علامت بزن.\n"
+                "۳) تریگر: جابه‌جایی قوی، بسته‌شدن معتبر کندل و برگشت به ناحیه را جداگانه تأیید کن.\n"
+                "۴) ابطال: حد ضرر باید پشت ساختاری باشد که فرض معامله را باطل می‌کند.\n"
+                "۵) هدف: نقدینگی یا سقف/کف بعدی را مشخص کن و R:R را پیش از ورود حساب کن.\n"
+                "۶) ریسک: اگر چک‌لیست ناقص است یا نسبت سود به زیان با قانونت سازگار نیست، ورود نکن.\n"
+                "برای تحلیل مشخص، نماد، تایم‌فریم‌ها و تصویر نمودار را بفرست. این پاسخ سیگنال زنده نیست.")
+        return ("Structured Strategy Review (offline guide)\n" + (context_tail + chr(10) if context_tail else "") +
+            "1) Context: define higher-timeframe bias and structure; I will not assume them without symbol/timeframe data.\n"
+            "2) Setup: mark liquidity, important swing levels, and the FVG or order-block area.\n"
+            "3) Trigger: confirm displacement, a valid close through structure, and the planned retrace.\n"
+            "4) Invalidation: place the stop beyond the structure that invalidates the thesis.\n"
+            "5) Target: identify the next liquidity pool/swing and calculate R:R before entry.\n"
+            "6) Risk: skip the trade if the checklist is incomplete or R:R violates your rules.\n"
+            "For a specific review, provide symbol, timeframes and a chart screenshot. This is not a live signal.")
+    if role == "form":
+        if is_fa: return "مربی فرم معامله — موارد لازم\nنماد و بازار | جهت | تایم‌فریم | مدل ستاپ | دلیل ورود | ورود | حد ضرر | هدف | R:R | درصد ریسک\nموارد اجباری چک‌لیست را پیش از ذخیره بررسی کن؛ پس از معامله نتیجه برحسب R، احساسات و یک درس قابل اجرا را ثبت کن."
+        return "Trade Form Coach — required fields\nSymbol/market | direction | timeframes | setup model | entry rationale | entry | stop | target | R:R | risk %\nCheck required checklist items before saving; afterward, record result in R, emotions and one actionable lesson."
     if role == "psychology":
-        return (
-            "Psychology Coach\n"
-            "Pause → name the emotion → check the rules → check risk → act only if the checklist passes. "
-            "Record repeated FOMO/revenge triggers in the journal."
-        )
+        if is_fa: return "چک‌لیست روانشناسی قبل از ورود\n۱) آیا ستاپ طبق پلن است؟ ۲) آیا خبر مهم نزدیک است؟ ۳) آیا حد ضرر و ریسک مشخص‌اند؟\n۴) آیا برای جبران ضرر عجله داری؟ ۵) آیا از جا ماندن از حرکت می‌ترسی؟\nاگر پاسخ ۴ یا ۵ مثبت است، ۱۰ دقیقه مکث کن و سپس چک‌لیست را دوباره بررسی کن."
+        return "Pre-trade psychology checklist\n1) Is the setup in your plan? 2) Is major news imminent? 3) Are stop and risk defined?\n4) Are you rushing to recover a loss? 5) Are you afraid of missing the move?\nIf 4 or 5 is yes, pause for 10 minutes and repeat your checklist before entering."
     if role == "planner":
-        return (
-            "Routine Coach\n"
-            "Pre-market markup → news check → trading block → hard stop → journal → review. "
-            "Convert recurring items into reminders."
-        )
+        return "روتین پیشنهادی: بررسی خبرها → تعیین بایاس و نواحی → انتظار برای تریگر → توقف در سقف ریسک روز → ثبت تصویر و نتیجه در ژورنال." if is_fa else "Suggested routine: check the news calendar → set bias and zones → wait for the trigger → stop at the daily risk limit → save a chart screenshot and journal the result."
     if role == "academy":
-        return (
-            "Academy Tutor\n"
-            "Smart Money is a broad framework; ICT uses its own named models and terminology. "
-            "Read the exact source visual and the definition shown in the selected Academy card."
-        )
-    return (
-        "Product Strategist\n"
-        "Prioritize a calm dashboard, fewer clicks, clear state badges, responsive cards, "
-        "strong empty/error states, and a fast journal → review → improvement loop."
-    )
+        return "آکادمی آفلاین: SMC چارچوب کلی ساختار بازار و نقدینگی است؛ ICT مدل‌ها و نام‌گذاری‌های مشخص خود را دارد؛ الگوی کندلی به‌تنهایی تریگر کامل نیست. زمینه، محل وقوع و ابطال را هم بررسی کن." if is_fa else "Offline Academy: SMC is a broad market-structure/liquidity framework; ICT has named models and terminology; a candlestick pattern alone is not a complete trigger. Check context, location and invalidation."
+    if role == "product":
+        return "اقدام‌های مشخص: اول خطاهای شروع را از روی لاگ قابل تکرار رفع کن؛ وضعیت ذخیره را واضح نشان بده؛ سپس نمودار، تصویر و قابلیت‌های سنگین را فقط هنگام نیاز بارگذاری کن." if is_fa else "Concrete product actions: fix repeatable startup errors from logs first; expose save/error states clearly; then lazy-load expensive chart, image and AI features only when requested."
+    if is_fa: return "دستیار داخلی آفلاین\nبرای ساخت چک‌لیست و فرم کمک می‌کنم، اما تحلیل واقعی نمودار به نماد، تایم‌فریم و تصویر/داده جاری نیاز دارد. برای پاسخ مولد ابری، کلید API را در تنظیمات ثبت کن؛ برای مدل محلی، Ollama باید نصب و اجرا باشد."
+    return "Built-in offline assistant\nI can structure a checklist and trade form, but chart analysis requires the symbol, timeframe and current chart/data. For generative cloud replies, save an API key in Settings; for a local model, Ollama must be installed and running."
 
 
 class AIOrchestrator:

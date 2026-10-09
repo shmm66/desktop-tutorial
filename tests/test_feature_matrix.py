@@ -194,3 +194,54 @@ def test_home_and_journal_render_helpers_exist():
     assert "def _metric_card(self, parent, title, value, accent):" in source
     assert "Journal Snapshot • Recent Trades" in source
     assert "def _trade_metrics(self, rows):" in source
+
+
+def test_weekly_route_is_an_editable_week_month_year_goal_manager():
+    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert '"goals": []' in source
+    assert "def _goal_period_range(self, period, reference=None):" in source
+    assert "def goal_dialog(self, goal=None):" in source
+    assert "date.fromisoformat(start_var.get().strip())" in source
+    assert 'self.tr("goal_weekly")' in source
+    assert 'self.tr("goal_monthly")' in source
+    assert 'self.tr("goal_yearly")' in source
+
+
+def test_profile_management_and_ai_key_controls_are_present_in_settings():
+    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    settings = source.split("    def settings(self):", 1)[1].split("    def calculators(self):", 1)[0]
+    assert "self.profile_panel(self.content)" in settings
+    assert "self._save_ai_key(key)" in settings
+    assert "self._clear_ai_key" in settings
+    assert '"clock_style":self.clock_style' in settings
+
+
+def test_clock_styles_replace_home_shortcut_bar():
+    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert '"digital", "classic", "wrist"' in source
+    assert "def set_clock_style(self, style):" in source
+    shell = source.split("    def build_shell(self):", 1)[1].split("    def _shell_motion", 1)[0]
+    assert "self.quickbar = None" in shell
+    assert "self.global_home_btn = tk.Button" not in shell
+    assert "self.global_ai_btn = tk.Button" not in shell
+
+
+def test_academy_runtime_is_local_and_caches_loaded_images():
+    source = (ROOT / "academy_visuals.py").read_text(encoding="utf-8")
+    render = source.split("def render_visual(", 1)[1]
+    assert "urlopen(" not in render
+    assert "No bundled offline Academy image exists" in render
+    app = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    visual = app.split("def _academy_visual(", 1)[1].split("def academy(self):", 1)[0]
+    assert "self._academy_photo_cache" in visual
+    assert "self.open_webview(u,source_title)" not in visual
+
+
+def test_ai_fallback_is_structured_and_ai_role_selection_uses_displayed_option():
+    ai_source = (ROOT / "ai_assistant.py").read_text(encoding="utf-8")
+    fallback_source = ai_source.split("def _fallback(", 1)[1].split("class AIOrchestrator:", 1)[0]
+    for field in ("Context:", "Setup:", "Trigger:", "Invalidation:", "Target:", "Risk:"):
+        assert field in fallback_source
+    app_source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert 'role_var=tk.StringVar(value=role_labels["orchestrator"])' in app_source
+    assert 'role=next((k for k,v in role_labels.items() if v==role_var.get()),"orchestrator")' in app_source

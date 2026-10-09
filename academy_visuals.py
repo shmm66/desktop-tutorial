@@ -285,7 +285,7 @@ def bundled_asset_for_visual(key: str):
 
 
 def render_visual(path: Path, key: str, title: str = "", subtitle: str = "", size=(1400, 800)) -> Path:
-    """Return an exact source image path without adding labels or re-encoding it."""
+    """Copy an exact bundled source image; runtime calls never access the network."""
     _ = title, subtitle, size
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -293,24 +293,14 @@ def render_visual(path: Path, key: str, title: str = "", subtitle: str = "", siz
     if not url:
         raise ValueError(f"No exact educational visual is mapped for '{key}'")
     target = path.with_suffix(remote_extension(url))
-
     if target.exists() and target.stat().st_size > 5000:
         return target
-
     bundled = bundled_asset_for_visual(key)
-    if bundled:
+    if not bundled:
+        raise FileNotFoundError(
+            f"No bundled offline Academy image exists for '{key}'. "
+            "Run prepare_education_assets.py during the build to populate the local library."
+        )
+    if target.resolve() != bundled.resolve():
         target.write_bytes(bundled.read_bytes())
-        return target
-
-    request = Request(
-        url,
-        headers={"User-Agent": USER_AGENT, "Accept": "image/avif,image/webp,image/png,image/jpeg,*/*"},
-    )
-    with urlopen(request, timeout=20) as response:
-        payload = response.read()
-    if len(payload) < 5000:
-        raise ValueError(f"Remote source image is unexpectedly small for '{key}'")
-    target.write_bytes(payload)
-    if path != target and path.exists():
-        path.unlink()
     return target

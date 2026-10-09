@@ -214,6 +214,51 @@ I18N = {
 }
 
 
+# V10.1 UX language pack.
+I18N["fa"].update({
+ "weekly":"◎  اهداف","weekly_title":"اهداف هفتگی، ماهانه و سالانه",
+ "weekly_sub":"هدف‌ها را بساز، تاریخ شروع و پایان را ویرایش کن و پیشرفت هر هدف را ثبت کن.",
+ "goal_all":"همه بازه‌ها","goal_weekly":"هفتگی","goal_monthly":"ماهانه","goal_yearly":"سالانه",
+ "goal_period":"دوره هدف","goal_name":"عنوان هدف","goal_start":"تاریخ شروع (YYYY-MM-DD)","goal_end":"تاریخ پایان (YYYY-MM-DD)",
+ "goal_target":"مقدار هدف","goal_progress":"پیشرفت فعلی","goal_unit":"واحد","goal_notes":"یادداشت",
+ "goal_add":"＋ هدف جدید","goal_edit":"ویرایش هدف","goal_delete":"حذف هدف","goal_increment":"ثبت پیشرفت +۱","goal_save":"ذخیره هدف",
+ "goal_empty":"هنوز هدفی ثبت نشده است؛ یک هدف هفتگی، ماهانه یا سالانه بساز.",
+ "goal_invalid_dates":"تاریخ‌ها باید به قالب YYYY-MM-DD باشند و پایان نباید قبل از شروع باشد.",
+ "goal_invalid_numbers":"مقدار هدف باید مثبت باشد و پیشرفت نمی‌تواند منفی باشد.",
+ "goal_delete_confirm":"این هدف حذف شود؟","goal_total":"کل هدف‌ها","goal_done":"تکمیل‌شده","goal_overdue":"عقب‌افتاده",
+ "goal_active":"در حال اجرا","goal_status":"وضعیت","goal_value":"پیشرفت",
+ "profile_name":"نام پروفایل","default_market":"بازار پیش‌فرض","account_currency":"ارز حساب",
+ "clock_style":"سبک ساعت سشن‌ها","clock_digital":"دیجیتال","clock_classic":"عقربه‌ای کلاسیک","clock_wrist":"مچی هوشمند",
+ "offline_library":"تصویر مرجع محلی • بدون نیاز به اینترنت",
+ "select_term_to_preview":"برای نمایش تصویر آفلاین، یک مورد را از فهرست انتخاب کنید.",
+ "api_key_status":"وضعیت اتصال هوش مصنوعی","api_key_configured":"کلید API ذخیره شده است؛ پاسخ ابری با استفاده از API انجام می‌شود.",
+ "api_key_missing":"کلید API ثبت نشده؛ دستیار داخلی یا Ollama در دسترس خواهد بود.",
+ "api_key_placeholder":"کلید OpenAI را اینجا وارد کنید","api_key_security":"کلید فقط در فایل تنظیمات محلی ذخیره می‌شود؛ کلید را در گفتگو ارسال نکنید.",
+ "api_key_empty":"ابتدا کلید API را وارد کنید."
+});
+I18N["en"].update({
+ "weekly":"◎  Goals","weekly_title":"Weekly, Monthly & Yearly Goals",
+ "weekly_sub":"Create goals, edit their start and end dates, and track progress for each one.",
+ "goal_all":"All periods","goal_weekly":"Weekly","goal_monthly":"Monthly","goal_yearly":"Yearly",
+ "goal_period":"Goal period","goal_name":"Goal title","goal_start":"Start date (YYYY-MM-DD)","goal_end":"End date (YYYY-MM-DD)",
+ "goal_target":"Target value","goal_progress":"Current progress","goal_unit":"Unit","goal_notes":"Notes",
+ "goal_add":"＋ New Goal","goal_edit":"Edit Goal","goal_delete":"Delete Goal","goal_increment":"Record +1 Progress","goal_save":"Save Goal",
+ "goal_empty":"No goals yet. Create a weekly, monthly or yearly goal.",
+ "goal_invalid_dates":"Dates must use YYYY-MM-DD and the end date cannot precede the start date.",
+ "goal_invalid_numbers":"Target must be positive and progress cannot be negative.",
+ "goal_delete_confirm":"Delete this goal?","goal_total":"Total goals","goal_done":"Completed","goal_overdue":"Overdue",
+ "goal_active":"In progress","goal_status":"Status","goal_value":"Progress",
+ "profile_name":"Profile name","default_market":"Default market","account_currency":"Account currency",
+ "clock_style":"Session clock style","clock_digital":"Digital","clock_classic":"Classic analog","clock_wrist":"Smart wristwatch",
+ "offline_library":"Bundled local reference image • no internet required",
+ "select_term_to_preview":"Select an item from the list to preview its offline image.",
+ "api_key_status":"AI connection status","api_key_configured":"API key is saved; cloud responses will use the configured API.",
+ "api_key_missing":"No API key is configured; the built-in assistant or Ollama will be used.",
+ "api_key_placeholder":"Enter your OpenAI API key here","api_key_security":"The key is stored in a local settings file; never paste it into chat.",
+ "api_key_empty":"Enter an API key first."
+});
+
+
 SESSION_CLOCKS = [
     {"key":"sydney","fa":"سیدنی","en":"Sydney","tz":"Australia/Sydney","start":8,"end":17,"abbr":"SYD"},
     {"key":"tokyo","fa":"توکیو","en":"Tokyo","tz":"Asia/Tokyo","start":9,"end":18,"abbr":"TYO"},
@@ -284,7 +329,7 @@ def empty_profile(name="Main Profile", market="Crypto", currency="USD", initial_
         "updated_at": datetime.now().isoformat(timespec="seconds"),
         "journals": {"Forex": [], "Crypto": []},
         "plans": [], "active_plan_id": None, "plan_draft": {k: "" for k in PLAN_FIELDS},
-        "checklist": default_checklist(),
+        "checklist": default_checklist(), "goals": [],
     }
 
 def empty_db():
@@ -297,7 +342,7 @@ def empty_db():
             for i, (t, title, cat) in enumerate(TASKS)
         ]
     p = empty_profile()
-    return {"version": 800, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"glass","ai_reminders":[]}}
+    return {"version": 800, "active_profile_id": p["id"], "profiles": [p], "tasks": tasks, "settings": {"language":"fa","theme":"dark","theme_auto_start":"08:00","theme_auto_end":"20:00","skin":"glass","clock_style":"digital","ai_reminders":[]}}
 
 def numeric(value):
     try:
@@ -319,6 +364,7 @@ def migrate_payload(old):
     base["settings"].setdefault("theme_auto_start", "08:00")
     base["settings"].setdefault("theme_auto_end", "20:00")
     base["settings"].setdefault("skin", "glass")
+    base["settings"].setdefault("clock_style", "digital")
     base["settings"].setdefault("ai_reminders", [])
     if isinstance(old.get("profiles"), list) and old["profiles"]:
         base["profiles"] = old["profiles"]
@@ -336,6 +382,16 @@ def migrate_payload(old):
             p.setdefault("active_plan_id", None)
             p.setdefault("plan_draft", {k: "" for k in PLAN_FIELDS})
             p.setdefault("checklist", default_checklist())
+            p["goals"] = [g for g in p.get("goals", []) if isinstance(g, dict)]
+            for goal in p["goals"]:
+                goal.setdefault("id", str(uuid4()))
+                goal.setdefault("period", "weekly")
+                goal.setdefault("start_date", date.today().isoformat())
+                goal.setdefault("end_date", date.today().isoformat())
+                goal.setdefault("target", 1.0)
+                goal.setdefault("progress", 0.0)
+                goal.setdefault("unit", "units")
+                goal.setdefault("notes", "")
             for item in p["checklist"]:
                 item.setdefault("id", str(uuid4())); item.setdefault("done", False)
         base["version"] = 800
@@ -514,6 +570,9 @@ class App(tk.Tk):
         self.theme_auto_start = DB.get("settings", {}).get("theme_auto_start", "08:00")
         self.theme_auto_end = DB.get("settings", {}).get("theme_auto_end", "20:00")
         self.skin = DB.get("settings", {}).get("skin", "glass")
+        self.clock_style = DB.get("settings", {}).get("clock_style", "digital")
+        if self.clock_style not in {"digital", "classic", "wrist"}: self.clock_style = "digital"
+        self._academy_photo_cache = {}
         self.glass_opacity = float(DB.get("settings", {}).get("glass_opacity", 0.94) or 0.94)
         self.glass_opacity = max(0.86, min(self.glass_opacity, 0.995))
         if self.skin not in SKINS: self.skin = "glass"
@@ -528,18 +587,15 @@ class App(tk.Tk):
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
                              rowheight=38, borderwidth=0, font=("Segoe UI", 10))
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
-        self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
+        self.style.configure("TCombobox", fieldbackground=C["panel3"], background=C["panel3"], foreground=C["accent"], arrowcolor=C["accent"], padding=6)
+        self.style.map("TCombobox",
+                       fieldbackground=[("readonly", C["panel3"]), ("focus", C["soft"]), ("disabled", C["panel"])],
+                       foreground=[("readonly", C["accent"]), ("focus", C["text"]), ("disabled", C["muted"])],
+                       arrowcolor=[("readonly", C["accent"])])
         self._logo_photo = None
         self.apply_theme(initial=True)
-        self.bind_all("<Home>", self._home_shortcut)
-        self.bind_all("<Alt-Home>", lambda e: self.go_home())
-        self.bind_all("<Control-K>", lambda e: self.go_ai())
-        self.bind_all("<F2>", lambda e: self.go_ai())
-        self.bind_all("<Control-H>", lambda e: self.go_home())
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
-        self.bind_all("<Control-Shift-A>", lambda e: self.go_ai())
-        self.bind_all("<Control-Shift-T>", lambda e: self.go("chart"))
         self.bind("<Motion>", self._shell_motion, add="+")
         self.build_shell()
         self.apply_language()
@@ -727,7 +783,11 @@ class App(tk.Tk):
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
                              rowheight=38, borderwidth=0, font=("Segoe UI", 10))
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
-        self.style.configure("TCombobox", fieldbackground=C["soft"], background=C["soft"], foreground=C["text"])
+        self.style.configure("TCombobox", fieldbackground=C["panel3"], background=C["panel3"], foreground=C["accent"], arrowcolor=C["accent"], padding=6)
+        self.style.map("TCombobox",
+                       fieldbackground=[("readonly", C["panel3"]), ("focus", C["soft"]), ("disabled", C["panel"])],
+                       foreground=[("readonly", C["accent"]), ("focus", C["text"]), ("disabled", C["muted"])],
+                       arrowcolor=[("readonly", C["accent"])])
         self._last_effective_theme = effective
         if not initial and hasattr(self, "content"):
             self.content.configure(bg=C["bg"])
@@ -921,24 +981,6 @@ class App(tk.Tk):
                 button.config(text=self.tr(key))
         if hasattr(self, "market_btn"):
             self.market_btn.config(text=self.market)
-        if hasattr(self, "global_home_btn"):
-            self.global_home_btn.config(text=self.tr("nav_home"))
-        if hasattr(self, "global_ai_btn"):
-            self.global_ai_btn.config(text=self.tr("ai_chat"))
-        if hasattr(self, "_quick_nav_buttons"):
-            labels={
-                "home":self.tr("nav_home"),
-                "crypto":self.tr("crypto_mode"),
-                "forex":self.tr("forex_mode"),
-                "academy":self.tr("academy_hub"),
-                "ai":self.tr("ai_chat"),
-                "news":self.tr("news"),
-                "calculators":self.tr("calculators"),
-                "chart":self.tr("chart"),
-            }
-            for key,label in labels.items():
-                if key in self._quick_nav_buttons:
-                    self._quick_nav_buttons[key].config(text=label)
 
     def set_language(self, code):
         if code not in dict(LANGUAGE_OPTIONS): return
@@ -990,42 +1032,10 @@ class App(tk.Tk):
                                     activebackground=C["gold"], relief="flat", highlightthickness=0,
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
         self.market_btn.pack(side="left", padx=4)
-        self.global_home_btn = tk.Button(
-            status, text=self.tr("nav_home"), command=self.go_home,
-            bg=C["accent"], fg="#061019", activebackground=C["gold"], activeforeground="#061019",
-            relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=12, pady=6, cursor="hand2"
-        )
-        self.global_home_btn.pack(side="left", padx=4)
-        self.global_ai_btn = tk.Button(
-            status, text=self.tr("ai_chat"), command=self.go_ai,
-            bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
-            relief="flat", highlightthickness=0, font=("Segoe UI",9,"bold"), padx=10, pady=6, cursor="hand2"
-        )
-        self.global_ai_btn.pack(side="left", padx=4)
         self.refresh_profile_selector()
 
-        self.quickbar = tk.Frame(self, bg=C["panel3"], highlightbackground=C["line"], highlightthickness=1)
-        self.quickbar.pack(fill="x", padx=14, pady=(0,7), ipady=4)
-        try: set_widget_glass(self.quickbar, 0.74)
-        except Exception: pass
+        self.quickbar = None
         self._quick_nav_buttons = {}
-        nav_specs = [
-            ("home", self.tr("nav_home"), self.go_home),
-            ("weekly", self.tr("weekly"), lambda: self.go("weekly")),
-            ("crypto", self.tr("crypto_mode"), lambda: self.set_market_mode("Crypto")),
-            ("forex", self.tr("forex_mode"), lambda: self.set_market_mode("Forex")),
-            ("academy", self.tr("academy_hub"), lambda: self.go("academy")),
-            ("ai", self.tr("ai_chat"), self.go_ai),
-            ("news", self.tr("news"), lambda: self.go("news")),
-            ("calculators", self.tr("calculators"), lambda: self.go("calculators")),
-            ("chart", self.tr("chart"), lambda: self.go("chart")),
-        ]
-        for key, label, cmd in nav_specs:
-            b = tk.Button(self.quickbar, text=label, command=cmd, bg=C["panel2"], fg=C["text"],
-                          activebackground=C["accent"], activeforeground="#061019", relief="flat",
-                          font=("Segoe UI", 9, "bold"), padx=13, pady=7, cursor="hand2")
-            b.pack(side="left", padx=3)
-            self._quick_nav_buttons[key] = b
 
         self.content = tk.Frame(self, bg=C["bg"])
         self.content.pack(fill="both", expand=True, padx=14)
@@ -1048,9 +1058,7 @@ class App(tk.Tk):
             normal_bg = C["panel"]
             b.bind("<Enter>", lambda e, w=b: w.configure(bg=C["panel2"], fg=C["accent"]))
             b.bind("<Leave>", lambda e, w=b: w.configure(bg=normal_bg, fg=C["text"]))
-        self.menu_home_hint = tk.Label(self.menu, text=self.tr("home_shortcut"), bg=C["panel3"], fg=C["muted"],
-                                       font=("Segoe UI", 8), wraplength=240, justify="left")
-        self.menu_home_hint.pack(fill="x", padx=14, pady=(18,14), ipady=8)
+
 
     def _shell_motion(self, event):
         if self.menu_open:
@@ -1277,11 +1285,11 @@ class App(tk.Tk):
     def profile_panel(self, parent):
         box = self.card(parent); box.pack(fill="x", pady=8)
         left = tk.Frame(box, bg=C["panel"]); left.pack(side="left", fill="x", expand=True, padx=14, pady=12)
-        self.btn(left, "＋ پروفایل جدید", self.add_profile, True).pack(side="left", padx=3)
-        self.btn(left, "ویرایش پروفایل", self.edit_profile).pack(side="left", padx=3)
-        self.btn(left, "حذف پروفایل", self.delete_profile).pack(side="left", padx=3)
+        self.btn(left, self.tr("new_profile"), self.add_profile, True).pack(side="left", padx=3)
+        self.btn(left, self.tr("edit_profile"), self.edit_profile).pack(side="left", padx=3)
+        self.btn(left, self.tr("delete_profile"), self.delete_profile).pack(side="left", padx=3)
         p = active_profile()
-        tk.Label(box, text=f"پروفایل فعال: {p['name']}   |   سرمایه اولیه: {p['initial_balance']:,.2f} {p['currency']}",
+        tk.Label(box, text=f"{self.tr('active_profile')}: {p['name']}   |   {self.tr('initial_balance')}: {p['initial_balance']:,.2f} {p['currency']}",
                  bg=C["panel"], fg=C["gold"], font=("Segoe UI",11,"bold")).pack(side="right", padx=14, pady=12)
 
     def add_profile(self):
@@ -1298,7 +1306,7 @@ class App(tk.Tk):
             "currency": tk.StringVar(value=(profile or {}).get("currency","USD")),
             "initial": tk.StringVar(value=str((profile or {}).get("initial_balance",0))),
         }
-        labels=[("نام پروفایل","name"),("بازار پیش‌فرض","market"),("ارز سرمایه","currency"),("سرمایه اولیه","initial")]
+        labels=[(self.tr("profile_name"),"name"),(self.tr("default_market"),"market"),(self.tr("account_currency"),"currency"),(self.tr("initial_balance"),"initial")]
         for i,(label,key) in enumerate(labels):
             tk.Label(dlg,text=label,bg=C["bg"],fg=C["muted"]).grid(row=i,column=1,padx=16,pady=12,sticky="e")
             if key=="market":
@@ -1316,8 +1324,8 @@ class App(tk.Tk):
                 p=empty_profile(name,vals["market"].get(),vals["currency"].get().strip() or "USD",initial)
                 DB["profiles"].append(p); DB["active_profile_id"]=p["id"]
             save_db(); dlg.destroy(); self.market=active_profile()["market"]; self.market_btn.config(text=self.market); self.market_data.set_market(self.market); self.refresh_profile_selector(); self.show(self.cur)
-        self.btn(dlg,"ذخیره پروفایل",submit,True).grid(row=5,column=0,padx=16,pady=16,sticky="e")
-        self.btn(dlg,"انصراف",dlg.destroy).grid(row=5,column=1,padx=16,pady=16,sticky="w")
+        self.btn(dlg,self.tr("save"),submit,True).grid(row=5,column=0,padx=16,pady=16,sticky="e")
+        self.btn(dlg,self.tr("cancel"),dlg.destroy).grid(row=5,column=1,padx=16,pady=16,sticky="w")
         self.translate_widget_tree(dlg)
 
     def delete_profile(self):
@@ -1400,7 +1408,7 @@ class App(tk.Tk):
         self.ticker_canvas.pack(fill="x", pady=(0,6))
         self.render_market_ticker(self.market_data_payload)
         self.ticker_offset = 0
-        self.ticker_job = self.after(45, self._animate_ticker)
+        self.ticker_job = self.after(120, self._animate_ticker)
 
         indicator_head = tk.Frame(self.content, bg=C["bg"]); indicator_head.pack(fill="x", pady=(1,2))
         tk.Label(indicator_head, text=self.tr("market_indicators"), bg=C["bg"], fg=C["text"], font=("Segoe UI", 11, "bold")).pack(side="right")
@@ -1415,6 +1423,11 @@ class App(tk.Tk):
         session_head = tk.Frame(session_wrap, bg=C["bg"]); session_head.pack(fill="x")
         tk.Label(session_head, text=self.tr("session_strip"), bg=C["bg"], fg=C["text"], font=("Segoe UI", 11, "bold")).pack(side="right")
         tk.Label(session_head, text="SYD • TYO • LON • NY", bg=C["bg"], fg=C["muted"], font=("Consolas", 8, "bold")).pack(side="left")
+        clock_style_labels = {self.tr("clock_digital"): "digital", self.tr("clock_classic"): "classic", self.tr("clock_wrist"): "wrist"}
+        clock_style_var = tk.StringVar(value=next((label for label, key in clock_style_labels.items() if key == self.clock_style), self.tr("clock_digital")))
+        clock_style_box = ttk.Combobox(session_head, textvariable=clock_style_var, values=list(clock_style_labels.keys()), state="readonly", width=18)
+        clock_style_box.pack(side="right", padx=4)
+        clock_style_box.bind("<<ComboboxSelected>>", lambda _e: self.set_clock_style(clock_style_labels.get(clock_style_var.get(), "digital")))
         clocks = tk.Frame(session_wrap, bg=C["bg"]); clocks.pack(fill="x", pady=(4,0))
         for col, session in enumerate(SESSION_CLOCKS):
             clocks.columnconfigure(col, weight=1)
@@ -1447,11 +1460,6 @@ class App(tk.Tk):
 
         actions = tk.Frame(self.content, bg=C["bg"]); actions.pack(fill="x", pady=(4,8))
         self.btn(actions, self.tr("new_trade"), self.add_trade, True).pack(side="right")
-        self.btn(actions, self.tr("crypto_calc"), lambda:self.open_calculator("Crypto")).pack(side="left", padx=3)
-        self.btn(actions, self.tr("forex_calc"), lambda:self.open_calculator("Forex")).pack(side="left", padx=3)
-        self.btn(actions, self.tr("ai"), self.open_ai_chat).pack(side="left", padx=3)
-        self.btn(actions, self.tr("news"), lambda:self.show("news")).pack(side="left", padx=3)
-        self.btn(actions, self.tr("email_statement"), self.email_statement).pack(side="left", padx=3)
 
     def refresh_market_data(self):
         self.market_data_payload["status"] = "loading"
@@ -1597,7 +1605,7 @@ class App(tk.Tk):
             return
         self.ticker_offset += 1
         self.render_market_ticker(self.market_data_payload)
-        self.ticker_job = self.after(45, self._animate_ticker)
+        self.ticker_job = self.after(120, self._animate_ticker)
 
     def _market_data_callback(self, payload):
         if str(payload.get("market")) != str(self.market):
@@ -1616,65 +1624,65 @@ class App(tk.Tk):
             self.render_market_ticker(payload)
             self.render_market_indicators(payload)
 
+    def set_clock_style(self, style):
+        if style not in {"digital", "classic", "wrist"}: style = "digital"
+        self.clock_style = style; DB.setdefault("settings", {})["clock_style"] = style; save_db()
+        if self.cur == "home": self.show("home")
+
     def draw_session_clock(self, parent, session):
-        holder = tk.Frame(parent, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1)
-        holder.pack(fill="both", expand=True, padx=6, pady=4)
-        canvas = tk.Canvas(holder, width=88, height=88, bg=C["panel"], highlightthickness=0)
-        canvas.pack(side="left", padx=(10,8), pady=7)
-        info = tk.Frame(holder, bg=C["panel"]); info.pack(side="left", fill="both", expand=True, pady=9)
-        title = tk.Label(info, text=(session["fa"] if self.language == "fa" else session["en"]).upper(),
-                         bg=C["panel"], fg=C["gold"], font=("Segoe UI", 9, "bold"))
-        title.pack(anchor="w")
-        status = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9, "bold"))
-        status.pack(anchor="w", pady=(4,0))
-        hours = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Consolas", 7))
-        hours.pack(anchor="w", pady=(2,0))
+        holder = tk.Frame(parent, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1); holder.pack(fill="both", expand=True, padx=4, pady=3)
+        style = getattr(self, "clock_style", "digital")
+        width, height = (88, 88) if style == "classic" else ((138, 62) if style == "wrist" else (132, 44))
+        canvas = tk.Canvas(holder, width=width, height=height, bg=C["panel"], highlightthickness=0, bd=0); canvas.pack(side="left", padx=(7, 6), pady=5)
+        info = tk.Frame(holder, bg=C["panel"]); info.pack(side="left", fill="both", expand=True, pady=7)
+        title = tk.Label(info, text=(session["fa"] if self.language == "fa" else session["en"]).upper(), bg=C["panel"], fg=C["gold"], font=("Segoe UI", 9, "bold")); title.pack(anchor="w")
+        status = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9, "bold")); status.pack(anchor="w", pady=(3, 0))
+        hours = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Consolas", 7)); hours.pack(anchor="w", pady=(2, 0))
         self.session_clock_widgets.append((canvas, status, hours, session))
 
     def update_session_clocks(self):
-        if self.cur != "home":
-            return
+        if self.cur != "home": return
         for canvas, status, hours, session in list(self.session_clock_widgets):
             try:
-                now = datetime.now(ZoneInfo(session["tz"]))
-                cx = cy = 44
-                canvas.delete("all")
-                local_minutes = now.hour*60 + now.minute + now.second/60.0
-                start = session["start"]*60
-                end = session["end"]*60
+                now = datetime.now(ZoneInfo(session["tz"])); local_minutes = now.hour * 60 + now.minute + now.second / 60.0
+                start, end = session["start"] * 60, session["end"] * 60
                 is_open = start <= local_minutes < end
-                progress = max(0.0, min(1.0, (local_minutes-start)/max(1,end-start))) if is_open else 0.0
-                canvas.create_oval(4,4,84,84,fill=C["shadow"],outline=C["line"],width=1)
-                canvas.create_oval(9,9,79,79,fill=C["panel3"],outline=C["soft"],width=1)
-                canvas.create_arc(7,7,81,81,start=90,extent=-360*progress,style="arc",
-                                 outline=C["accent"] if is_open else C["soft"], width=4)
-                for n in range(12):
-                    ang = math.radians(n*30-90)
-                    outer = 34 if n % 3 else 31
-                    inner = 30 if n % 3 else 25
-                    canvas.create_line(cx+math.cos(ang)*inner, cy+math.sin(ang)*inner,
-                                       cx+math.cos(ang)*outer, cy+math.sin(ang)*outer,
-                                       fill=C["muted"] if n % 3 else C["gold"], width=2 if n % 3 else 3)
-                hour = (now.hour % 12) + now.minute/60.0
-                minute = now.minute + now.second/60.0
-                second = now.second + now.microsecond/1_000_000.0
-                for value,turns,length,width,color in (
-                    (hour,12,21,4,C["text"]),(minute,60,29,3,C["gold"]),(second,60,31,1,C["accent"]),
-                ):
-                    ang = math.radians(value*(360/turns)-90)
-                    canvas.create_line(cx,cy,cx+math.cos(ang)*length,cy+math.sin(ang)*length,fill=color,width=width)
-                canvas.create_oval(40,40,48,48,fill=C["accent"],outline=C["panel3"],width=2)
-                if is_open:
-                    remaining = max(0, int((end-local_minutes)*60))
-                    status.config(fg=C["accent"], text=f"{self.tr('open')}  •  {now.strftime('%H:%M:%S')}")
-                    hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00  |  {remaining//3600:02d}:{(remaining%3600)//60:02d} left")
+                progress = max(0.0, min(1.0, (local_minutes - start) / max(1, end - start))) if is_open else 0.0
+                canvas.delete("all"); style = getattr(self, "clock_style", "digital")
+                if style == "digital":
+                    canvas.create_rectangle(1,1,131,43,fill=C["panel3"],outline=C["line"])
+                    canvas.create_text(66,17,text=now.strftime("%H:%M:%S"),fill=C["accent"] if is_open else C["text"],font=("Consolas",14,"bold"))
+                    canvas.create_rectangle(8,31,124,36,fill=C["soft"],outline="")
+                    if progress: canvas.create_rectangle(8,31,8+116*progress,36,fill=C["accent"],outline="")
+                    canvas.create_text(66,39,text=now.strftime("%Z") or session.get("tz",""),fill=C["muted"],font=("Segoe UI",6))
+                elif style == "wrist":
+                    canvas.create_rectangle(48,0,90,10,fill=C["panel2"],outline=C["line"]); canvas.create_rectangle(48,52,90,61,fill=C["panel2"],outline=C["line"])
+                    canvas.create_rectangle(22,8,116,53,fill=C["shadow"],outline=C["line"],width=2)
+                    canvas.create_rectangle(27,13,111,48,fill=C["panel3"],outline=C["accent"] if is_open else C["soft"],width=1)
+                    canvas.create_text(69,28,text=now.strftime("%H:%M:%S"),fill=C["accent"] if is_open else C["text"],font=("Consolas",12,"bold"))
+                    canvas.create_rectangle(32,41,106,45,fill=C["soft"],outline="")
+                    if progress: canvas.create_rectangle(32,41,32+74*progress,45,fill=C["accent"],outline="")
                 else:
-                    status.config(fg=C["muted"], text=f"{self.tr('closed')}  •  {now.strftime('%H:%M:%S')}")
-                    hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00  |  local {now.tzname() or ''}")
+                    cx=cy=44
+                    canvas.create_oval(4,4,84,84,fill=C["panel3"],outline=C["line"],width=1)
+                    canvas.create_arc(5,5,83,83,start=90,extent=-360*progress,style="arc",outline=C["accent"] if is_open else C["soft"],width=3)
+                    for n in range(12):
+                        angle=math.radians(n*30-90); outer=34 if n%3 else 31; inner=30 if n%3 else 25
+                        canvas.create_line(cx+math.cos(angle)*inner,cy+math.sin(angle)*inner,cx+math.cos(angle)*outer,cy+math.sin(angle)*outer,fill=C["muted"] if n%3 else C["gold"],width=2 if n%3 else 3)
+                    hour=(now.hour%12)+now.minute/60.0; minute=now.minute+now.second/60.0; second=now.second+now.microsecond/1_000_000.0
+                    for value,turns,length,line_width,color in ((hour,12,21,4,C["text"]),(minute,60,29,3,C["gold"]),(second,60,31,1,C["accent"])):
+                        angle=math.radians(value*(360/turns)-90)
+                        canvas.create_line(cx,cy,cx+math.cos(angle)*length,cy+math.sin(angle)*length,fill=color,width=line_width)
+                    canvas.create_oval(40,40,48,48,fill=C["accent"],outline=C["panel3"],width=2)
+                if is_open:
+                    remaining=max(0,int((end-local_minutes)*60)); status.config(fg=C["accent"],text=f"{self.tr('open')} • {now.strftime('%H:%M:%S')}")
+                    hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00 | {remaining//3600:02d}:{(remaining%3600)//60:02d} left")
+                else:
+                    status.config(fg=C["muted"],text=f"{self.tr('closed')} • {now.strftime('%H:%M:%S')}")
+                    hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00 | {now.tzname() or session.get('tz','')}")
             except Exception:
                 continue
-        if self.cur == "home":
-            self.session_clock_job = self.after(1000, self.update_session_clocks)
+        if self.cur == "home": self.session_clock_job = self.after(1000, self.update_session_clocks)
 
     def _metric_card(self, parent, title, value, accent):
         """Reusable compact metric tile for the Home dashboard and Journal."""
@@ -1820,42 +1828,148 @@ class App(tk.Tk):
         return total, done
 
     def weekly(self):
-        dates = self._week_dates(self.week_offset)
-        start, end = dates[0], dates[-1]
-        total, done = self._week_task_stats(dates)
+        """This route now manages weekly, monthly and yearly goals."""
         self.heading(self.tr("weekly_title"), self.tr("weekly_sub"))
-        nav=tk.Frame(self.content,bg=C["bg"]); nav.pack(fill="x",pady=(2,7))
-        self.btn(nav,self.tr("week_prev"),lambda:self._shift_week(-1)).pack(side="left",padx=3)
-        self.btn(nav,self.tr("week_current"),self._reset_week).pack(side="left",padx=3)
-        self.btn(nav,self.tr("week_next"),lambda:self._shift_week(1)).pack(side="left",padx=3)
-        status=self.card(nav); status.pack(side="right",padx=3)
-        tk.Label(status,text=f"{start.strftime('%d %b')} — {end.strftime('%d %b')}  |  {self.tr('weekly_progress')}",
-                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",8,"bold")).pack(side="left",padx=(10,6),pady=7)
-        pct=(done/total*100.0) if total else 0.0
-        tk.Label(status,text=f"{done}/{total}  •  {pct:.0f}%",bg=C["panel"],fg=C["accent"],font=("Segoe UI",10,"bold")).pack(side="left",padx=(0,10))
-        grid=tk.Frame(self.content,bg=C["bg"]); grid.pack(fill="both",expand=True,pady=3)
-        for col in range(2): grid.columnconfigure(col,weight=1)
-        names=(["دوشنبه","سه‌شنبه","چهارشنبه","پنجشنبه","جمعه","شنبه","یکشنبه"]
-               if self.language=="fa" else ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"])
-        for i,day_obj in enumerate(dates):
-            key=day_obj.isoformat()
-            tasks=DB.get("tasks",{}).get(key,[])
-            done_count=sum(1 for x in tasks if x.get("done"))
-            box=self.card(grid); box.grid(row=i//2,column=i%2,sticky="nsew",padx=4,pady=4)
-            head=tk.Frame(box,bg=C["panel"]); head.pack(fill="x",padx=10,pady=(9,3))
-            tk.Label(head,text=names[i],bg=C["panel"],fg=C["gold"],font=("Segoe UI",10,"bold")).pack(side="right")
-            tk.Label(head,text=day_obj.strftime("%d %b"),bg=C["panel"],fg=C["muted"],font=("Consolas",8)).pack(side="left")
-            progress=(done_count/len(tasks)) if tasks else 0.0
-            tk.Label(box,text=f"{done_count}/{len(tasks)}  •  {progress*100:.0f}%",bg=C["panel"],fg=C["text"],font=("Segoe UI",9,"bold")).pack(anchor="w",padx=12)
-            preview=tk.Frame(box,bg=C["panel"]); preview.pack(fill="both",expand=True,padx=10,pady=(4,7))
-            for task in tasks[:5]:
-                icon="✓" if task.get("done") else "○"
-                tk.Label(preview,text=f"{icon} {task.get('time','')}  {task.get('title','')}",bg=C["panel"],
-                         fg=C["muted"] if task.get("done") else C["text"],font=("Segoe UI",8),anchor="w",
-                         justify="left",wraplength=340).pack(fill="x",pady=1)
-            controls=tk.Frame(box,bg=C["panel"]); controls.pack(fill="x",padx=10,pady=(2,10))
-            self.btn(controls,self.tr("open_day"),lambda d=key:self._open_week_day(d),True).pack(side="right")
-        for row in range(4): grid.rowconfigure(row,weight=1)
+        profile = active_profile()
+        profile.setdefault("goals", [])
+        period_labels = {self.tr("goal_all"): "all", self.tr("goal_weekly"): "weekly", self.tr("goal_monthly"): "monthly", self.tr("goal_yearly"): "yearly"}
+        current_filter = getattr(self, "goal_filter", "all")
+        filter_var = tk.StringVar(value=next((label for label, key in period_labels.items() if key == current_filter), self.tr("goal_all")))
+        bar = tk.Frame(self.content, bg=C["bg"]); bar.pack(fill="x", pady=(3, 7))
+        tk.Label(bar, text=self.tr("goal_period"), bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9, "bold")).pack(side="right", padx=6)
+        filter_box = ttk.Combobox(bar, textvariable=filter_var, values=list(period_labels.keys()), state="readonly", width=18); filter_box.pack(side="right", padx=5)
+        self.btn(bar, self.tr("goal_add"), self.goal_dialog, True).pack(side="left", padx=3)
+        summary = tk.Frame(self.content, bg=C["bg"]); summary.pack(fill="x", pady=(0, 7))
+        total_card = self._metric_card(summary, self.tr("goal_total"), "0", C["cyan"]); total_card.pack(side="left", fill="both", expand=True, padx=3)
+        done_card = self._metric_card(summary, self.tr("goal_done"), "0", C["accent"]); done_card.pack(side="left", fill="both", expand=True, padx=3)
+        overdue_card = self._metric_card(summary, self.tr("goal_overdue"), "0", C["danger"]); overdue_card.pack(side="left", fill="both", expand=True, padx=3)
+        panel = self.card(self.content); panel.pack(fill="both", expand=True, pady=3)
+        columns = ("period", "title", "start", "end", "progress", "status")
+        tree = ttk.Treeview(panel, columns=columns, show="headings", selectmode="browse")
+        for column, label in (("period", self.tr("goal_period")), ("title", self.tr("goal_name")), ("start", self.tr("goal_start")), ("end", self.tr("goal_end")), ("progress", self.tr("goal_value")), ("status", self.tr("goal_status"))):
+            tree.heading(column, text=label)
+        tree.column("period", width=95, anchor="center", stretch=False); tree.column("title", width=250, anchor="e")
+        tree.column("start", width=120, anchor="center", stretch=False); tree.column("end", width=120, anchor="center", stretch=False)
+        tree.column("progress", width=170, anchor="center", stretch=False); tree.column("status", width=120, anchor="center", stretch=False)
+        tree.tag_configure("completed", foreground=C["accent"]); tree.tag_configure("overdue", foreground=C["danger"])
+        tree.pack(fill="both", expand=True, padx=10, pady=(10, 6))
+        empty_note = tk.Label(panel, text="", bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9), anchor="e"); empty_note.pack(fill="x", padx=14, pady=(0, 6))
+        actions = tk.Frame(panel, bg=C["panel"]); actions.pack(fill="x", padx=10, pady=(0, 10))
+        self.btn(actions, self.tr("goal_edit"), self.edit_goal).pack(side="right", padx=3)
+        self.btn(actions, self.tr("goal_delete"), self.delete_goal).pack(side="right", padx=3)
+        self.btn(actions, self.tr("goal_increment"), self.increment_goal_progress, True).pack(side="right", padx=3)
+        self.goals_tree = tree
+        def render(_event=None):
+            self.goal_filter = period_labels.get(filter_var.get(), "all")
+            for item_id in tree.get_children(): tree.delete(item_id)
+            all_goals = [g for g in profile.get("goals", []) if isinstance(g, dict)]
+            completed_count = sum(1 for g in all_goals if float(g.get("progress", 0) or 0) >= float(g.get("target", 1) or 1))
+            overdue_count = sum(1 for g in all_goals if str(g.get("end_date", "")) < date.today().isoformat() and float(g.get("progress", 0) or 0) < float(g.get("target", 1) or 1))
+            total_card.winfo_children()[-1].configure(text=str(len(all_goals)))
+            done_card.winfo_children()[-1].configure(text=str(completed_count))
+            overdue_card.winfo_children()[-1].configure(text=str(overdue_count))
+            visible = all_goals if self.goal_filter == "all" else [g for g in all_goals if g.get("period", "weekly") == self.goal_filter]
+            ptext = {"weekly": self.tr("goal_weekly"), "monthly": self.tr("goal_monthly"), "yearly": self.tr("goal_yearly")}
+            for goal in sorted(visible, key=lambda g: (str(g.get("end_date", "")), str(g.get("title", "")))):
+                target = max(0.000001, float(goal.get("target", 1) or 1)); progress = max(0.0, float(goal.get("progress", 0) or 0))
+                percent = min(100.0, progress / target * 100.0); complete = progress >= target
+                overdue = str(goal.get("end_date", "")) < date.today().isoformat() and not complete
+                state = self.tr("goal_done") if complete else (self.tr("goal_overdue") if overdue else self.tr("goal_active"))
+                tree.insert("", "end", iid=str(goal.get("id", uuid4())), values=(ptext.get(goal.get("period", "weekly"), self.tr("goal_weekly")), goal.get("title", ""), goal.get("start_date", ""), goal.get("end_date", ""), f"{progress:g}/{target:g} {goal.get('unit', 'units')} • {percent:.0f}%", state), tags=("completed",) if complete else (("overdue",) if overdue else ()))
+            empty_note.configure(text=self.tr("goal_empty") if not visible else "")
+        filter_box.bind("<<ComboboxSelected>>", render); render()
+
+    def _goal_period_range(self, period, reference=None):
+        ref_day = reference or date.today()
+        if isinstance(ref_day, str): ref_day = date.fromisoformat(ref_day)
+        if period == "weekly":
+            start = ref_day - timedelta(days=ref_day.weekday()); return start, start + timedelta(days=6)
+        if period == "monthly":
+            start = ref_day.replace(day=1); next_month = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+            return start, next_month - timedelta(days=1)
+        return ref_day.replace(month=1, day=1), ref_day.replace(month=12, day=31)
+
+    def _selected_goal(self):
+        tree = getattr(self, "goals_tree", None)
+        if tree is None: return None
+        selected = tree.selection()
+        if not selected: return None
+        return next((g for g in active_profile().get("goals", []) if str(g.get("id")) == selected[0]), None)
+
+    def goal_dialog(self, goal=None):
+        profile = active_profile(); profile.setdefault("goals", [])
+        existing = goal if isinstance(goal, dict) else None
+        period = (existing or {}).get("period", "weekly"); start_default, end_default = self._goal_period_range(period)
+        periods = {self.tr("goal_weekly"): "weekly", self.tr("goal_monthly"): "monthly", self.tr("goal_yearly"): "yearly"}
+        period_var = tk.StringVar(value=next((label for label, key in periods.items() if key == period), self.tr("goal_weekly")))
+        title_var = tk.StringVar(value=str((existing or {}).get("title", "")))
+        start_var = tk.StringVar(value=str((existing or {}).get("start_date") or start_default.isoformat()))
+        end_var = tk.StringVar(value=str((existing or {}).get("end_date") or end_default.isoformat()))
+        target_var = tk.StringVar(value=str((existing or {}).get("target", 1))); progress_var = tk.StringVar(value=str((existing or {}).get("progress", 0)))
+        unit_var = tk.StringVar(value=str((existing or {}).get("unit", self.tr("items"))))
+        dlg = self._glass_toplevel(self.tr("goal_add") if existing is None else self.tr("goal_edit"), "760x620", (680, 560)); dlg.grab_set()
+        outer = tk.Frame(dlg, bg=C["bg"]); outer.pack(fill="both", expand=True, padx=18, pady=16); outer.columnconfigure(0, weight=1)
+        def field(label, variable, row):
+            tk.Label(outer, text=label, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9, "bold")).grid(row=row, column=1, sticky="e", padx=8, pady=7)
+            entry = tk.Entry(outer, textvariable=variable, bg=C["soft"], fg=C["text"], insertbackground=C["text"], relief="flat", justify="right", font=("Segoe UI", 10))
+            entry.grid(row=row, column=0, sticky="ew", padx=8, pady=7, ipady=5); return entry
+        tk.Label(outer, text=self.tr("goal_period"), bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9, "bold")).grid(row=0, column=1, sticky="e", padx=8, pady=7)
+        period_box = ttk.Combobox(outer, textvariable=period_var, values=list(periods.keys()), state="readonly", justify="right"); period_box.grid(row=0, column=0, sticky="ew", padx=8, pady=7)
+        field(self.tr("goal_name"), title_var, 1); field(self.tr("goal_start"), start_var, 2); field(self.tr("goal_end"), end_var, 3)
+        field(self.tr("goal_target"), target_var, 4); field(self.tr("goal_progress"), progress_var, 5); field(self.tr("goal_unit"), unit_var, 6)
+        tk.Label(outer, text=self.tr("goal_notes"), bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9, "bold")).grid(row=7, column=1, sticky="ne", padx=8, pady=7)
+        notes = tk.Text(outer, height=5, bg=C["soft"], fg=C["text"], insertbackground=C["text"], relief="flat", wrap="word", font=("Segoe UI", 10))
+        notes.grid(row=7, column=0, sticky="nsew", padx=8, pady=7); notes.insert("1.0", str((existing or {}).get("notes", ""))); outer.rowconfigure(7, weight=1)
+        def period_changed(_event=None):
+            if existing is not None: return
+            start, end = self._goal_period_range(periods.get(period_var.get(), "weekly"))
+            start_var.set(start.isoformat()); end_var.set(end.isoformat())
+        period_box.bind("<<ComboboxSelected>>", period_changed)
+        def save_goal():
+            name = title_var.get().strip()
+            if not name: return messagebox.showwarning(self.tr("goal_name"), self.tr("goal_empty"), parent=dlg)
+            try:
+                start_date = date.fromisoformat(start_var.get().strip()); end_date = date.fromisoformat(end_var.get().strip())
+            except (TypeError, ValueError):
+                return messagebox.showwarning(self.tr("goal_name"), self.tr("goal_invalid_dates"), parent=dlg)
+            if end_date < start_date: return messagebox.showwarning(self.tr("goal_name"), self.tr("goal_invalid_dates"), parent=dlg)
+            try:
+                target = float(target_var.get().strip()); progress = float(progress_var.get().strip() or 0)
+                if not math.isfinite(target) or not math.isfinite(progress) or target <= 0 or progress < 0: raise ValueError("Invalid goal values")
+            except (TypeError, ValueError):
+                return messagebox.showwarning(self.tr("goal_name"), self.tr("goal_invalid_numbers"), parent=dlg)
+            now = datetime.now().isoformat(timespec="seconds")
+            record = {"id":(existing or {}).get("id",str(uuid4())), "period":periods.get(period_var.get(),"weekly"), "title":name,
+                      "start_date":start_date.isoformat(), "end_date":end_date.isoformat(), "target":target, "progress":progress,
+                      "unit":unit_var.get().strip() or self.tr("items"), "notes":notes.get("1.0","end").strip(),
+                      "created_at":(existing or {}).get("created_at",now), "updated_at":now}
+            if existing is None: profile["goals"].append(record)
+            else: existing.update(record)
+            save_db(); dlg.destroy(); self.show("weekly")
+        footer = tk.Frame(outer, bg=C["bg"]); footer.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        self.btn(footer, self.tr("cancel"), dlg.destroy).pack(side="right", padx=4); self.btn(footer, self.tr("goal_save"), save_goal, True).pack(side="right", padx=4)
+        self.translate_widget_tree(dlg)
+
+    def edit_goal(self):
+        goal = self._selected_goal()
+        if goal: self.goal_dialog(goal)
+        else: messagebox.showinfo(self.tr("weekly_title"), self.tr("goal_empty"), parent=self)
+
+    def delete_goal(self):
+        goal = self._selected_goal()
+        if not goal: return messagebox.showinfo(self.tr("weekly_title"), self.tr("goal_empty"), parent=self)
+        if messagebox.askyesno(self.tr("goal_delete"), self.tr("goal_delete_confirm"), parent=self):
+            profile = active_profile(); profile["goals"] = [g for g in profile.get("goals", []) if str(g.get("id")) != str(goal.get("id"))]
+            save_db(); self.show("weekly")
+
+    def increment_goal_progress(self):
+        goal = self._selected_goal()
+        if not goal: return messagebox.showinfo(self.tr("weekly_title"), self.tr("goal_empty"), parent=self)
+        target = max(0.000001, float(goal.get("target", 1) or 1))
+        goal["progress"] = min(target, max(0.0, float(goal.get("progress", 0) or 0)) + 1.0)
+        goal["updated_at"] = datetime.now().isoformat(timespec="seconds")
+        save_db(); self.show("weekly")
+
 
     def _shift_week(self, delta):
         self.week_offset += int(delta)
@@ -2640,70 +2754,49 @@ class App(tk.Tk):
 
     def settings(self):
         self.heading(self.tr("settings_title"), self.tr("settings_sub"))
-        grid = self.card(self.content)
-        grid.pack(fill="x", pady=(4, 10))
-        grid.columnconfigure(1, weight=1)
-
-        tk.Label(grid, text=self.tr("language"), bg=C["panel"], fg=C["muted"],
-                 font=("Segoe UI", 10, "bold")).grid(row=0, column=1, sticky="e", padx=14, pady=(16, 6))
-        language_var = tk.StringVar(value=self.language)
-        language_box = ttk.Combobox(grid, textvariable=language_var,
-                                    values=["fa", "en"], state="readonly", width=18)
-        language_box.grid(row=0, column=0, sticky="w", padx=14, pady=(16, 6))
-        tk.Label(grid, text=self.tr("language_help"), bg=C["panel"], fg=C["muted"],
-                 justify="right", wraplength=650).grid(row=1, column=0, columnspan=2, sticky="e", padx=14, pady=(0, 10))
-
-        tk.Label(grid, text=self.tr("theme"), bg=C["panel"], fg=C["muted"],
-                 font=("Segoe UI", 10, "bold")).grid(row=2, column=1, sticky="e", padx=14, pady=6)
-        theme_var = tk.StringVar(value=self.theme_mode)
-        theme_box = ttk.Combobox(grid, textvariable=theme_var,
-                                 values=["dark", "light", "auto"], state="readonly", width=18)
-        theme_box.grid(row=2, column=0, sticky="w", padx=14, pady=6)
-
-        tk.Label(grid, text="Skin", bg=C["panel"], fg=C["muted"],
-                 font=("Segoe UI", 10, "bold")).grid(row=3, column=1, sticky="e", padx=14, pady=6)
-        skin_var = tk.StringVar(value=self.skin)
-        skin_values = list(SKINS.keys())
-        skin_box = ttk.Combobox(grid, textvariable=skin_var,
-                                values=skin_values, state="readonly", width=18)
-        skin_box.grid(row=3, column=0, sticky="w", padx=14, pady=6)
-
-        tk.Label(grid, text="Glass opacity", bg=C["panel"], fg=C["muted"],
-                 font=("Segoe UI", 10, "bold")).grid(row=4, column=1, sticky="e", padx=14, pady=6)
-        opacity_var = tk.DoubleVar(value=self.glass_opacity)
-        opacity = tk.Scale(grid, variable=opacity_var, from_=0.86, to=0.995,
-                           resolution=0.005, orient="horizontal", length=280,
-                           bg=C["panel"], fg=C["text"], highlightthickness=0, troughcolor=C["soft"],
-                           activebackground=C["accent"])
-        opacity.grid(row=4, column=0, sticky="w", padx=14, pady=6)
-
-        status = tk.Label(grid, text="", bg=C["panel"], fg=C["accent"], justify="right")
-        status.grid(row=5, column=0, columnspan=2, sticky="e", padx=14, pady=(6, 16))
-
+        self.profile_panel(self.content)
+        grid = self.card(self.content); grid.pack(fill="x", pady=(4, 10)); grid.columnconfigure(0, weight=1); grid.columnconfigure(1, weight=1)
+        tk.Label(grid,text=self.tr("language"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=0,column=1,sticky="e",padx=14,pady=(16,6))
+        language_var=tk.StringVar(value=self.language); language_box=ttk.Combobox(grid,textvariable=language_var,values=["fa","en"],state="readonly",width=20); language_box.grid(row=0,column=0,sticky="w",padx=14,pady=(16,6))
+        tk.Label(grid,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],justify="right",wraplength=650).grid(row=1,column=0,columnspan=2,sticky="e",padx=14,pady=(0,10))
+        tk.Label(grid,text=self.tr("theme"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=2,column=1,sticky="e",padx=14,pady=6)
+        theme_var=tk.StringVar(value=self.theme_mode); theme_box=ttk.Combobox(grid,textvariable=theme_var,values=["dark","light","auto"],state="readonly",width=20); theme_box.grid(row=2,column=0,sticky="w",padx=14,pady=6)
+        tk.Label(grid,text="Skin",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=3,column=1,sticky="e",padx=14,pady=6)
+        skin_var=tk.StringVar(value=self.skin); skin_box=ttk.Combobox(grid,textvariable=skin_var,values=list(SKINS.keys()),state="readonly",width=20); skin_box.grid(row=3,column=0,sticky="w",padx=14,pady=6)
+        tk.Label(grid,text="Glass opacity",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=4,column=1,sticky="e",padx=14,pady=6)
+        opacity_var=tk.DoubleVar(value=self.glass_opacity)
+        opacity=tk.Scale(grid,variable=opacity_var,from_=0.86,to=0.995,resolution=0.005,orient="horizontal",length=280,bg=C["panel"],fg=C["text"],highlightthickness=0,troughcolor=C["soft"],activebackground=C["accent"]); opacity.grid(row=4,column=0,sticky="w",padx=14,pady=6)
+        tk.Label(grid,text=self.tr("clock_style"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=5,column=1,sticky="e",padx=14,pady=6)
+        clock_labels={self.tr("clock_digital"):"digital",self.tr("clock_classic"):"classic",self.tr("clock_wrist"):"wrist"}
+        clock_var=tk.StringVar(value=next((label for label,key in clock_labels.items() if key==self.clock_style),self.tr("clock_digital")))
+        clock_box=ttk.Combobox(grid,textvariable=clock_var,values=list(clock_labels.keys()),state="readonly",width=20); clock_box.grid(row=5,column=0,sticky="w",padx=14,pady=6)
+        tk.Label(grid,text=self.tr("ai_cloud_key"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=6,column=1,sticky="e",padx=14,pady=6)
+        api_frame=tk.Frame(grid,bg=C["panel"]); api_frame.grid(row=6,column=0,sticky="ew",padx=14,pady=6)
+        api_var=tk.StringVar(); api_entry=tk.Entry(api_frame,textvariable=api_var,show="*",bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="left",font=("Consolas",10))
+        api_entry.pack(side="left",fill="x",expand=True,padx=(0,5),ipady=7)
+        def save_api_key():
+            key=api_var.get().strip()
+            if not key: return messagebox.showwarning(self.tr("ai_cloud"),self.tr("api_key_empty"),parent=self)
+            self._save_ai_key(key)
+        self.btn(api_frame,self.tr("ai_save_key"),save_api_key,True).pack(side="left",padx=2); self.btn(api_frame,self.tr("ai_clear_key"),self._clear_ai_key).pack(side="left",padx=2)
+        tk.Label(grid,text=self.tr("api_key_security"),bg=C["panel"],fg=C["muted"],justify="right",wraplength=680).grid(row=7,column=0,columnspan=2,sticky="e",padx=14,pady=(0,5))
+        try:
+            from ai_assistant import cloud_status
+            api_status=self.tr("api_key_configured") if cloud_status().get("enabled") else self.tr("api_key_missing")
+        except Exception: api_status=self.tr("api_key_missing")
+        status=tk.Label(grid,text=api_status,bg=C["panel"],fg=C["accent"],justify="right",wraplength=680); status.grid(row=8,column=0,columnspan=2,sticky="e",padx=14,pady=(6,16))
         def save_settings():
-            self.language = language_var.get() if language_var.get() in {"fa", "en"} else "fa"
-            self.theme_mode = theme_var.get() if theme_var.get() in {"dark", "light", "auto"} else "dark"
-            self.skin = skin_var.get() if skin_var.get() in SKINS else "glass"
-            self.glass_opacity = max(0.86, min(float(opacity_var.get()), 0.995))
-            DB.setdefault("settings", {}).update({
-                "language": self.language,
-                "theme": self.theme_mode,
-                "skin": self.skin,
-                "glass_opacity": self.glass_opacity,
-                "theme_auto_start": self.theme_auto_start,
-                "theme_auto_end": self.theme_auto_end,
-            })
-            save_db()
-            self.apply_theme()
-            self.refresh_shell_theme()
-            self.refresh_profile_selector()
-            status.config(text=self.tr("language_saved"))
-            self.after(120, lambda: self.show("settings"))
-
-        actions = self.card(self.content)
-        actions.pack(fill="x", pady=4)
-        self.btn(actions, self.tr("save_theme"), save_settings, True).pack(side="right", padx=14, pady=12)
-        self.btn(actions, self.tr("nav_home"), self.go_home).pack(side="right", padx=4, pady=12)
+            self.language=language_var.get() if language_var.get() in {"fa","en"} else "fa"
+            self.theme_mode=theme_var.get() if theme_var.get() in {"dark","light","auto"} else "dark"
+            self.skin=skin_var.get() if skin_var.get() in SKINS else "glass"
+            self.clock_style=clock_labels.get(clock_var.get(),"digital")
+            self.glass_opacity=max(0.86,min(float(opacity_var.get()),0.995))
+            DB.setdefault("settings",{}).update({"language":self.language,"theme":self.theme_mode,"skin":self.skin,"clock_style":self.clock_style,"glass_opacity":self.glass_opacity,"theme_auto_start":self.theme_auto_start,"theme_auto_end":self.theme_auto_end})
+            save_db(); self.apply_theme(); self.refresh_shell_theme(); self.refresh_profile_selector()
+            status.config(text=self.tr("language_saved")); self.after(120,lambda:self.show("settings"))
+        actions=self.card(self.content); actions.pack(fill="x",pady=4)
+        self.btn(actions,self.tr("save_theme"),save_settings,True).pack(side="right",padx=14,pady=12)
+        self.btn(actions,self.tr("nav_home"),self.go_home).pack(side="right",padx=4,pady=12)
 
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
@@ -2876,8 +2969,8 @@ class App(tk.Tk):
                  font=("Segoe UI",10,"bold"),justify="right",anchor="e",
                  wraplength=850).pack(fill="x",anchor="e")
 
-        role_var=tk.StringVar(value="orchestrator")
         role_labels={"orchestrator":"Trader Planner Master Agent","form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
+        role_var=tk.StringVar(value=role_labels["orchestrator"])
         row=tk.Frame(hero,bg=C["panel"]); row.pack(fill="x",padx=14,pady=(0,12))
         tk.Label(row,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],
                  font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
@@ -2944,7 +3037,7 @@ class App(tk.Tk):
             prompt.delete(0,"end")
             append_chat("You",msg)
             append_chat("Assistant","…")
-            role=next((k for k,v in role_labels.items() if v==role_var.get()),"form")
+            role=next((k for k,v in role_labels.items() if v==role_var.get()),"orchestrator")
             context=self._ai_context()
             self.ai.respond(
                 role,msg,context,
@@ -3064,18 +3157,21 @@ class App(tk.Tk):
         source_holder=tk.Frame(source_frame,bg=C["panel3"]); source_holder.pack(fill="x",padx=8,pady=(0,8))
         try:
             from PIL import Image, ImageTk
-            source_path=bundled_asset_for_visual(kind)
-            if not source_path or not Path(source_path).exists():
-                raise FileNotFoundError(f"Missing bundled education image: {kind}")
-            image=Image.open(source_path).convert("RGB")
-            max_w,max_h=1040,360
-            scale=min(max_w/image.width,max_h/image.height,1.0)
-            if scale<1:
-                image=image.resize((max(1,int(image.width*scale)),max(1,int(image.height*scale))),Image.Resampling.LANCZOS)
-            photo=ImageTk.PhotoImage(image)
-            label=tk.Label(source_holder,image=photo,bg=C["panel3"],bd=0)
-            label.image=photo
-            label.pack(anchor="center",pady=4)
+            photo = self._academy_photo_cache.get(kind)
+            if photo is None:
+                source_path = bundled_asset_for_visual(kind)
+                if not source_path or not Path(source_path).exists():
+                    raise FileNotFoundError(f"Missing bundled offline education image: {kind}")
+                image = Image.open(source_path).convert("RGB")
+                max_w, max_h = 1040, 360
+                scale = min(max_w / image.width, max_h / image.height, 1.0)
+                if scale < 1:
+                    image = image.resize((max(1, int(image.width * scale)), max(1, int(image.height * scale))), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(image)
+                self._academy_photo_cache[kind] = photo
+            label = tk.Label(source_holder, image=photo, bg=C["panel3"], bd=0)
+            label.image = photo
+            label.pack(anchor="center", pady=4)
         except Exception as exc:
             tk.Label(source_holder,text=f"{self.tr('no_exact_image')}\\n{exc}",bg=C["panel3"],fg=C["danger"],font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
         anatomy=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
@@ -3090,10 +3186,10 @@ class App(tk.Tk):
                 draw_candlestick(diagram_holder,self.ui_text(title),C)
         except Exception as exc:
             tk.Label(diagram_holder,text=str(exc),bg=C["panel3"],fg=C["danger"],font=("Consolas",9)).pack(fill="x",pady=20)
-        source_title,source_url=source_for_visual(kind)
+        source_title,_source_url=source_for_visual(kind)
         footer=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
         footer.pack(fill="x",padx=10,pady=(0,8))
-        self.btn(footer,self.tr("open_source"),lambda u=source_url:self.open_webview(u,source_title),True).pack(side="left",padx=10,pady=8)
+        tk.Label(footer,text=self.tr("offline_library"),bg=C["panel"],fg=family_fg,font=("Segoe UI",8,"bold")).pack(side="left",padx=10,pady=8)
         tk.Label(footer,text=self.ui_text(source_title),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold"),wraplength=820,justify="right").pack(side="right",fill="x",expand=True,padx=12,pady=10)
         return box
 
@@ -3189,6 +3285,7 @@ class App(tk.Tk):
         summary.pack(fill="x",padx=18,pady=5)
 
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=3)
+        tk.Label(visual_holder,text=self.tr("select_term_to_preview"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),pady=16).pack(fill="x")
         anatomy_title=tk.Label(right,text=self.tr("setup_anatomy"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",11,"bold"))
         anatomy_title.pack(anchor="e",padx=18,pady=(6,3))
         anatomy=tk.Frame(right,bg=C["panel"]); anatomy.pack(fill="x",padx=18,pady=(0,8))
@@ -3228,8 +3325,7 @@ class App(tk.Tk):
             canvas.configure(scrollregion=canvas.bbox("all"))
 
         lb.bind("<<ListboxSelect>>",render)
-        if items:
-            lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
+        lb.bind("<ButtonRelease-1>",lambda _e:right.after_idle(render))
 
     def _build_candle_tab(self,parent):
         wrap=tk.Frame(parent,bg=C["panel"]); wrap.pack(fill="both",expand=True,padx=8,pady=8)
@@ -3244,6 +3340,7 @@ class App(tk.Tk):
         right=tk.Frame(canvas,bg=C["panel"]); rid=canvas.create_window((0,0),window=right,anchor="nw")
         right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all"))); canvas.bind("<Configure>",lambda e: canvas.itemconfigure(rid,width=e.width))
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=4)
+        tk.Label(visual_holder,text=self.tr("select_term_to_preview"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),pady=16).pack(fill="x")
         tk.Label(right,text=self.ui_text("الگوهای کندلی"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold")).pack(anchor="e",padx=12,pady=10)
         desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); desc.pack(fill="x",padx=16,pady=10)
         en_desc={
@@ -3272,7 +3369,7 @@ class App(tk.Tk):
             desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick reference.')}\n\nCANDLESTICK PATTERN ≠ ICT MODEL")
             canvas.configure(scrollregion=canvas.bbox("all"))
         lb.bind("<<ListboxSelect>>",render)
-        if CANDLE_PLAYBOOK: lb.selection_set(0); lb.event_generate("<<ListboxSelect>>")
+        lb.bind("<ButtonRelease-1>",lambda _e:right.after_idle(render))
     def _build_glossary_tab(self,parent):
         bar=tk.Frame(parent,bg=C["panel"]); bar.pack(fill="x",padx=8,pady=8)
         q=tk.StringVar(); entry=tk.Entry(bar,textvariable=q,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="right",font=("Segoe UI",10)); entry.pack(side="right",fill="x",expand=True,padx=8,pady=10)
@@ -3285,6 +3382,7 @@ class App(tk.Tk):
         canvas=tk.Canvas(right_shell,bg=C["panel"],highlightthickness=0); scr=ttk.Scrollbar(right_shell,orient="vertical",command=canvas.yview); canvas.pack(side="left",fill="both",expand=True); scr.pack(side="right",fill="y"); canvas.configure(yscrollcommand=scr.set)
         right=tk.Frame(canvas,bg=C["panel"]); rid=canvas.create_window((0,0),window=right,anchor="nw"); right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all"))); canvas.bind("<Configure>",lambda e: canvas.itemconfigure(rid,width=e.width))
         visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=(8,4))
+        tk.Label(visual_holder,text=self.tr("select_term_to_preview"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),pady=16).pack(fill="x")
         title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold"),justify="right",anchor="e"); title.pack(fill="x",padx=18,pady=(8,5))
         meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",13),wraplength=860,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
         usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); usage.pack(fill="x",padx=18,pady=7)
@@ -3300,7 +3398,9 @@ class App(tk.Tk):
                 family="ICT" if kind.startswith("ict_") or kind in {"unicorn","smt"} else ("CANDLE" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "SMC")
                 if selected_family!="ALL" and family!=selected_family: continue
                 matched.append(i); tree.insert("", "end",iid=str(i),values=(item["term"],item["category"]))
-            if matched: tree.selection_set(str(matched[0])); render()
+            if matched and (term or selected_cat != "ALL" or selected_family != "ALL"):
+                tree.selection_set(str(matched[0]))
+                render()
         def render(_=None):
             sel=tree.selection()
             if not sel: return
@@ -3313,7 +3413,7 @@ class App(tk.Tk):
             meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
             usage.config(text=self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"]))
             canvas.configure(scrollregion=canvas.bbox("all"))
-        tree.bind("<<TreeviewSelect>>",render); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh); family_combo.bind("<<ComboboxSelected>>",refresh); refresh()
+        tree.bind("<<TreeviewSelect>>",render); tree.bind("<ButtonRelease-1>",lambda _e:right.after_idle(render)); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh); family_combo.bind("<<ComboboxSelected>>",refresh); refresh()
         tk.Label(parent,text=f"{len(GLOSSARY)} terms",bg=C["bg"],fg=C["muted"],font=("Segoe UI",8)).pack(anchor="e",padx=10,pady=(0,6))
     def open_path(self,path):
         path=Path(path); path.mkdir(parents=True,exist_ok=True)
