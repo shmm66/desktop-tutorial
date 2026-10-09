@@ -201,12 +201,27 @@ jobs:
           $manifest += "Timestamp UTC: $([DateTime]::UtcNow.ToString('o'))"
           $manifest | Out-File -FilePath "build-manifest.txt" -Encoding utf8
 
-      - name: Upload verified build
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - name: Publish verified Windows release assets
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
-          name: TraderPlannerPro-V10-TradingView-Pro-Windows-Verified
-          path: |
+          tag_name: v10.0.0-build-${{ github.run_number }}
+          name: Trader Planner Pro V10 — Verified Windows Build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          draft: false
+          body: |
+            Automated Windows build for commit ${{ github.sha }}.
+
+            Verified gates:
+            - Dependency installation, Python syntax check and pytest
+            - Windows EXE creation and EXE self-test
+            - Inno Setup compiler and installer output verification
+            - Silent install, installed EXE self-test, and uninstall smoke test
+
+            This is a pre-release build for validation. Market feeds and TradingView access depend on their online service availability and account entitlements.
+          files: |
             dist/TraderPlannerPro.exe
-            **/*Setup*.exe
+            installer/TraderPlannerPro_Setup_v10.0.0.exe
             build-manifest.txt
-          if-no-files-found: error
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
