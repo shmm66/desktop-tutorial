@@ -60,3 +60,28 @@ def test_tradingview_pro_embed_is_official_and_real_time_or_fail_safe():
     assert "fake candle" not in source.lower()
     assert "synthetic candle" not in source.lower()
     assert "random" not in source.lower()
+
+
+
+def test_glass_theme_does_not_accumulate_map_callbacks():
+    source = (ROOT / "glass_theme.py").read_text(encoding="utf-8")
+    assert 'window.bind("<Map>"' not in source
+    assert "_tpp_glass_after_id" in source
+    assert "after_cancel" in source
+    assert "_tpp_glass_applying" in source
+
+
+def test_native_chart_is_lazy_loaded_and_startup_is_deferred():
+    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    class_start = source.index("class App(")
+    assert "from native_trading_desk import NativeTradingDesk" not in source[:class_start]
+    assert "def _load_native_trading_desk(self, holder):" in source
+    assert "self.after(80, self._finish_startup)" in source
+
+
+def test_logo_render_is_cached_and_tk_callback_errors_are_logged():
+    logo_source = (ROOT / "logo_3d.py").read_text(encoding="utf-8")
+    app_source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    assert "cached.verify()" in logo_source
+    assert "def report_callback_exception(self, exc, value, tb):" in app_source
+    assert "ui_errors.log" in app_source
