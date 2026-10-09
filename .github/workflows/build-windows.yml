@@ -109,9 +109,22 @@ jobs:
             Get-Content $errLog -ErrorAction SilentlyContinue
             throw 'Tk UI section smoke test timed out after 180 seconds.'
           }
-          Get-Content $outLog -ErrorAction SilentlyContinue
-          Get-Content $errLog -ErrorAction SilentlyContinue
-          if ($smoke.ExitCode -ne 0) { throw "Tk UI section smoke test failed with exit code $($smoke.ExitCode)" }
+          $smoke.Refresh()
+          $stdout = Get-Content $outLog -Raw -ErrorAction SilentlyContinue
+          $stderr = Get-Content $errLog -Raw -ErrorAction SilentlyContinue
+          if ($stdout) { Write-Host $stdout }
+          if ($stderr) { Write-Host $stderr }
+          $exitCode = $smoke.ExitCode
+          if ($null -eq $exitCode) {
+            # Some Windows process wrappers return an empty ExitCode even after
+            # WaitForExit. Accept only the explicit success marker and no traceback.
+            if ($stdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
+              throw 'Tk UI smoke test did not provide a reliable success marker.'
+            }
+            Write-Warning 'Process exit code was unavailable; all 12 page renders reported success.'
+          } elseif ([int]$exitCode -ne 0) {
+            throw "Tk UI section smoke test failed with exit code $exitCode"
+          }
 
       - name: Build Windows icon
         shell: powershell
