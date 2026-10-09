@@ -1148,7 +1148,10 @@ class App(tk.Tk):
             try: widget.destroy()
             except Exception: pass
         try:
-            getattr(self,key)()
+            # The AI service is stored at self.ai; route its page explicitly
+            # to avoid calling that service object as if it were a page method.
+            renderer = self.ai_page if key == "ai" else getattr(self, key)
+            renderer()
             self.translate_widget_tree(self.content)
             self.content.update_idletasks()
         except Exception as exc:
@@ -1670,6 +1673,26 @@ class App(tk.Tk):
         if self.cur == "home":
             self.session_clock_job = self.after(1000, self.update_session_clocks)
 
+    def _trade_metrics(self, rows):
+        """Return journal performance metrics with safe empty-history handling."""
+        values = [result_num(row) for row in (rows or []) if isinstance(row, dict)]
+        gross_profit = sum(value for value in values if value > 0)
+        gross_loss = sum(-value for value in values if value < 0)
+        if gross_loss > 0:
+            profit_factor = gross_profit / gross_loss
+        elif gross_profit > 0:
+            profit_factor = math.inf
+        else:
+            profit_factor = 0.0
+        count = len(values)
+        net_r = sum(values)
+        return {
+            "count": count,
+            "net_r": net_r,
+            "avg_r": net_r / count if count else 0.0,
+            "profit_factor": profit_factor,
+        }
+
     def win_rate(self, rows):
         if not rows: return 0.0
         wins=sum(1 for r in rows if result_num(r)>0)
@@ -1704,6 +1727,30 @@ class App(tk.Tk):
         for count,color,label in zip(counts,colors,labels):
             c.create_rectangle(390,y,408,y+18,fill=color,outline=""); c.create_text(420,y+9,text=f"{label}: {count}",anchor="w",fill=C["text"],font=("Segoe UI",10))
             y+=34
+
+    def _week_dates(self, offset=0):
+        """Return the seven calendar dates for the requested Monday–Sunday week."""
+        today = date.today()
+        monday = today - timedelta(days=today.weekday()) + timedelta(weeks=int(offset))
+        return [monday + timedelta(days=day_offset) for day_offset in range(7)]
+
+    def _week_task_stats(self, dates):
+        """Count valid checklist tasks and completed tasks for a date sequence."""
+        task_map = DB.get("tasks", {})
+        if not isinstance(task_map, dict):
+            return 0, 0
+        total = done = 0
+        for day_value in dates:
+            key = day_value.isoformat() if hasattr(day_value, "isoformat") else str(day_value)[:10]
+            tasks = task_map.get(key, [])
+            if not isinstance(tasks, list):
+                continue
+            for task in tasks:
+                if not isinstance(task, dict):
+                    continue
+                total += 1
+                done += int(bool(task.get("done", False)))
+        return total, done
 
     def weekly(self):
         dates = self._week_dates(self.week_offset)
@@ -2752,7 +2799,7 @@ class App(tk.Tk):
         except Exception:
             pass
 
-    def ai(self):
+    def ai_page(self):
         self.heading(self.tr("ai_title"), self.tr("ai_sub"))
 
         hero=self.card(self.content)
