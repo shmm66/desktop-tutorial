@@ -38,14 +38,19 @@ jobs:
         shell: powershell
         env:
           PIP_DEFAULT_TIMEOUT: '120'
-          PIP_RETRIES: '8'
+          PIP_RETRIES: '12'
         run: |
           $ErrorActionPreference = 'Stop'
-          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 120 --retries 8 --no-input
+          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 120 --retries 12 --no-input
           if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
 
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 8 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
-          if ($LASTEXITCODE -ne 0) { throw "dependency install failed with exit code $LASTEXITCODE" }
+          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 12 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning 'Primary dependency install failed; clearing cache and retrying once without cache.'
+            & $env:TP_PYTHON -m pip cache purge
+            & $env:TP_PYTHON -m pip install --prefer-binary --no-cache-dir --default-timeout 180 --retries 20 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
+            if ($LASTEXITCODE -ne 0) { throw "dependency install failed after retry with exit code $LASTEXITCODE" }
+          }
 
           & $env:TP_PYTHON -m pip check
           if ($LASTEXITCODE -ne 0) { throw "pip dependency consistency check failed." }
@@ -132,6 +137,31 @@ jobs:
           $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $installer) { throw 'Installer EXE was not produced.' }
           Write-Host "Installer ready: $($installer.FullName)"
+
+      - name: Installer install/launch/uninstall smoke test
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $PWD 'installer/TraderPlannerPro_Setup_v10.0.0.exe'
+          if (-not (Test-Path $installer)) { throw "Installer not found: $installer" }
+
+          $testRoot = Join-Path $env:RUNNER_TEMP 'TraderPlannerPro-CI-Test'
+          if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
+          New-Item -ItemType Directory -Path $testRoot | Out-Null
+          $installDir = Join-Path $testRoot 'App'
+          $install = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed with exit code $($install.ExitCode)" }
+
+          $installedExe = Join-Path $installDir 'TraderPlannerPro.exe'
+          if (-not (Test-Path $installedExe)) { throw 'Installed TraderPlannerPro.exe was not found.' }
+          $appTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
+          if ($appTest.ExitCode -ne 0) { throw "Installed EXE self-test failed with exit code $($appTest.ExitCode)" }
+
+          $uninstaller = Join-Path $installDir 'unins000.exe'
+          if (-not (Test-Path $uninstaller)) { throw 'Uninstaller was not found.' }
+          $un = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
+          if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
+          if (Test-Path $installedExe) { throw 'Installed EXE still exists after uninstall.' }
 
       - name: Write build manifest
         shell: powershell
