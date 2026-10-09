@@ -83,6 +83,12 @@ jobs:
         run: |
           & $env:TP_PYTHON prepare_education_assets.py
 
+      - name: Run real Tk UI section smoke test
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON launcher.py --ui-smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "Tk UI section smoke test failed with exit code $LASTEXITCODE" }
+
       - name: Build Windows icon
         shell: powershell
         run: |
@@ -183,6 +189,9 @@ jobs:
           $appTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
           if ($appTest.ExitCode -ne 0) { throw "Installed EXE self-test failed with exit code $($appTest.ExitCode)" }
 
+          $uiTest = Start-Process -FilePath $installedExe -ArgumentList '--ui-smoke-test' -Wait -PassThru
+          if ($uiTest.ExitCode -ne 0) { throw "Installed EXE UI section smoke test failed with exit code $($uiTest.ExitCode)" }
+
           $uninstaller = Join-Path $installDir 'unins000.exe'
           if (-not (Test-Path $uninstaller)) { throw 'Uninstaller was not found.' }
           $un = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
@@ -215,9 +224,10 @@ jobs:
 
             Verified gates:
             - Dependency installation, Python syntax check and pytest
+            - Tk UI smoke test across 12 primary application sections
             - Windows EXE creation and EXE self-test
             - Inno Setup compiler and installer output verification
-            - Silent install, installed EXE self-test, and uninstall smoke test
+            - Silent install, installed EXE self-test and UI section smoke test, and uninstall
 
             This is a pre-release build for validation. Market feeds and TradingView access depend on their online service availability and account entitlements.
           files: |
