@@ -1673,6 +1673,70 @@ class App(tk.Tk):
         if self.cur == "home":
             self.session_clock_job = self.after(1000, self.update_session_clocks)
 
+    def _metric_card(self, parent, title, value, accent):
+        """Reusable compact metric tile for the Home dashboard and Journal."""
+        tile = self.card(parent)
+        tk.Label(tile, text=str(title), bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 8, "bold"), anchor="w").pack(fill="x", padx=12, pady=(9, 2))
+        tk.Label(tile, text=str(value), bg=C["panel"], fg=accent,
+                 font=("Segoe UI", 15, "bold"), anchor="w").pack(fill="x", padx=12, pady=(0, 9))
+        return tile
+
+    def render_home_summary(self, parent, rows):
+        """Render a compact, resilient recent-trade summary on Home."""
+        panel = self.card(parent)
+        panel.pack(fill="x", pady=(4, 7))
+        head = tk.Frame(panel, bg=C["panel"])
+        head.pack(fill="x", padx=12, pady=(10, 5))
+        title = "خلاصه ژورنال و معاملات اخیر" if self.language == "fa" else "Journal Snapshot • Recent Trades"
+        tk.Label(head, text=title, bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 11, "bold")).pack(side="right")
+        values = [row for row in (rows or []) if isinstance(row, dict)]
+        net_r = sum(result_num(row) for row in values)
+        subtext = (f"{len(values)} معامله  •  خالص {net_r:+.2f}R"
+                   if self.language == "fa"
+                   else f"{len(values)} trades  •  Net {net_r:+.2f}R")
+        tk.Label(head, text=subtext, bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 8, "bold")).pack(side="left")
+
+        if not values:
+            empty_text = "هنوز معامله‌ای ثبت نشده است؛ پس از ثبت معامله، خلاصه اینجا نمایش داده می‌شود." if self.language == "fa" else "No trades yet. Your recent journal entries will appear here after you record a trade."
+            tk.Label(panel, text=empty_text, bg=C["panel"], fg=C["muted"],
+                     font=("Segoe UI", 9), justify="right", anchor="e",
+                     wraplength=1100).pack(fill="x", padx=14, pady=(6, 14))
+            return
+
+        table = tk.Frame(panel, bg=C["panel"])
+        table.pack(fill="x", padx=12, pady=(2, 12))
+        headers = (
+            ("Date" if self.language == "en" else "تاریخ", 0),
+            ("Symbol" if self.language == "en" else "نماد", 1),
+            ("Direction" if self.language == "en" else "جهت", 2),
+            ("Setup" if self.language == "en" else "ستاپ", 3),
+            ("Result (R)" if self.language == "en" else "نتیجه (R)", 4),
+        )
+        for col, (label, idx) in enumerate(headers):
+            tk.Label(table, text=label, bg=C["panel3"], fg=C["muted"],
+                     font=("Segoe UI", 8, "bold"), padx=8, pady=6,
+                     anchor="w" if self.language == "en" else "e").grid(row=0, column=col, sticky="ew", padx=2, pady=2)
+            table.columnconfigure(col, weight=1 if col != 0 else 0)
+        for row_idx, item in enumerate(reversed(values[-5:]), start=1):
+            result = result_num(item)
+            result_text = f"{result:+.2f}R"
+            cells = (
+                str(item.get("Date", "—"))[:10],
+                str(item.get("Symbol", "—")),
+                str(item.get("Direction", "—")),
+                str(item.get("Setup", "—"))[:36],
+                result_text,
+            )
+            for col, value in enumerate(cells):
+                fg = (C["accent"] if result > 0 else C["danger"] if result < 0 else C["text"]) if col == 4 else C["text"]
+                tk.Label(table, text=value or "—", bg=C["panel3"] if row_idx % 2 else C["panel"],
+                         fg=fg, font=("Segoe UI", 8, "bold" if col == 4 else "normal"),
+                         padx=8, pady=5, anchor="w" if self.language == "en" else "e",
+                         wraplength=260).grid(row=row_idx, column=col, sticky="ew", padx=2, pady=1)
+
     def _trade_metrics(self, rows):
         """Return journal performance metrics with safe empty-history handling."""
         values = [result_num(row) for row in (rows or []) if isinstance(row, dict)]
