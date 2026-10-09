@@ -2682,62 +2682,32 @@ class App(tk.Tk):
             messagebox.showerror(self.tr("chart"), f"TradingView window could not start:\n{exc}", parent=self)
 
     def chart(self):
-        self.heading(self.tr("chart"), "TradingView Pro • official Advanced Chart • live market feed")
-        hero = self.card(self.content)
-        hero.pack(fill="x", pady=(4, 8))
-        top = tk.Frame(hero, bg=C["panel"]); top.pack(fill="x", padx=16, pady=14)
-        tk.Label(top, text="TRADINGVIEW PRO", bg=C["panel"], fg=C["accent"],
-                 font=("Segoe UI", 17, "bold")).pack(side="right")
-        tk.Label(top, text="Real exchange candles • Symbol Search • Timeframes • Drawings • Studies • Volume • Fullscreen",
-                 bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9)).pack(side="right", padx=12)
-        controls = tk.Frame(hero, bg=C["panel"]); controls.pack(fill="x", padx=16, pady=(0,14))
-        symbol_defaults = ["BINANCE:BTCUSDT","BINANCE:ETHUSDT","CRYPTOCAP:BTC.D","CRYPTOCAP:USDT.D",
-                           "CRYPTOCAP:TOTAL"] if self.market == "Crypto" else [
-                           "OANDA:XAUUSD","OANDA:XAGUSD","FXCM:COPPER","OANDA:EURUSD","OANDA:GBPUSD",
-                           "OANDA:USDJPY","TVC:DXY","SP:SPX","NASDAQ:NDX","NYMEX:CL1!","NASDAQ:AAPL"]
-        symbol_var=tk.StringVar(value=symbol_defaults[0])
-        interval_var=tk.StringVar(value="1H")
-        tk.Label(controls,text="Symbol",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(side="right",padx=(8,4))
-        symbol_box=ttk.Combobox(controls,textvariable=symbol_var,values=symbol_defaults,state="normal",width=25,justify="left")
-        symbol_box.pack(side="right",padx=4)
-        tk.Label(controls,text="Interval",bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold")).pack(side="right",padx=(10,4))
-        interval_box=ttk.Combobox(controls,textvariable=interval_var,
-                                   values=["1m","3m","5m","15m","30m","1H","4H","1D","1W","1M"],
-                                   state="readonly",width=7,justify="center")
-        interval_box.pack(side="right",padx=4)
-        self.btn(controls,"OPEN TRADINGVIEW",lambda:self.open_tradingview(symbol_var.get().strip() or symbol_defaults[0],
-                 interval_var.get()),True).pack(side="left",padx=4)
-        self.btn(controls,"BTC",lambda:(symbol_var.set("BINANCE:BTCUSDT"),self.open_tradingview("BINANCE:BTCUSDT",interval_var.get()))).pack(side="left",padx=3)
-        self.btn(controls,"GOLD",lambda:(symbol_var.set("OANDA:XAUUSD"),self.open_tradingview("OANDA:XAUUSD",interval_var.get()))).pack(side="left",padx=3)
-        note=self.card(self.content); note.pack(fill="both",expand=True,pady=3)
-        tk.Label(note,text="TradingView test workspace",bg=C["panel"],fg=C["text"],font=("Segoe UI",15,"bold")).pack(anchor="e",padx=18,pady=(18,6))
-        tk.Label(note,text="این صفحه کنترلر داخل Trader Planner Pro است. نمودار اصلی در پنجره TradingView Pro باز می‌شود تا موتور رسمی TradingView، مقیاس زمانی، کندل‌ها و ابزارهای رسم را بدون ساخت کندل مصنوعی در اختیار تست قرار دهد.",
-                 bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),justify="right",wraplength=1050).pack(anchor="e",padx=18,pady=(0,12))
-        feature_row=tk.Frame(note,bg=C["panel"]); feature_row.pack(fill="x",padx=18,pady=(0,18))
-        for title,val in (("CANDLE FEED","TradingView"),("DRAWING TOOLS","ON"),("SYMBOL SEARCH","ON"),
-                          ("VOLUME","ON"),("TIMEFRAMES","1m → 1M"),("SAVE IMAGE","ON")):
-            b=tk.Frame(feature_row,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-            b.pack(side="left",fill="x",expand=True,padx=3)
-            tk.Label(b,text=title,bg=C["panel3"],fg=C["muted"],font=("Segoe UI",7,"bold")).pack(pady=(8,2))
-            tk.Label(b,text=val,bg=C["panel3"],fg=C["accent"],font=("Consolas",9,"bold")).pack(pady=(0,8))
-        native_card = self.card(self.content)
-        native_card.pack(fill="both", expand=True, pady=(0, 8))
-        native_head = tk.Frame(native_card, bg=C["panel"])
-        native_head.pack(fill="x", padx=16, pady=(12, 4))
-        tk.Label(native_head, text="NATIVE LIVE CHART • OPTIONAL", bg=C["panel"], fg=C["accent"],
-                 font=("Segoe UI", 13, "bold")).pack(side="right")
-        shell = tk.Frame(native_card, bg=C["bg"], highlightthickness=0)
-        shell.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-        self.btn(native_head, "LOAD NATIVE CHART",
-                 lambda: self._load_native_trading_desk(shell), True).pack(side="left")
-        tk.Label(shell, text="The native chart is optional. Load it only when needed; "
-                 "the TradingView Pro terminal is available from the button above.",
-                 bg=C["bg"], fg=C["muted"], font=("Segoe UI", 10),
-                 wraplength=900, justify="center").pack(expand=True, padx=24, pady=30)
+        """Full-area native chart; official TradingView is a compact optional action."""
+        self.heading(self.tr("chart"), "Live market chart • drawings • symbol search • multiple timeframes")
+        top = tk.Frame(self.content, bg=C["bg"])
+        top.pack(fill="x", pady=(0, 5))
+        # Keep the TradingView launch affordance small and out of the chart's way.
+        self.btn(
+            top,
+            "↗ TradingView Pro",
+            lambda: self.open_tradingview(
+                "BINANCE:BTCUSDT" if self.market == "Crypto" else "OANDA:XAUUSD",
+                "1H",
+            ),
+            True,
+        ).pack(side="right", padx=(0, 4), pady=2)
+        tk.Label(
+            top,
+            text="Live candles • zoom/pan • crosshair • drawing tools • auto refresh",
+            bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9),
+        ).pack(side="left", padx=8)
 
-        self._chart_test_hint = symbol_var
-        self._chart_interval_hint = interval_var
-
+        chart_shell = tk.Frame(
+            self.content, bg=C["bg"],
+            highlightbackground=C["line"], highlightthickness=1,
+        )
+        chart_shell.pack(fill="both", expand=True, pady=(0, 4))
+        self._load_native_trading_desk(chart_shell)
     def _load_native_trading_desk(self, holder):
         """Load the optional Matplotlib chart only after a deliberate user action."""
         if getattr(holder, "_tpp_native_chart_loaded", False):
