@@ -113,8 +113,26 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $installer = Join-Path $env:RUNNER_TEMP 'innosetup-7.1.0-x64.exe'
-          $url = 'https://files.jrsoftware.org/is/7/innosetup-7.1.0-x64.exe'
-          Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
+          $urls = @(
+            'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe',
+            'https://files.jrsoftware.org/is/7/innosetup-7.1.0-x64.exe'
+          )
+          $downloaded = $false
+          foreach ($url in $urls) {
+            try {
+              if (Test-Path $installer) { Remove-Item $installer -Force -ErrorAction SilentlyContinue }
+              Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing -ErrorAction Stop
+              if ((Test-Path $installer) -and (Get-Item $installer).Length -gt 5000000) {
+                $downloaded = $true
+                Write-Host "Downloaded official Inno Setup from $url"
+                break
+              }
+              Write-Warning "Downloaded file from $url was too small; trying the next official endpoint."
+            } catch {
+              Write-Warning "Download failed from $url : $($_.Exception.Message)"
+            }
+          }
+          if (-not $downloaded) { throw 'Unable to download the official Inno Setup installer from the official release endpoints.' }
           $sig = Get-AuthenticodeSignature -FilePath $installer
           if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'Pyrsys B.V.') { throw "Inno Setup signature verification failed: $($sig.Status) / $($sig.SignerCertificate.Subject)" }
           $p = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
