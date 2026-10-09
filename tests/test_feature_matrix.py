@@ -85,3 +85,17 @@ def test_logo_render_is_cached_and_tk_callback_errors_are_logged():
     assert "cached.verify()" in logo_source
     assert "def report_callback_exception(self, exc, value, tb):" in app_source
     assert "ui_errors.log" in app_source
+
+
+
+def test_launcher_exposes_real_tk_page_smoke_test():
+    source = (ROOT / "launcher.py").read_text(encoding="utf-8")
+    expected_pages = (
+        '"home", "daily", "weekly", "plan", "check", "journal",',
+        '"academy", "ai", "news", "calculators", "chart", "settings",',
+    )
+    assert 'sys.argv[1] == "--ui-smoke-test"' in source
+    assert "def _run_ui_smoke_test():" in source
+    assert "SAFE RECOVERY" in source
+    for page_list_fragment in expected_pages:
+        assert page_list_fragment in source
