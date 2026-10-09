@@ -159,6 +159,23 @@ def _run_ui_smoke_test():
                 failures.append(f"{page}: {type(exc).__name__}: {exc}")
 
         if failures:
+            # _show_page_error records the original exception and the page key.
+            # Include those lines in CI output so a failing page can be fixed
+            # from evidence instead of a generic recovery-screen message.
+            log_path = Path.home() / "TraderPlannerPro" / "ui_errors.log"
+            failing_pages = {item.split(":", 1)[0] for item in failures}
+            try:
+                if log_path.is_file():
+                    diagnostics = [
+                        line for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                        if any(f"page={page} |" in line for page in failing_pages)
+                    ]
+                    if diagnostics:
+                        print("UI smoke-test diagnostics:", flush=True)
+                        for line in diagnostics[-40:]:
+                            print(line, flush=True)
+            except Exception as diagnostic_exc:
+                print(f"Could not read UI diagnostics: {diagnostic_exc}", flush=True)
             raise RuntimeError("Tk UI section smoke test failed:\n- " + "\n- ".join(failures))
         print(f"{APP} {VERSION} UI smoke-test: {len(pages)} pages rendered OK", flush=True)
     finally:
