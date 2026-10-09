@@ -37,23 +37,36 @@ jobs:
       - name: Install build dependencies
         shell: powershell
         env:
-          PIP_DEFAULT_TIMEOUT: '120'
-          PIP_RETRIES: '12'
+          PIP_DEFAULT_TIMEOUT: '35'
+          PIP_RETRIES: '2'
+          PIP_DISABLE_PIP_VERSION_CHECK: '1'
         run: |
           $ErrorActionPreference = 'Stop'
-          & $env:TP_PYTHON -m pip install --upgrade pip --prefer-binary --default-timeout 120 --retries 12 --no-input
-          if ($LASTEXITCODE -ne 0) { throw "pip bootstrap failed with exit code $LASTEXITCODE" }
-
-          & $env:TP_PYTHON -m pip install --prefer-binary --default-timeout 120 --retries 12 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning 'Primary dependency install failed; clearing cache and retrying once without cache.'
-            & $env:TP_PYTHON -m pip cache purge
-            & $env:TP_PYTHON -m pip install --prefer-binary --no-cache-dir --default-timeout 180 --retries 20 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
-            if ($LASTEXITCODE -ne 0) { throw "dependency install failed after retry with exit code $LASTEXITCODE" }
+          # Try the official index first, then two public mirrors. Keeping
+          # retries bounded prevents a stalled CDN from delaying the build for
+          # an hour; pip's cache is retained between endpoints.
+          $indexes = @(
+            'https://pypi.org/simple',
+            'https://pypi.tuna.tsinghua.edu.cn/simple',
+            'https://mirrors.aliyun.com/pypi/simple'
+          )
+          $dependenciesInstalled = $false
+          foreach ($index in $indexes) {
+            Write-Host "Installing build dependencies from $index"
+            & $env:TP_PYTHON -m pip install --prefer-binary --index-url $index --default-timeout 35 --retries 2 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
+            if ($LASTEXITCODE -eq 0) {
+              $dependenciesInstalled = $true
+              break
+            }
+            Write-Warning "Dependency installation failed through $index; trying the next index."
+          }
+          if (-not $dependenciesInstalled) {
+            throw 'Dependency installation failed through all configured Python package indexes.'
           }
 
           & $env:TP_PYTHON -m pip check
-          if ($LASTEXITCODE -ne 0) { throw "pip dependency consistency check failed." }
+          if ($LASTEXITCODE -ne 0) { throw 'pip dependency consistency check failed.' }
+
       - name: Syntax check
         shell: powershell
         run: |
