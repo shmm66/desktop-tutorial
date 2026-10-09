@@ -22,6 +22,15 @@ def _candle(d,x,y,w,h,up=True):
 
 def create_logo_image(path:Path,size=520):
     path=Path(path); path.parent.mkdir(parents=True,exist_ok=True)
+    # Reuse a valid render; the logo is static and repeated high-res blur/compositing
+    # on every application launch adds avoidable startup latency.
+    try:
+        with Image.open(path) as cached:
+            if cached.size == (int(size), int(size)) and cached.format == "PNG":
+                cached.verify()
+                return path
+    except Exception:
+        pass
     img=Image.new("RGBA",(size,size),BG)
     shadow=Image.new("RGBA",(size,size),BG); sd=ImageDraw.Draw(shadow)
     pad=int(size*.095)
