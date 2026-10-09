@@ -546,10 +546,11 @@ class App(tk.Tk):
         self.update_idletasks()
         apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
         # Let Windows paint the shell before the first dashboard render.
-        self.after(80, self._finish_startup)
+        self._finish_startup_job = self.after(80, self._finish_startup)
 
     def _finish_startup(self):
         """Start recurring services after the initial native window is visible."""
+        self._finish_startup_job = None
         try:
             if not self.winfo_exists():
                 return
