@@ -475,11 +475,14 @@ def test_v830_academy_uses_bundled_source_images():
     assert "bundled_asset_for_visual(kind)" in source
     assert "Image.open(source_path)" in source
 
-def test_v830_native_acrylic_is_reapplied_after_map():
+def test_v830_native_acrylic_reapply_is_debounced_without_map_recursion():
     from pathlib import Path
     source=Path("glass_theme.py").read_text(encoding="utf-8")
     assert "DWMWA_SYSTEMBACKDROP_TYPE = 38" in source
-    assert 'window.bind("<Map>"' in source
+    assert 'window.bind("<Map>"' not in source
+    assert "_tpp_glass_after_id" in source
+    assert "after_cancel" in source
+    assert "window.after(120, _apply_deferred)" in source
 
 def test_v830_news_cache_first():
     from news_data import cached_news
@@ -515,9 +518,12 @@ def test_v10_trading_desk_is_native_integrated():
     from pathlib import Path
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     native = Path("native_trading_desk.py").read_text(encoding="utf-8")
-    assert "from native_trading_desk import NativeTradingDesk" in source
-    assert "NativeTradingDesk(shell, C" in source
-    assert "open_chart" not in source[source.index("    def chart(self):"):source.index("\n    def calculators(self):")]
+    app_start = source.index("class App(")
+    assert "from native_trading_desk import NativeTradingDesk" not in source[:app_start]
+    assert "def _load_native_trading_desk(self, holder):" in source
+    assert "NativeTradingDesk(holder, C" in source
+    assert "LOAD NATIVE CHART" in source
+    assert "open_chart" not in source[source.index("    def chart(self):"):source.index("\n    def _load_native_trading_desk(self, holder):")]
     assert "FigureCanvasTkAgg" in native
     assert "NavigationToolbar2Tk" in native
     assert "Binance" in native
