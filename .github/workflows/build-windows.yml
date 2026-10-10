@@ -1,6 +1,6 @@
 name: CI + Windows EXE + Installer
 # Triggered build includes regression coverage for bounded Acrylic callbacks and lazy AI startup.
-# V10.1.0 native desktop redesign
+# V10.1.1 offline Academy, antialiased clocks and resilient Release delivery
 
 on:
   workflow_dispatch:
