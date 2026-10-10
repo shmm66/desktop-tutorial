@@ -75,7 +75,7 @@ def _draw_statement_chart(rows, market, profile_name, stats, timestamp):
         ("WIN RATE", f'{stats["win_rate"]:.1f}%', "#0B8F71"),
         ("NET R", f'{stats["net_r"]:+.2f} R', "#A56C10" if stats["net_r"] >= 0 else "#C04455"),
         ("AVG R", f'{stats["avg_r"]:+.2f} R', "#6355B7" if stats["avg_r"] >= 0 else "#C04455"),
-        ("PROFIT FACTOR", "∞" if math.isinf(stats["profit_factor"]) else f'{stats["profit_factor"]:.2f}', "#1D69A7"),
+        ("PROFIT FACTOR", "INF" if math.isinf(stats["profit_factor"]) else f'{stats["profit_factor"]:.2f}', "#1D69A7"),
     ]
     left, gap, card_w = 32, 14, (width - 64 - 4 * 14) // 5
     for i, (label, value, accent) in enumerate(items):
@@ -152,7 +152,7 @@ def _draw_statement_chart(rows, market, profile_name, stats, timestamp):
     # Transparent metric definitions and disclaimer
     draw.rounded_rectangle((32, 742, width - 32, 978), radius=24, fill="#FFFFFF", outline="#DCE5EF", width=2)
     draw.text((58, 762), "RISK & PERFORMANCE DETAILS", font=header_font, fill="#15283E")
-    pf = "∞" if math.isinf(stats["profit_factor"]) else f'{stats["profit_factor"]:.2f}'
+    pf = "INF" if math.isinf(stats["profit_factor"]) else f'{stats["profit_factor"]:.2f}'
     detail_specs = [
         ("Gross profit", f'{stats["gross_profit_r"]:+.2f} R'),
         ("Gross loss", f'{stats["gross_loss_r"]:+.2f} R'),
@@ -206,7 +206,7 @@ def create_statement(rows, market, profile_name, out_dir):
         ("Win Rate", f'{stats["win_rate"]:.1f}%'),
         ("Net R", f'{stats["net_r"]:+.2f}'),
         ("Average R", f'{stats["avg_r"]:+.2f}'),
-        ("Profit Factor", "∞" if math.isinf(stats["profit_factor"]) else f'{stats["profit_factor"]:.2f}'),
+        ("Profit Factor", "INF" if math.isinf(stats["profit_factor"]) else f'{stats["profit_factor"]:.2f}'),
     ]
     y = height - 132
     gap = 8
