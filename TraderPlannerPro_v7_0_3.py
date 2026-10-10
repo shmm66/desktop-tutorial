@@ -1659,49 +1659,122 @@ class App(tk.Tk):
         hours = tk.Label(info, text="", bg=C["panel"], fg=C["muted"], font=("Consolas", 7)); hours.pack(anchor="w", pady=(2, 0))
         self.session_clock_widgets.append((canvas, status, hours, session))
 
+    def _antialiased_clock_photo(self, canvas, now, session, is_open, progress, style):
+        """Render a crisp clock at 3x resolution and downsample with LANCZOS."""
+        from PIL import Image, ImageDraw, ImageFont, ImageTk
+        width, height = (88, 88) if style == "classic" else ((138, 62) if style == "wrist" else (132, 44))
+        scale = 3
+        q = lambda value: int(round(value * scale))
+        image = Image.new("RGB", (q(width), q(height)), C["panel"])
+        draw = ImageDraw.Draw(image)
+
+        def font(size, bold=False):
+            candidates = ([r"C:\Windows\Fonts\segoeuib.ttf", r"C:\Windows\Fonts\arialbd.ttf"] if bold else
+                          [r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf"])
+            candidates += ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else
+                           "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+            for candidate in candidates:
+                try:
+                    return ImageFont.truetype(candidate, q(size))
+                except OSError:
+                    continue
+            return ImageFont.load_default()
+
+        active = C["accent"] if is_open else C["muted"]
+        if style == "digital":
+            draw.rounded_rectangle((q(1), q(1), q(width-1), q(height-1)), radius=q(3),
+                                   fill=C["panel3"], outline=C["line"], width=q(0.7))
+            draw.text((q(width/2), q(13)), now.strftime("%H:%M:%S"), font=font(13, True),
+                      fill=active if is_open else C["text"], anchor="mm")
+            draw.rounded_rectangle((q(8), q(30), q(width-8), q(35)), radius=q(2), fill=C["soft"])
+            if progress > 0:
+                draw.rounded_rectangle((q(8), q(30), q(8+(width-16)*progress), q(35)),
+                                       radius=q(2), fill=C["accent"])
+            draw.text((q(width/2), q(40)), now.strftime("%Z") or session.get("tz",""),
+                      font=font(6), fill=C["muted"], anchor="mm")
+        elif style == "wrist":
+            draw.rounded_rectangle((q(50), q(0), q(88), q(12)), radius=q(4),
+                                   fill=C["panel2"], outline=C["line"], width=q(1))
+            draw.rounded_rectangle((q(50), q(height-12), q(88), q(height)), radius=q(4),
+                                   fill=C["panel2"], outline=C["line"], width=q(1))
+            draw.rounded_rectangle((q(19), q(7), q(119), q(55)), radius=q(7),
+                                   fill=C["shadow"], outline=C["line"], width=q(1.5))
+            draw.rounded_rectangle((q(24), q(11), q(114), q(51)), radius=q(4),
+                                   fill=C["panel3"], outline=active, width=q(1))
+            draw.text((q(69), q(27)), now.strftime("%H:%M:%S"), font=font(12, True),
+                      fill=active if is_open else C["text"], anchor="mm")
+            draw.rounded_rectangle((q(32), q(40), q(106), q(44)), radius=q(2), fill=C["soft"])
+            if progress > 0:
+                draw.rounded_rectangle((q(32), q(40), q(32+74*progress), q(44)),
+                                       radius=q(2), fill=C["accent"])
+        else:
+            cx = cy = width / 2
+            radius = 38
+            draw.ellipse((q(cx-radius), q(cy-radius), q(cx+radius), q(cy+radius)),
+                         fill=C["panel3"], outline=C["line"], width=q(1.2))
+            draw.ellipse((q(cx-radius+4), q(cy-radius+4), q(cx+radius-4), q(cy+radius-4)),
+                         outline=C["gold"], width=q(0.8))
+            if progress > 0:
+                draw.arc((q(cx-radius-1), q(cy-radius-1), q(cx+radius+1), q(cy+radius+1)),
+                         start=-90, end=-90 + 360*progress, fill=C["accent"], width=q(2.5))
+            for n in range(60):
+                angle = math.radians(n*6 - 90)
+                major = n % 5 == 0
+                outer = radius-7
+                inner = outer-(5 if major else 2.5)
+                color = C["gold"] if major else C["muted"]
+                draw.line((q(cx+math.cos(angle)*inner), q(cy+math.sin(angle)*inner),
+                           q(cx+math.cos(angle)*outer), q(cy+math.sin(angle)*outer)),
+                          fill=color, width=q(1.2 if major else 0.65))
+            for value, turns, length, color, line_width in (
+                (now.hour % 12 + now.minute/60, 12, 19, C["text"], 2.6),
+                (now.minute + now.second/60, 60, 27, C["gold"], 1.8),
+                (now.second, 60, 29, C["accent"], 0.9),
+            ):
+                angle = math.radians(value * (360/turns) - 90)
+                draw.line((q(cx), q(cy), q(cx+math.cos(angle)*length), q(cy+math.sin(angle)*length)),
+                          fill=color, width=q(line_width))
+            draw.ellipse((q(cx-2.8), q(cy-2.8), q(cx+2.8), q(cy+2.8)),
+                         fill=C["accent"], outline=C["panel3"], width=q(0.7))
+        resampling = getattr(Image, "Resampling", Image).LANCZOS
+        image = image.resize((width, height), resampling)
+        photo = ImageTk.PhotoImage(image, master=canvas)
+        canvas.configure(width=width, height=height)
+        canvas._clock_photo = photo
+        return photo
+
     def update_session_clocks(self):
-        if self.cur != "home": return
+        """Update session time/status while keeping the display smooth and lightweight."""
+        if self.cur != "home":
+            return
         for canvas, status, hours, session in list(self.session_clock_widgets):
             try:
-                now = datetime.now(ZoneInfo(session["tz"])); local_minutes = now.hour * 60 + now.minute + now.second / 60.0
+                now = datetime.now(ZoneInfo(session["tz"]))
+                local_minutes = now.hour * 60 + now.minute + now.second / 60.0
                 start, end = session["start"] * 60, session["end"] * 60
                 is_open = start <= local_minutes < end
-                progress = max(0.0, min(1.0, (local_minutes - start) / max(1, end - start))) if is_open else 0.0
-                canvas.delete("all"); style = getattr(self, "clock_style", "digital")
-                if style == "digital":
-                    canvas.create_rectangle(1,1,131,43,fill=C["panel3"],outline=C["line"])
-                    canvas.create_text(66,17,text=now.strftime("%H:%M:%S"),fill=C["accent"] if is_open else C["text"],font=("Consolas",14,"bold"))
-                    canvas.create_rectangle(8,31,124,36,fill=C["soft"],outline="")
-                    if progress: canvas.create_rectangle(8,31,8+116*progress,36,fill=C["accent"],outline="")
-                    canvas.create_text(66,39,text=now.strftime("%Z") or session.get("tz",""),fill=C["muted"],font=("Segoe UI",6))
-                elif style == "wrist":
-                    canvas.create_rectangle(48,0,90,10,fill=C["panel2"],outline=C["line"]); canvas.create_rectangle(48,52,90,61,fill=C["panel2"],outline=C["line"])
-                    canvas.create_rectangle(22,8,116,53,fill=C["shadow"],outline=C["line"],width=2)
-                    canvas.create_rectangle(27,13,111,48,fill=C["panel3"],outline=C["accent"] if is_open else C["soft"],width=1)
-                    canvas.create_text(69,28,text=now.strftime("%H:%M:%S"),fill=C["accent"] if is_open else C["text"],font=("Consolas",12,"bold"))
-                    canvas.create_rectangle(32,41,106,45,fill=C["soft"],outline="")
-                    if progress: canvas.create_rectangle(32,41,32+74*progress,45,fill=C["accent"],outline="")
-                else:
-                    cx=cy=44
-                    canvas.create_oval(4,4,84,84,fill=C["panel3"],outline=C["line"],width=1)
-                    canvas.create_arc(5,5,83,83,start=90,extent=-360*progress,style="arc",outline=C["accent"] if is_open else C["soft"],width=3)
-                    for n in range(12):
-                        angle=math.radians(n*30-90); outer=34 if n%3 else 31; inner=30 if n%3 else 25
-                        canvas.create_line(cx+math.cos(angle)*inner,cy+math.sin(angle)*inner,cx+math.cos(angle)*outer,cy+math.sin(angle)*outer,fill=C["muted"] if n%3 else C["gold"],width=2 if n%3 else 3)
-                    hour=(now.hour%12)+now.minute/60.0; minute=now.minute+now.second/60.0; second=now.second+now.microsecond/1_000_000.0
-                    for value,turns,length,line_width,color in ((hour,12,21,4,C["text"]),(minute,60,29,3,C["gold"]),(second,60,31,1,C["accent"])):
-                        angle=math.radians(value*(360/turns)-90)
-                        canvas.create_line(cx,cy,cx+math.cos(angle)*length,cy+math.sin(angle)*length,fill=color,width=line_width)
-                    canvas.create_oval(40,40,48,48,fill=C["accent"],outline=C["panel3"],width=2)
+                progress = max(0.0, min(1.0, (local_minutes-start)/max(1, end-start))) if is_open else 0.0
+                canvas.delete("all")
+                style = getattr(self, "clock_style", "digital")
+                try:
+                    photo = self._antialiased_clock_photo(canvas, now, session, is_open, progress, style)
+                    canvas.create_image(0, 0, image=photo, anchor="nw")
+                except Exception:
+                    # A font/rendering issue should not blank the session indicator.
+                    canvas.create_text(4, 4, text=now.strftime("%H:%M:%S"), anchor="nw",
+                                       fill=C["accent"] if is_open else C["text"],
+                                       font=("Segoe UI", 12, "bold"))
                 if is_open:
-                    remaining=max(0,int((end-local_minutes)*60)); status.config(fg=C["accent"],text=f"{self.tr('open')} • {now.strftime('%H:%M:%S')}")
+                    remaining = max(0, int((end-local_minutes)*60))
+                    status.config(fg=C["accent"], text=f"{self.tr('open')} • {now.strftime('%H:%M:%S')}")
                     hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00 | {remaining//3600:02d}:{(remaining%3600)//60:02d} left")
                 else:
-                    status.config(fg=C["muted"],text=f"{self.tr('closed')} • {now.strftime('%H:%M:%S')}")
+                    status.config(fg=C["muted"], text=f"{self.tr('closed')} • {now.strftime('%H:%M:%S')}")
                     hours.config(text=f"{session['start']:02d}:00–{session['end']:02d}:00 | {now.tzname() or session.get('tz','')}")
             except Exception:
                 continue
-        if self.cur == "home": self.session_clock_job = self.after(1000, self.update_session_clocks)
+        if self.cur == "home":
+            self.session_clock_job = self.after(1000, self.update_session_clocks)
 
     def _metric_card(self, parent, title, value, accent):
         """Reusable compact metric tile for the Home dashboard and Journal."""
