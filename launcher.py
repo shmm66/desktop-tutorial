@@ -6,7 +6,7 @@ import sys
 import threading
 
 APP = "Trader Planner Pro"
-VERSION = "10.0.0"
+VERSION = "10.1.0"
 
 def show_splash(ready_event=None):
     root = tk.Tk()
@@ -62,8 +62,8 @@ def show_splash(ready_event=None):
     phases = [
         (12, "Loading visual workspace…"),
         (34, "Preparing market engine…"),
-        (57, "Loading Academy & Journal…"),
-        (78, "Starting AI Command Center…"),
+        (57, "Preparing journal analytics…"),
+        (78, "Finishing market workspace…"),
         (92, "Finalizing glass interface…"),
         (100, "Ready"),
     ]
@@ -131,7 +131,7 @@ def _run_ui_smoke_test():
 
     pages = (
         "home", "daily", "weekly", "plan", "check", "journal",
-        "academy", "ai", "news", "calculators", "chart", "settings",
+        "insights", "resources", "news", "calculators", "settings",
     )
     app = App()
     failures = []
@@ -216,26 +216,17 @@ def main():
             import importlib
             required = [
                 "TraderPlannerPro_v7_0_3", "market_data", "news_data",
-                "ai_assistant", "academy_visuals", "academy_diagrams",
-                "glass_theme", "google_oauth", "statement_report", "webview_runner",
-                "native_trading_desk", "tradingview_runner"
+                "journal_agent", "glass_theme", "google_oauth", "statement_report"
             ]
             for module_name in required:
                 importlib.import_module(module_name)
             base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-            required_assets = [base / "education_sources"]
+            required_assets = []
             missing = [str(p) for p in required_assets if not p.exists()]
             if missing:
                 raise RuntimeError("Missing bundled assets: " + ", ".join(missing))
             print(f"{APP} {VERSION} self-test: OK")
             return
-        if len(sys.argv) > 1 and sys.argv[1] == "--webview":
-            from webview_runner import main as webview_main
-            webview_main()
-            return
-        if len(sys.argv) > 1 and sys.argv[1] == "--tradingview":
-            from tradingview_runner import main as tradingview_main
-            raise SystemExit(tradingview_main(sys.argv[2:]))
         preload_result = {}
         preload_ready = threading.Event()
         threading.Thread(
