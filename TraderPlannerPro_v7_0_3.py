@@ -1428,6 +1428,7 @@ class App(tk.Tk):
         clock_style_box.pack(side="right", padx=4)
         clock_style_box.bind("<<ComboboxSelected>>", lambda _e: self.set_clock_style(clock_style_labels.get(clock_style_var.get(), "digital")))
         clocks = tk.Frame(session_wrap, bg=C["bg"]); clocks.pack(fill="x", pady=(4,0))
+        self.session_clock_container = clocks
         for col, session in enumerate(SESSION_CLOCKS):
             clocks.columnconfigure(col, weight=1)
             card = self.card(clocks); card.grid(row=0, column=col, sticky="nsew", padx=4)
