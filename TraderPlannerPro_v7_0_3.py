@@ -2356,6 +2356,7 @@ class App(tk.Tk):
         self._google_login_ui(status_label)
 
     def _google_login_ui(self, status_label=None):
+        from google_oauth import login_google
         custom = DB.get("settings", {}).get("google_credentials_path", "")
         try:
             state = login_google(custom or None)
@@ -2370,6 +2371,7 @@ class App(tk.Tk):
             messagebox.showerror(self.tr("google_account"), str(exc), parent=self)
 
     def _google_logout_ui(self, status_label=None):
+        from google_oauth import logout_google
         try:
             logout_google()
             if status_label is not None and status_label.winfo_exists():
@@ -2380,6 +2382,8 @@ class App(tk.Tk):
             messagebox.showerror(self.tr("google_account"), str(exc), parent=self)
 
     def email_statement(self):
+        from google_oauth import google_status, send_gmail
+        from statement_report import create_statement
         rows = active_profile().get("journals", {}).get(self.market, [])
         state = google_status()
         if not state.get("connected"):
@@ -2658,11 +2662,10 @@ class App(tk.Tk):
                  lambda: tx("انتخاب فعلی", "CURRENT") + " · " + theme_var.get())
 
         skin_labels = {
-            tx("شیشه‌ای آکریلیک", "Acrylic Glass"): "glass",
-            tx("آبسیدین", "Obsidian"): "obsidian",
-            tx("روشن مینیمال", "Minimal Light"): "minimal",
+            (SKINS[key]["label_fa"] if self.language == "fa" else SKINS[key]["label_en"]): key
+            for key in SKINS
         }
-        skin_values = [name for name, key in skin_labels.items() if key in SKINS]
+        skin_values = list(skin_labels.keys())
         skin_var = tk.StringVar(value=next((name for name, key in skin_labels.items() if key == self.skin),
                                            skin_values[0] if skin_values else "glass"))
         dropdown(2, tx("پوسته", "Interface skin"), skin_var, skin_values,
