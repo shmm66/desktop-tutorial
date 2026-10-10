@@ -1,6 +1,6 @@
 name: CI + Windows EXE + Installer
 # Triggered build includes regression coverage for bounded Acrylic callbacks and lazy AI startup.
-# V10.1.1 offline Academy, antialiased clocks and resilient Release delivery
+# V10.1.2 regression fix for local Academy and antialiased clocks
 
 on:
   workflow_dispatch:
