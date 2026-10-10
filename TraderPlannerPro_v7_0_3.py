@@ -2729,6 +2729,41 @@ class App(tk.Tk):
         self.btn(actions, tx("ذخیره تنظیمات", "Save settings"), save_settings, True).pack(side="right", padx=14, pady=12)
         self.btn(actions, self.tr("nav_home"), self.go_home).pack(side="right", padx=4, pady=12)
 
+        # Daily reminders remain available independently of the removed chatbot.
+        reminder_panel = self.card(self.content)
+        reminder_panel.pack(fill="x", pady=(8, 4))
+        reminder_header = tk.Frame(reminder_panel, bg=C["panel"])
+        reminder_header.pack(fill="x", padx=12, pady=(10, 5))
+        tk.Label(reminder_header, text=self.tr("reminders"), bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 12, "bold")).pack(side="right")
+        self.btn(reminder_header, self.tr("add_reminder"), self.add_reminder, True).pack(side="left", padx=3)
+        self.btn(reminder_header, self.tr("delete_reminder"), self.delete_reminder).pack(side="left", padx=3)
+        self.btn(reminder_header, tx("فعال/غیرفعال", "Enable / Disable"), self.toggle_reminder).pack(side="left", padx=3)
+        self.reminders_tree = ttk.Treeview(
+            reminder_panel, columns=("time", "title", "status"), show="headings", height=4,
+            selectmode="browse"
+        )
+        for column, label in (
+            ("time", self.tr("reminder_time")),
+            ("title", self.tr("reminder_title")),
+            ("status", self.tr("reminder_enabled")),
+        ):
+            self.reminders_tree.heading(column, text=label)
+        self.reminders_tree.column("time", width=110, anchor="center", stretch=False)
+        self.reminders_tree.column("title", width=360, anchor="e")
+        self.reminders_tree.column("status", width=120, anchor="center", stretch=False)
+        self.reminders_tree.pack(fill="x", padx=12, pady=(2, 12))
+        self.reminders_tree.tag_configure("disabled", foreground=C["muted"])
+        for idx, reminder in enumerate(DB.get("settings", {}).get("ai_reminders", [])):
+            enabled = bool(reminder.get("enabled", True))
+            status = tx("فعال", "Enabled") if enabled else tx("غیرفعال", "Disabled")
+            self.reminders_tree.insert(
+                "", "end", iid=str(idx),
+                values=(reminder.get("time", "09:00"), reminder.get("title") or self.tr("reminders"), status),
+                tags=() if enabled else ("disabled",)
+            )
+        self.reminders_tree.bind("<Double-1>", lambda _event: self.toggle_reminder())
+
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
         nb=ttk.Notebook(self.content); nb.pack(fill="both",expand=True,pady=8)
@@ -2779,6 +2814,79 @@ class App(tk.Tk):
 
         shortcuts=tk.Frame(self.content,bg=C["bg"]); shortcuts.pack(fill="x",pady=(4,8))
         self.btn(shortcuts,self.tr("home_shortcut"),self.go_home).pack(side="left")
+
+    def add_reminder(self):
+        dlg = self._glass_toplevel(self.tr("add_reminder"), "540x330", (480, 300))
+        dlg.grab_set()
+        title = tk.StringVar()
+        tm = tk.StringVar(value="09:00")
+        enabled = tk.BooleanVar(value=True)
+        tk.Label(dlg, text=self.tr("reminder_title"), bg=C["bg"], fg=C["muted"],
+                 font=("Segoe UI", 10, "bold")).pack(anchor="e", padx=18, pady=(18, 6))
+        title_entry = tk.Entry(dlg, textvariable=title, bg=C["soft"], fg=C["text"],
+                               insertbackground=C["text"], relief="flat", justify="right")
+        title_entry.pack(fill="x", padx=18, ipady=7)
+        time_row = tk.Frame(dlg, bg=C["bg"])
+        time_row.pack(fill="x", padx=18, pady=14)
+        tk.Label(time_row, text=self.tr("reminder_time"), bg=C["bg"], fg=C["muted"]).pack(side="right", padx=6)
+        tk.Entry(time_row, textvariable=tm, width=9, bg=C["soft"], fg=C["text"],
+                 insertbackground=C["text"], relief="flat", justify="center").pack(side="right", padx=6, ipady=5)
+        tk.Checkbutton(
+            dlg, text=self.tr("reminder_enabled"), variable=enabled, bg=C["bg"], fg=C["text"],
+            selectcolor=C["soft"], activebackground=C["bg"], activeforeground=C["text"]
+        ).pack(anchor="e", padx=18)
+        def save():
+            value = tm.get().strip()
+            if not self._valid_hhmm(value):
+                messagebox.showwarning(self.tr("reminders"), self.tr("reminder_time"), parent=dlg)
+                return
+            DB.setdefault("settings", {}).setdefault("ai_reminders", []).append({
+                "id": str(uuid4()),
+                "title": title.get().strip() or self.tr("reminders"),
+                "time": value,
+                "daily": True,
+                "enabled": bool(enabled.get()),
+                "last_notified": "",
+            })
+            save_db()
+            dlg.destroy()
+            self.show("settings")
+        footer = tk.Frame(dlg, bg=C["bg"])
+        footer.pack(fill="x", padx=18, pady=(12, 16))
+        self.btn(footer, self.tr("cancel"), dlg.destroy).pack(side="right", padx=4)
+        self.btn(footer, self.tr("save_reminder"), save, True).pack(side="right", padx=4)
+        title_entry.focus_set()
+        self.translate_widget_tree(dlg)
+
+    def delete_reminder(self):
+        tree = getattr(self, "reminders_tree", None)
+        selected = tree.selection() if tree is not None else ()
+        if not selected:
+            return messagebox.showinfo(self.tr("reminders"), self.ui_text("ابتدا یک یادآور را انتخاب کن"), parent=self)
+        try:
+            idx = int(selected[0])
+            reminders = DB.setdefault("settings", {}).setdefault("ai_reminders", [])
+            if 0 <= idx < len(reminders):
+                reminders.pop(idx)
+                save_db()
+                self.show("settings")
+        except (ValueError, IndexError):
+            self.show("settings")
+
+    def toggle_reminder(self):
+        tree = getattr(self, "reminders_tree", None)
+        selected = tree.selection() if tree is not None else ()
+        if not selected:
+            return messagebox.showinfo(self.tr("reminders"), self.ui_text("ابتدا یک یادآور را انتخاب کن"), parent=self)
+        try:
+            idx = int(selected[0])
+            reminders = DB.setdefault("settings", {}).setdefault("ai_reminders", [])
+            if 0 <= idx < len(reminders):
+                reminders[idx]["enabled"] = not bool(reminders[idx].get("enabled", True))
+                save_db()
+                self.show("settings")
+        except (ValueError, IndexError):
+            self.show("settings")
 
     def open_external_url(self, url, title=""):
         """Open market-news and reference links in the system browser, not an embedded WebView."""
