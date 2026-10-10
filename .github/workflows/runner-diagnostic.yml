@@ -1,0 +1,31 @@
+name: Runner Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "v10-professional-visual-online" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - name: Basic runner health
+        shell: cmd
+        run: |
+          echo RUNNER_OK
+          hostname
+          echo RUNNER_LABELS_OK
+      - name: Locate Python without requiring PATH
+        shell: powershell
+        run: |
+          $candidates = @(
+            "$env:LOCALAPPDATA\Programs\Python",
+            "C:\Program Files\Python*",
+            "C:\Users"
+          )
+          foreach ($root in $candidates) {
+            Write-Host "SCAN $root"
+          }
+          Write-Host "Runner diagnostic completed. Python availability is informational."

@@ -1,7 +1,5 @@
 Pillow>=11,<13
-pywebview>=6,<7
 pywinstyles>=1.8,<2
-matplotlib>=3.9,<4
 reportlab>=4.4,<5
 openpyxl==3.1.5
 jdatetime>=5,<6
@@ -10,6 +8,3 @@ tzdata>=2025.2
 google-api-python-client>=2.181,<3
 google-auth>=2.40,<3
 google-auth-oauthlib>=1.2,<2
-openai>=3,<4
-
-openai-agents>=0.5,<1
