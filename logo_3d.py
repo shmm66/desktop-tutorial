@@ -1,71 +1,138 @@
 from __future__ import annotations
+
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+import tempfile
 
-BG=(0,0,0,0); TEAL=(46,230,198,255); GOLD=(246,211,120,255)
-NAVY=(7,16,27,255); NAVY2=(13,29,44,255); WHITE=(244,249,252,255)
-RED=(255,103,118,255)
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, PngImagePlugin
 
-def _font(size:int,bold=False):
-    candidates=[r"C:\Windows\Fonts\segoeuib.ttf" if bold else r"C:\Windows\Fonts\segoeui.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
-    for p in candidates:
-        if Path(p).exists():
-            try: return ImageFont.truetype(p,size)
-            except OSError: pass
+LOGO_REVISION = "3"
+BG = (0, 0, 0, 0)
+NAVY = (5, 13, 24, 255)
+NAVY_MID = (9, 26, 39, 255)
+TEAL = (53, 229, 196, 255)
+GOLD = (247, 210, 121, 255)
+WHITE = (242, 249, 252, 255)
+RED = (255, 111, 126, 255)
+
+
+def _font(size: int, bold: bool = False):
+    candidates = [
+        r"C:\Windows\Fonts\segoeuib.ttf" if bold else r"C:\Windows\Fonts\segoeui.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for candidate in candidates:
+        if Path(candidate).exists():
+            try:
+                return ImageFont.truetype(candidate, max(8, size))
+            except OSError:
+                pass
     return ImageFont.load_default()
 
-def _candle(d,x,y,w,h,up=True):
-    c=TEAL if up else RED
-    d.line((x+w//2,y,x+w//2,y+h),fill=c,width=max(2,w//7))
-    d.rounded_rectangle((x,y+int(h*.24),x+w,y+int(h*.76)),radius=max(2,w//4),fill=c)
 
-def create_logo_image(path:Path,size=520):
-    path=Path(path); path.parent.mkdir(parents=True,exist_ok=True)
-    # Reuse a valid render; the logo is static and repeated high-res blur/compositing
-    # on every application launch adds avoidable startup latency.
+def create_logo_image(path: Path, size: int = 520):
+    """Render the revisioned TP medallion once, with antialiasing for app and shortcut icons."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    size = max(96, int(size))
     try:
         with Image.open(path) as cached:
-            if cached.size == (int(size), int(size)) and cached.format == "PNG":
+            if cached.size == (size, size) and cached.format == "PNG" and cached.info.get("tpp_logo_revision") == LOGO_REVISION:
                 cached.verify()
                 return path
     except Exception:
         pass
-    img=Image.new("RGBA",(size,size),BG)
-    shadow=Image.new("RGBA",(size,size),BG); sd=ImageDraw.Draw(shadow)
-    pad=int(size*.095)
-    sd.rounded_rectangle((pad+18,pad+24,size-pad+18,size-pad+24),radius=int(size*.18),fill=(0,0,0,175))
-    shadow=shadow.filter(ImageFilter.GaussianBlur(int(size*.035))); img.alpha_composite(shadow)
-    d=ImageDraw.Draw(img)
-    for i in range(30,0,-2):
-        off=i; k=max(10,30-i//3)
-        d.rounded_rectangle((pad-off,pad+off,size-pad+off,size-pad+off),radius=int(size*.18),fill=(k,42+k//2,58+k//2,255))
-    d.rounded_rectangle((pad,pad,size-pad,size-pad),radius=int(size*.18),fill=NAVY,outline=TEAL,width=max(4,size//72))
-    d.rounded_rectangle((pad+16,pad+16,size-pad-16,size-pad-16),radius=int(size*.145),outline=GOLD,width=max(3,size//120))
-    d.rounded_rectangle((pad+20,pad+20,size-pad-20,int(size*.38)),radius=int(size*.13),fill=(255,255,255,18))
-    # TP monogram with depth
-    f=_font(int(size*.26),True); bb=d.textbbox((0,0),"TP",font=f)
-    tw,th=bb[2]-bb[0],bb[3]-bb[1]; x=(size-tw)//2; y=int(size*.19)
-    for ox,oy in [(10,12),(8,10),(6,8),(4,6),(2,4)]:
-        d.text((x+ox,y+oy),"TP",font=f,fill=(84,52,12,190))
-    d.text((x,y),"TP",font=f,fill=WHITE)
-    # compact market candles
-    base=int(size*.62)
-    for j,(h,up) in enumerate([(76,True),(118,True),(82,False),(154,True),(194,True)]):
-        xx=int(size*.22)+j*int(size*.09)
-        _candle(d,xx,base-h, max(10,size//42),h,up)
-    # directional gold path
-    pts=[(size*.18,size*.79),(size*.35,size*.69),(size*.49,size*.74),(size*.63,size*.59),(size*.76,size*.64),(size*.87,size*.48)]
-    d.line(pts,fill=GOLD,width=max(4,size//72),joint="curve")
-    ex,ey=pts[-1]; a=size*.055
-    d.polygon([(ex,ey),(ex-a,ey+a*1.2),(ex-a*.2,ey+a*.15)],fill=GOLD)
-    # dual market badge
-    cx,cy,r=size*.73,size*.39,size*.105
-    d.ellipse((cx-r,cy-r,cx,cy+r),fill=(16,29,41,255),outline=GOLD,width=max(2,size//130))
-    d.ellipse((cx,cy-r,cx+r,cy+r),fill=(24,44,52,255),outline=TEAL,width=max(2,size//130))
-    fm=_font(int(size*.07),True)
-    d.text((cx-r/2,cy),"B",font=fm,anchor="mm",fill=GOLD)
-    d.text((cx+r/2,cy),"P",font=fm,anchor="mm",fill=TEAL)
-    led=size*.885
-    d.ellipse((led-14,led-14,led+14,led+14),fill=TEAL,outline=GOLD,width=max(2,size//220))
-    img.save(path,"PNG"); return path
+
+    # Render at 2x so rounded edges remain smooth at small Windows taskbar sizes.
+    scale = 2
+    n = size * scale
+    img = Image.new("RGBA", (n, n), BG)
+    pad = int(n * 0.105)
+    box = (pad, pad, n - pad, n - pad)
+    radius = (n - 2 * pad) // 2
+
+    glow = Image.new("RGBA", (n, n), BG)
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse((pad - n * .025, pad - n * .025, n - pad + n * .025, n - pad + n * .025),
+               fill=(38, 222, 191, 70))
+    glow = glow.filter(ImageFilter.GaussianBlur(max(8, int(n * .035))))
+    img.alpha_composite(glow)
+
+    shadow = Image.new("RGBA", (n, n), BG)
+    sd = ImageDraw.Draw(shadow)
+    sd.ellipse((box[0] + n * .025, box[1] + n * .038, box[2] + n * .025, box[3] + n * .038),
+               fill=(0, 0, 0, 205))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(max(6, int(n * .025))))
+    img.alpha_composite(shadow)
+
+    d = ImageDraw.Draw(img)
+    # Layered metallic rim; the rim is a circle, not a square logo tile.
+    for inset in range(int(n * .052), 0, -max(1, int(n * .003))):
+        tone = max(0, min(255, 18 + inset * 2))
+        d.ellipse((pad - inset, pad - inset, n - pad + inset, n - pad + inset),
+                  fill=(tone, 67 + tone // 3, 78 + tone // 4, 255))
+    d.ellipse(box, fill=NAVY, outline=TEAL, width=max(3, int(n * .012)))
+    d.ellipse((pad + n * .028, pad + n * .028, n - pad - n * .028, n - pad - n * .028),
+              outline=GOLD, width=max(2, int(n * .005)))
+
+    # Subtle upper glass sheen clipped to the upper half of the medallion.
+    sheen = Image.new("RGBA", (n, n), BG)
+    sh = ImageDraw.Draw(sheen)
+    sh.ellipse((pad + n * .08, pad + n * .035, n - pad - n * .08, n * .51),
+               fill=(255, 255, 255, 17))
+    mask = Image.new("L", (n, n), 0)
+    ImageDraw.Draw(mask).ellipse(box, fill=255)
+    sheen.putalpha(Image.composite(sheen.getchannel("A"), Image.new("L", (n, n), 0), mask))
+    img.alpha_composite(sheen)
+
+    d = ImageDraw.Draw(img)
+    # The TP monogram is the primary mark. A small shadow gives a cut-metal depth.
+    f = _font(int(n * .235), True)
+    text = "TP"
+    bb = d.textbbox((0, 0), text, font=f, stroke_width=0)
+    tw, th = bb[2] - bb[0], bb[3] - bb[1]
+    tx = (n - tw) / 2 - bb[0]
+    ty = n * .185 - bb[1]
+    d.text((tx + n * .008, ty + n * .012), text, font=f, fill=(0, 0, 0, 165))
+    d.text((tx, ty), text, font=f, fill=WHITE, stroke_width=max(1, int(n * .0015)),
+           stroke_fill=(202, 220, 227, 255))
+
+    # Clean candlesticks and a rising gold path form the market cue at the bottom.
+    candle_specs = [
+        (0.295, 0.655, 0.735, TEAL),
+        (0.405, 0.585, 0.728, TEAL),
+        (0.515, 0.625, 0.755, RED),
+        (0.625, 0.545, 0.718, TEAL),
+        (0.735, 0.505, 0.685, TEAL),
+    ]
+    candle_w = n * .036
+    for x_ratio, y_top, y_bottom, color in candle_specs:
+        x = n * x_ratio
+        d.line((x, n * (y_top - .035), x, n * (y_bottom + .02)), fill=color, width=max(2, int(n * .006)))
+        body_top = n * y_top
+        body_bottom = n * y_bottom
+        d.rounded_rectangle((x - candle_w / 2, body_top, x + candle_w / 2, body_bottom),
+                            radius=max(2, int(n * .007)), fill=color)
+
+    path_points = [
+        (n * .235, n * .79), (n * .365, n * .75), (n * .475, n * .77),
+        (n * .585, n * .715), (n * .695, n * .725), (n * .79, n * .635),
+    ]
+    d.line(path_points, fill=GOLD, width=max(3, int(n * .009)), joint="curve")
+    ex, ey = path_points[-1]
+    arrow = n * .045
+    d.polygon([(ex, ey), (ex - arrow, ey + arrow * .38), (ex - arrow * .2, ey + arrow * .8)], fill=GOLD)
+
+    # Small luminous signal point.
+    dot = n * .82
+    rr = n * .018
+    d.ellipse((dot - rr, dot - rr, dot + rr, dot + rr), fill=TEAL, outline=WHITE, width=max(1, int(n * .003)))
+
+    img = img.resize((size, size), Image.Resampling.LANCZOS)
+    metadata = PngImagePlugin.PngInfo()
+    metadata.add_text("tpp_logo_revision", LOGO_REVISION)
+    img.save(path, "PNG", optimize=True, pnginfo=metadata)
+    return path
+
+
+if __name__ == "__main__":
+    create_logo_image(Path(tempfile.gettempdir()) / "TraderPlannerPro_3D" / "logo.png", 520)
