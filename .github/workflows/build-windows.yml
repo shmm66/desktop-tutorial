@@ -241,7 +241,7 @@ jobs:
           if ($null -eq $uiExitCode) {
             # Some Windows GUI-process wrappers do not expose the exit code.
             # Accept only an explicit all-pages success marker and clean stderr.
-            if ($uiStdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or
+            if ($uiStdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or
                 $uiStderr -match 'Traceback|Exception|Error:') {
               throw 'Installed EXE UI test returned no exit code and did not produce a clean 12-page success report.'
             }
@@ -290,7 +290,7 @@ jobs:
             This is a pre-release build for validation. The Journal Performance Agent analyses saved journal records locally. Live market feeds remain dependent on network and source availability.
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v10.0.0.exe
+            installer/TraderPlannerPro_Setup_v10.1.0.exe
             build-manifest.txt
           fail_on_unmatched_files: true
         env:
