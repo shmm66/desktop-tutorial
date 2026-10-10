@@ -1,82 +1,78 @@
 from pathlib import Path
+import math
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_core_desktop_feature_matrix():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    required_methods = [
-        "def home(self):",
-        "def daily(self):",
-        "def plan(self):",
-        "def check(self):",
-        "def journal(self):",
-        "def academy(self):",
-        "def ai_page(self):",
-        "def news(self):",
-        "def calculators(self):",
-        "def settings(self):",
-        "def email_statement(self):",
-        "def open_ai_chat(self):",
-        "def set_market_mode(self, market):",
-    ]
-    for method in required_methods:
-        assert method in source
+def read(name):
+    return (ROOT / name).read_text(encoding="utf-8")
 
 
-def test_desktop_services_and_native_chart_files_exist():
-    expected = [
-        "ai_assistant.py",
-        "google_oauth.py",
-        "statement_report.py",
-        "news_data.py",
-        "market_data.py",
-        "glass_theme.py",
-        "native_trading_desk.py",
-        "tradingview_runner.py",
-    ]
-    for name in expected:
-        assert (ROOT / name).is_file()
+def test_primary_routes_remove_academy_chat_and_tradingview():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    launcher = read("launcher.py")
+    for method in (
+        "def home(self):", "def daily(self):", "def weekly(self):",
+        "def plan(self):", "def check(self):", "def journal(self):",
+        "def insights(self):", "def resources(self):", "def news(self):",
+        "def calculators(self):", "def settings(self):",
+    ):
+        assert method in app
+    for removed in ("def academy(self):", "def ai_page(self):", "def chart(self):",
+                    "def open_ai_chat(self):", "def open_tradingview(",
+                    "AIOrchestrator", "from academy_content import", "from native_trading_desk import"):
+        assert removed not in app
+    assert '"insights","resources","news","calculators","settings"' in app
+    assert '"--tradingview"' not in launcher
+    assert '"--webview"' not in launcher
 
 
-def test_native_trading_desk_has_no_browser_chart_dependency():
-    source = (ROOT / "native_trading_desk.py").read_text(encoding="utf-8").lower()
-    assert "class nativetradingdesk" in source
-    assert "figurecanvastkagg" in source
-    assert "navigationtoolbar2tk" in source
-    assert "webview" not in source
-    assert "tradingview" not in source
+def test_goal_manager_keeps_week_month_year_dates_and_editing():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert '"goals": []' in app
+    assert "def _goal_period_range(self, period, reference=None):" in app
+    assert "def goal_dialog(self, goal=None):" in app
+    assert "def edit_goal(self):" in app
+    assert 'self.tr("goal_weekly")' in app
+    assert 'self.tr("goal_monthly")' in app
+    assert 'self.tr("goal_yearly")' in app
+    assert "date.fromisoformat(start_var.get().strip())" in app
 
 
-def test_tradingview_pro_embed_is_official_and_real_time_or_fail_safe():
-    source = (ROOT / "tradingview_runner.py").read_text(encoding="utf-8")
-    assert "def tradingview_url" in source
-    assert "https://www.tradingview.com/chart/?symbol=" in source
-    assert "&interval=" in source
-    assert "webview.create_window" in source
-    assert 'gui="edgechromium"' in source
-    assert "https://www.tradingview.com/chart/" in source
-    # The chart path must not generate synthetic OHLC data.
-    assert "fake candle" not in source.lower()
-    assert "synthetic candle" not in source.lower()
-    assert "random" not in source.lower()
+def test_profiles_remain_in_topbar_and_settings():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert 'self.profile_combo = ttk.Combobox(status, state="readonly"' in app
+    assert "def refresh_profile_selector(self):" in app
+    assert "def profile_panel(self, parent):" in app
+    assert "self.profile_panel(self.content)" in app
+    assert "def on_profile_change(self, _=None):" in app
 
 
-
-def test_glass_theme_does_not_accumulate_map_callbacks():
-    source = (ROOT / "glass_theme.py").read_text(encoding="utf-8")
-    assert 'window.bind("<Map>"' not in source
-    assert "_tpp_glass_after_id" in source
-    assert "after_cancel" in source
-    assert "_tpp_glass_applying" in source
-    apply_body = source.split("def apply_glass(", 1)[1].split(
-        "def apply_glass_to_toplevel(", 1
-    )[0]
-    assert "window.after(" not in apply_body
-    assert "window.after(50, lambda:" not in source
+def test_settings_highlight_current_selection_and_clock_variants():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert 'bg=C["accent"], fg="#061019"' in app
+    assert '"digital", "classic", "wrist"' in app
+    assert "def set_clock_style(self, style):" in app
+    assert "self.session_clock_container = clocks" in app
+    assert "apply_glass_after_map(self" in app
 
 
-def test_glass_callbacks_are_bounded_when_theme_is_applied_repeatedly(monkeypatch):
+def test_hamburger_autohide_uses_global_pointer_position():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert 'self.bind_all("<Motion>", self._shell_motion, add="+")' in app
+    assert "def _shell_motion(self, event):" in app
+    assert "def _schedule_menu_hide(self, delay=900):" in app
+
+
+def test_no_expensive_ai_or_education_dependencies_in_package_requirements():
+    requirements = read("requirements.txt").lower()
+    for removed in ("pywebview", "matplotlib", "openai-agents", "\nopenai"):
+        assert removed not in requirements
+    for needed in ("pillow", "pywinstyles", "reportlab", "google-api-python-client"):
+        assert needed in requirements
+
+
+def test_glass_callbacks_are_bounded_and_never_recurse(monkeypatch):
     import glass_theme
 
     class FakeWindow:
@@ -84,169 +80,62 @@ def test_glass_callbacks_are_bounded_when_theme_is_applied_repeatedly(monkeypatc
             self.jobs = {}
             self.after_count = 0
             self.cancel_count = 0
-
-        def winfo_exists(self):
-            return True
-
-        def wm_attributes(self, *_args):
-            return None
-
-        def configure(self, **_kwargs):
-            return None
-
+        def winfo_exists(self): return True
+        def wm_attributes(self, *_args): return None
+        def configure(self, **_kwargs): return None
         def after(self, _delay, callback):
             self.after_count += 1
-            job_id = f"job-{self.after_count}"
-            self.jobs[job_id] = callback
-            return job_id
-
-        def after_cancel(self, job_id):
+            job = f"job-{self.after_count}"
+            self.jobs[job] = callback
+            return job
+        def after_cancel(self, job):
             self.cancel_count += 1
-            self.jobs.pop(job_id, None)
+            self.jobs.pop(job, None)
 
     monkeypatch.setattr(glass_theme, "is_windows", lambda: True)
     monkeypatch.setattr(glass_theme, "_configure_window_transparency", lambda *_a: None)
     monkeypatch.setattr(glass_theme, "_set_dwm_backdrop", lambda *_a, **_k: False)
     monkeypatch.setattr(glass_theme, "_apply_pywinstyles", lambda *_a, **_k: False)
-
     window = FakeWindow()
+
     for _ in range(100):
         glass_theme.apply_glass(window)
     assert window.after_count == 0
-
     for _ in range(100):
         assert glass_theme.apply_glass_after_map(window)
     assert window.after_count == 1
     callback = next(iter(window.jobs.values()))
     callback()
     assert window.after_count == 1
+    assert window._tpp_glass_after_map_done is True
+    assert window._tpp_glass_after_id is None
 
 
-def test_ai_status_checks_are_cache_first_and_sdk_load_is_lazy():
-    source = (ROOT / "ai_assistant.py").read_text(encoding="utf-8")
-    assert "ollama_online, ollama_models = _cached_ollama_status()" in source
-    sdk_loader = source.split("def _ensure_agents_sdk()", 1)[1].split("def ", 1)[0]
-    assert "from agents import Agent" in sdk_loader
-    assert "def _cached_ollama_status()" in source
+def test_local_journal_analyst_is_deterministic_and_has_behavior_breakdowns():
+    from journal_agent import analyse_journal
+    rows = [
+        {"Result (R)": "2", "Result": "WIN", "Setup": "FVG", "Session": "London", "Emotion During": "Calm"},
+        {"Result (R)": "-1", "Result": "LOSS", "Setup": "FVG", "Session": "London", "Emotion During": "FOMO", "Mistake": "Early entry"},
+        {"Result (R)": "3", "Result": "WIN", "Setup": "BOS", "Session": "New York", "Emotion During": "Calm"},
+        {"Result (R)": "0", "Result": "BE", "Setup": "BOS", "Session": "Asia", "Emotion During": "Neutral"},
+    ]
+    result = analyse_journal(rows)
+    assert result["count"] == 4
+    assert result["wins"] == 2
+    assert result["losses"] == 1
+    assert result["breakeven"] == 1
+    assert math.isclose(result["win_rate"], 50.0)
+    assert math.isclose(result["net_r"], 4.0)
+    assert math.isclose(result["expectancy_r"], 1.0)
+    assert math.isclose(result["profit_factor"], 5.0)
+    assert result["max_losing_streak"] == 1
+    assert result["by_setup"][0]["name"] in {"BOS", "FVG"}
+    assert result["mistakes"][0] == ("Early entry", 1)
 
 
-def test_native_chart_is_lazy_loaded_and_startup_is_deferred():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    class_start = source.index("class App(")
-    assert "from native_trading_desk import NativeTradingDesk" not in source[:class_start]
-    assert "def _load_native_trading_desk(self, holder):" in source
-    assert "self.after(80, self._finish_startup)" in source
-
-
-def test_logo_render_is_cached_and_tk_callback_errors_are_logged():
-    logo_source = (ROOT / "logo_3d.py").read_text(encoding="utf-8")
-    app_source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert "cached.verify()" in logo_source
-    assert "def report_callback_exception(self, exc, value, tb):" in app_source
-    assert "ui_errors.log" in app_source
-
-
-
-def test_launcher_exposes_real_tk_page_smoke_test():
-    source = (ROOT / "launcher.py").read_text(encoding="utf-8")
-    expected_pages = (
-        '"home", "daily", "weekly", "plan", "check", "journal",',
-        '"academy", "ai", "news", "calculators", "chart", "settings",',
-    )
-    assert 'sys.argv[1] == "--ui-smoke-test"' in source
-    assert "def _run_ui_smoke_test():" in source
-    assert "SAFE RECOVERY" in source
-    for page_list_fragment in expected_pages:
-        assert page_list_fragment in source
-
-
-
-def test_splash_waits_for_app_preload_instead_of_closing_early():
-    source = (ROOT / "launcher.py").read_text(encoding="utf-8")
-    assert "def show_splash(ready_event=None):" in source
-    assert "def _preload_app_class(result, ready_event):" in source
-    assert "name=\"TraderPlannerModulePreload\"" in source
-    assert "show_splash(preload_ready)" in source
-    assert "elif ready_event is not None and not ready_event.is_set():" in source
-    assert source.index("target=_preload_app_class") < source.index("show_splash(preload_ready)")
-
-
-def test_weekly_and_journal_page_helpers_are_implemented():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert "def _week_dates(self, offset=0):" in source
-    assert "def _week_task_stats(self, dates):" in source
-    assert "def _trade_metrics(self, rows):" in source
-    assert '"profit_factor": profit_factor' in source
-    assert '"avg_r": net_r / count if count else 0.0' in source
-
-
-def test_ai_page_routes_around_ai_service_name_collision():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert "self.ai = AIOrchestrator()" in source
-    assert "renderer = self.ai_page if key == \"ai\" else getattr(self, key)" in source
-    assert "def ai_page(self):" in source
-
-
-
-def test_home_and_journal_render_helpers_exist():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert "def render_home_summary(self, parent, rows):" in source
-    assert "def _metric_card(self, parent, title, value, accent):" in source
-    assert "Journal Snapshot • Recent Trades" in source
-    assert "def _trade_metrics(self, rows):" in source
-
-
-def test_weekly_route_is_an_editable_week_month_year_goal_manager():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert '"goals": []' in source
-    assert "def _goal_period_range(self, period, reference=None):" in source
-    assert "def goal_dialog(self, goal=None):" in source
-    assert "date.fromisoformat(start_var.get().strip())" in source
-    assert 'self.tr("goal_weekly")' in source
-    assert 'self.tr("goal_monthly")' in source
-    assert 'self.tr("goal_yearly")' in source
-
-
-def test_profile_management_and_ai_key_controls_are_present_in_settings():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    settings = source.split("    def settings(self):", 1)[1].split("    def calculators(self):", 1)[0]
-    assert "self.profile_panel(self.content)" in settings
-    assert "self._save_ai_key(key)" in settings
-    assert "self._clear_ai_key" in settings
-    assert '"clock_style":self.clock_style' in settings
-
-
-def test_clock_styles_replace_home_shortcut_bar():
-    source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert '"digital", "classic", "wrist"' in source
-    assert "def set_clock_style(self, style):" in source
-    shell = source.split("    def build_shell(self):", 1)[1].split("    def _shell_motion", 1)[0]
-    assert "self.quickbar = None" in shell
-    assert "self.global_home_btn = tk.Button" not in shell
-    assert "self.global_ai_btn = tk.Button" not in shell
-
-
-def test_academy_runtime_is_local_and_caches_loaded_images():
-    source = (ROOT / "academy_visuals.py").read_text(encoding="utf-8")
-    app = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    visual = app.split("def _academy_visual(", 1)[1].split("def academy(self):", 1)[0]
-    assert "bundled_asset_for_visual(kind)" in visual
-    assert "self._academy_photo_cache" in visual
-    assert "self.open_webview(u,source_title)" not in visual
-    assert 'self.tr("offline_library")' in visual
-
-
-def test_ai_fallback_is_structured_and_ai_role_selection_uses_displayed_option():
-    ai_source = (ROOT / "ai_assistant.py").read_text(encoding="utf-8")
-    fallback_source = ai_source.split("def _fallback(", 1)[1].split("class AIOrchestrator:", 1)[0]
-    for field in ("Context:", "Setup:", "Trigger:", "Invalidation:", "Target:", "Risk:"):
-        assert field in fallback_source
-    app_source = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert 'role_var=tk.StringVar(value=role_labels["orchestrator"])' in app_source
-    assert 'role=next((k for k,v in role_labels.items() if v==role_var.get()),"orchestrator")' in app_source
-
-
-def test_offline_strategy_fallback_uses_the_user_language():
-    from ai_assistant import _fallback
-    answer = _fallback("strategy", "لطفاً ستاپ را بررسی کن", "Market: Crypto")
-    assert "بررسی ساختاری ستاپ" in answer
+def test_missing_r_values_are_reported_instead_of_hidden():
+    from journal_agent import analyse_journal
+    result = analyse_journal([{"Result": "WIN", "Setup": "A"}])
+    assert result["missing_r_count"] == 1
+    assert result["count"] == 1
+    assert result["net_r"] == 0
