@@ -171,6 +171,11 @@ def _draw_statement_chart(rows, market, profile_name, stats, timestamp):
     return image
 
 
+def _pdf_safe(value):
+    """Replace characters unsupported by ReportLab's built-in Helvetica fonts."""
+    return str(value).encode("cp1252", "replace").decode("cp1252")
+
+
 def create_statement(rows, market, profile_name, out_dir):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -199,7 +204,7 @@ def create_statement(rows, market, profile_name, out_dir):
     pdf.drawString(44, height - 60, "Trader Planner Pro • Trading Statement")
     pdf.setFillColorRGB(0.26, 0.88, 0.74)
     pdf.setFont("Helvetica", 9)
-    pdf.drawString(44, height - 82, f"{profile_name}  •  {market}  •  {timestamp}")
+    pdf.drawString(44, height - 82, f"{_pdf_safe(profile_name)}  •  {_pdf_safe(market)}  •  {timestamp}")
 
     metric_items = [
         ("Trades", stats["trades"]),
