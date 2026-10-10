@@ -66,6 +66,7 @@ def test_settings_highlight_current_selection_and_clock_variants():
     assert 'bg=C["accent"], fg="#061019"' in app
     assert '"digital", "classic", "wrist"' in app
     assert "def set_clock_style(self, style):" in app
+    assert "self.after_cancel(self.session_clock_job)" in app
     assert "self.session_clock_container = clocks" in app
     assert "apply_glass_after_map(self" in app
 
