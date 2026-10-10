@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import webbrowser
 from datetime import date, datetime, timedelta
@@ -995,7 +996,7 @@ class App(tk.Tk):
                                      highlightthickness=0)
         self.menu_button.pack(side="left", padx=8)
         try:
-            logo_path = create_logo_image(Path(tempfile_path()), 300)
+            logo_path = create_logo_image(Path(tempfile.gettempdir()) / "TraderPlannerPro_3D" / "logo.png", 420)
             from PIL import Image, ImageTk
             self._logo_photo = ImageTk.PhotoImage(Image.open(logo_path).convert("RGBA").resize((48,48)))
             tk.Label(top, image=self._logo_photo, bg=C["panel"]).pack(side="left", padx=(2,8))
