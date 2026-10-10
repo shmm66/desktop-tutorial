@@ -180,3 +180,10 @@ def test_statement_pdf_accepts_unicode_profile_names(tmp_path):
     )
     assert result["pdf"].is_file()
     assert result["pdf"].stat().st_size > 1000
+
+
+def test_main_window_uses_the_cached_redesigned_logo():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert "import tempfile" in app
+    assert 'create_logo_image(Path(tempfile.gettempdir()) / "TraderPlannerPro_3D" / "logo.png", 420)' in app
+    assert "tempfile_path()" not in app
