@@ -2721,7 +2721,6 @@ class App(tk.Tk):
             })
             save_db()
             self.apply_theme()
-            self.refresh_shell_theme()
             self.refresh_profile_selector()
             self.apply_language()
             self.show("settings")
