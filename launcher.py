@@ -1,4 +1,4 @@
-# CI RELEASE STAMP: V10.0.0
+# CI RELEASE STAMP: V10.1.0
 import tkinter as tk
 from pathlib import Path
 import tempfile
