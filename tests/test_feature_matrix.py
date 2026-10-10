@@ -75,7 +75,8 @@ def test_session_clocks_use_antialiased_local_rendering():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert "def _antialiased_clock_photo(self, canvas, now, session, is_open, progress, style):" in app
     clock = app.split("    def _antialiased_clock_photo(", 1)[1].split("    def _metric_card(", 1)[0]
-    assert "Image.Resampling" in clock
+    assert ".LANCZOS" in clock
+    assert 'getattr(Image, "Resampling", Image)' in clock
     assert "ImageTk.PhotoImage(image, master=canvas)" in clock
     assert '"digital", "classic", "wrist"' in app
 
