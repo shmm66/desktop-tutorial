@@ -63,6 +63,15 @@ def _group_summary(groups: dict) -> list[dict]:
 def analyse_journal(rows) -> dict:
     """Return auditable statistics; blank R fields are never inferred as a profit."""
     trades = [dict(row) for row in (rows or []) if isinstance(row, dict)]
+    # Drawdown/equity curves must follow trade dates, not the current display order.
+    def date_order(row):
+        raw = str(row.get("Date") or "").strip()[:10]
+        try:
+            from datetime import date
+            return date.fromisoformat(raw).toordinal()
+        except (TypeError, ValueError):
+            return 0
+    trades.sort(key=date_order)
     values = []
     outcomes = []
     missing_r = 0
