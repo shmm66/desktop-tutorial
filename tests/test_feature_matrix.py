@@ -8,23 +8,36 @@ def read(name):
     return (ROOT / name).read_text(encoding="utf-8")
 
 
-def test_primary_routes_remove_academy_chat_and_tradingview():
+def test_primary_routes_keep_offline_academy_and_remove_chat_and_tradingview():
     app = read("TraderPlannerPro_v7_0_3.py")
     launcher = read("launcher.py")
     for method in (
         "def home(self):", "def daily(self):", "def weekly(self):",
         "def plan(self):", "def check(self):", "def journal(self):",
-        "def insights(self):", "def resources(self):", "def news(self):",
+        "def insights(self):", "def academy(self):", "def resources(self):", "def news(self):",
         "def calculators(self):", "def settings(self):",
     ):
         assert method in app
-    for removed in ("def academy(self):", "def ai_page(self):", "def chart(self):",
-                    "def open_ai_chat(self):", "def open_tradingview(",
-                    "AIOrchestrator", "from academy_content import", "from native_trading_desk import"):
+    for removed in ("def ai_page(self):", "def chart(self):", "def open_ai_chat(self):",
+                    "def open_tradingview(", "AIOrchestrator", "from native_trading_desk import"):
         assert removed not in app
-    assert '"insights","resources","news","calculators","settings"' in app
+    assert "from academy_content import SMART_MONEY_STRATEGIES" in app
+    assert '"insights","academy","resources","news","calculators","settings"' in app
     assert '"--tradingview"' not in launcher
     assert '"--webview"' not in launcher
+
+
+def test_offline_academy_uses_bundled_images_and_native_diagrams_only():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    academy = app.split("    def academy(self):", 1)[1].split("\n    def resources(self):", 1)[0]
+    assert "bundled_asset_for_visual" in academy
+    assert "from academy_diagrams import draw_setup, draw_candlestick" in academy
+    assert "render_visual(" not in academy
+    launcher = read("launcher.py")
+    assert '"insights", "academy", "resources"' in launcher
+    workflow = read(".github/workflows/build-windows.yml")
+    assert "prepare_education_assets.py" in workflow
+    assert '--add-data "education_sources;education_sources"' in workflow
 
 
 def test_goal_manager_keeps_week_month_year_dates_and_editing():
