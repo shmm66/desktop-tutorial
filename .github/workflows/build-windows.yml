@@ -268,8 +268,21 @@ jobs:
           $manifest += "Timestamp UTC: $([DateTime]::UtcNow.ToString('o'))"
           $manifest | Out-File -FilePath "build-manifest.txt" -Encoding utf8
 
+      - name: Upload verified EXE, installer and manifest as a workflow artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TraderPlannerPro-V10.1.0-Windows-Verified
+          path: |
+            dist/TraderPlannerPro.exe
+            installer/TraderPlannerPro_Setup_v10.1.0.exe
+            build-manifest.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
       - name: Upload verified assets to draft release
         id: publish_release
+        continue-on-error: true
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           tag_name: v10.1.0-build-${{ github.run_number }}
@@ -297,13 +310,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish verified draft release
+        if: ${{ steps.publish_release.outcome == 'success' }}
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ steps.publish_release.outputs.id }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if (-not $env:RELEASE_ID) { throw 'Draft release ID was not returned by the release action.' }
+          if (-not $env:RELEASE_ID) { Write-Warning 'No release ID was returned; verified files remain downloadable from the workflow artifact.'; exit 0 }
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
