@@ -131,7 +131,7 @@ def _run_ui_smoke_test():
 
     pages = (
         "home", "daily", "weekly", "plan", "check", "journal",
-        "insights", "resources", "news", "calculators", "settings",
+        "insights", "academy", "resources", "news", "calculators", "settings",
     )
     app = App()
     failures = []
