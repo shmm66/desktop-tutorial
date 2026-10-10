@@ -302,7 +302,9 @@ jobs:
 
             Verified gates:
             - Dependency installation, Python syntax check and pytest
-            - Tk UI smoke test across 12 primary application sections
+            - Tk UI smoke test across 12 primary application sections, including the offline Academy
+            - Bundled education reference images where available, with local diagram fallbacks
+            - Antialiased digital, analog and wristwatch session clocks with bounded refresh timers
             - Windows EXE creation and EXE self-test
             - Inno Setup compiler and installer output verification
             - Silent install, installed EXE self-test and UI section smoke test, and uninstall
