@@ -61,7 +61,7 @@ def test_hamburger_autohide_uses_global_pointer_position():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert 'self.bind_all("<Motion>", self._shell_motion, add="+")' in app
     assert "def _shell_motion(self, event):" in app
-    assert "def _schedule_menu_hide(self, delay=900):" in app
+    assert "def _schedule_menu_hide(self, delay=1200):" in app
 
 
 def test_no_expensive_ai_or_education_dependencies_in_package_requirements():
