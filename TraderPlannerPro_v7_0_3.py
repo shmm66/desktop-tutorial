@@ -608,23 +608,31 @@ class App(tk.Tk):
             self._show_page_error("startup", exc)
 
     def report_callback_exception(self, exc, value, tb):
-        """Persist Tk callback failures without opening recursive error dialogs."""
+        """Log Tk callback errors safely, even when the failure is RecursionError."""
         if getattr(self, "_tpp_reporting_callback_error", False):
             return
         self._tpp_reporting_callback_error = True
         try:
-            import traceback
             log_dir = ROOT / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
+            frames = []
+            cursor = tb
+            while cursor is not None and len(frames) < 32:
+                frame = cursor.tb_frame
+                frames.append(
+                    f'  File "{frame.f_code.co_filename}", line {cursor.tb_lineno}, in {frame.f_code.co_name}'
+                )
+                cursor = cursor.tb_next
             with (log_dir / "ui_errors.log").open("a", encoding="utf-8") as log:
                 log.write(f"\n[{datetime.now().isoformat(timespec='seconds')}] Tk callback error\n")
-                log.write("".join(traceback.format_exception(exc, value, tb)))
-                log.write("\n")
+                log.write(f"{type(exc).__name__}: {str(value)[:2000]}\n")
+                if frames:
+                    log.write("\n".join(frames) + "\n")
         except BaseException:
+            # An error logger must never raise into Tk's callback reporter.
             pass
         finally:
             self._tpp_reporting_callback_error = False
-
     def _home_shortcut(self, event=None):
         widget = getattr(event, "widget", None)
         if isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox)):
@@ -1616,10 +1624,26 @@ class App(tk.Tk):
             self.render_market_indicators(payload)
 
     def set_clock_style(self, style):
-        if style not in {"digital", "classic", "wrist"}: style = "digital"
-        self.clock_style = style; DB.setdefault("settings", {})["clock_style"] = style; save_db()
-        if self.cur == "home": self.show("home")
-
+        if style not in {"digital", "classic", "wrist"}:
+            style = "digital"
+        self.clock_style = style
+        DB.setdefault("settings", {})["clock_style"] = style
+        save_db()
+        # Refresh only the clocks; a visual choice should not re-render Home or
+        # restart live market requests.
+        if self.cur == "home" and hasattr(self, "session_clock_container"):
+            for child in self.session_clock_container.winfo_children():
+                try:
+                    child.destroy()
+                except tk.TclError:
+                    pass
+            self.session_clock_widgets = []
+            for col, session in enumerate(SESSION_CLOCKS):
+                self.session_clock_container.columnconfigure(col, weight=1)
+                card = self.card(self.session_clock_container)
+                card.grid(row=0, column=col, sticky="nsew", padx=4)
+                self.draw_session_clock(card, session)
+            self.update_session_clocks()
     def draw_session_clock(self, parent, session):
         holder = tk.Frame(parent, bg=C["panel"], highlightbackground=C["line"], highlightthickness=1); holder.pack(fill="both", expand=True, padx=4, pady=3)
         style = getattr(self, "clock_style", "digital")
