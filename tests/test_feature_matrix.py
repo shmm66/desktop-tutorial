@@ -161,3 +161,22 @@ def test_statement_report_generates_png_and_pdf_without_matplotlib(tmp_path):
     assert result["stats"]["trades"] == 3
     assert math.isclose(result["stats"]["net_r"], 2.5)
     assert "matplotlib" not in read("statement_report.py").lower()
+
+
+def test_goal_navigation_has_no_old_weekly_planner_labels_or_handlers():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert '"weekly":"◎  اهداف"' in app
+    for obsolete in ("def _shift_week(", "def _reset_week(", "def _open_week_day("):
+        assert obsolete not in app
+
+
+def test_statement_pdf_accepts_unicode_profile_names():
+    from statement_report import create_statement
+    result = create_statement(
+        [{"Date": "2026-10-01", "Result (R)": "1"}],
+        "Crypto",
+        "پروفایل آزمایشی",
+        tmp_path,
+    )
+    assert result["pdf"].is_file()
+    assert result["pdf"].stat().st_size > 1000
