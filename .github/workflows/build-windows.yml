@@ -68,10 +68,16 @@ jobs:
           & $env:TP_PYTHON -m pip check
           if ($LASTEXITCODE -ne 0) { throw 'pip dependency consistency check failed.' }
 
+      - name: Prepare offline Academy image library
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON prepare_education_assets.py
+          if ($LASTEXITCODE -ne 0) { throw "Offline Academy asset preparation failed with exit code $LASTEXITCODE" }
+
       - name: Syntax check
         shell: powershell
         run: |
-          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','build_icon.py','branding_assets.py','prepare_branding.py','market_data.py','calendar_utils.py','news_data.py','journal_agent.py','glass_theme.py','google_oauth.py','statement_report.py')
+          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','build_icon.py','branding_assets.py','prepare_branding.py','prepare_education_assets.py','academy_content.py','academy_diagrams.py','academy_visuals.py','market_data.py','calendar_utils.py','news_data.py','journal_agent.py','glass_theme.py','google_oauth.py','statement_report.py')
           foreach ($file in $files) { & $env:TP_PYTHON -m py_compile $file }
 
       - name: Run tests and preserve report
@@ -113,7 +119,7 @@ jobs:
           if ($null -eq $exitCode) {
             # Some Windows process wrappers return an empty ExitCode even after
             # WaitForExit. Accept only the explicit success marker and no traceback.
-            if ($stdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
+            if ($stdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
               throw 'Tk UI smoke test did not provide a reliable success marker.'
             }
             Write-Warning 'Process exit code was unavailable; all 11 page renders reported success.'
@@ -137,7 +143,7 @@ jobs:
       - name: Build EXE
         shell: powershell
         run: >-
-          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --icon assets/trader_planner_logo.ico --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import glass_theme --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
+          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --icon assets/trader_planner_logo.ico --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import glass_theme --hidden-import pywinstyles --hidden-import academy_content --hidden-import academy_diagrams --hidden-import academy_visuals --add-data "education_sources;education_sources" --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
 
       - name: Verify EXE
         shell: powershell
@@ -241,9 +247,9 @@ jobs:
           if ($null -eq $uiExitCode) {
             # Some Windows GUI-process wrappers do not expose the exit code.
             # Accept only an explicit all-pages success marker and clean stderr.
-            if ($uiStdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or
+            if ($uiStdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or
                 $uiStderr -match 'Traceback|Exception|Error:') {
-              throw 'Installed EXE UI test returned no exit code and did not produce a clean 11-page success report.'
+              throw 'Installed EXE UI test returned no exit code and did not produce a clean 12-page success report.'
             }
             Write-Warning 'GUI process exit code unavailable; verified success marker and clean stderr.'
           } elseif ([int]$uiExitCode -ne 0) {
@@ -269,6 +275,7 @@ jobs:
           $manifest | Out-File -FilePath "build-manifest.txt" -Encoding utf8
 
       - name: Upload verified EXE, installer and manifest as a workflow artifact
+        continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: TraderPlannerPro-V10.1.0-Windows-Verified
@@ -295,7 +302,7 @@ jobs:
 
             Verified gates:
             - Dependency installation, Python syntax check and pytest
-            - Tk UI smoke test across 11 primary application sections
+            - Tk UI smoke test across 12 primary application sections
             - Windows EXE creation and EXE self-test
             - Inno Setup compiler and installer output verification
             - Silent install, installed EXE self-test and UI section smoke test, and uninstall
