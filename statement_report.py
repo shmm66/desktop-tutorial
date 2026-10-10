@@ -52,7 +52,7 @@ def _font(size, bold=False):
     return ImageFont.load_default()
 
 
-def _draw_statement_chart(rows, market, profile_name, stats, timestamp):
+def _draw_statement_chart(rows, market, profile_name, stats, timestamp, document_title="Trading Performance Statement"):
     width, height = 1600, 1040
     image = Image.new("RGB", (width, height), "#F4F7FB")
     draw = ImageDraw.Draw(image)
@@ -65,7 +65,7 @@ def _draw_statement_chart(rows, market, profile_name, stats, timestamp):
     # Header
     draw.rounded_rectangle((32, 28, width - 32, 152), radius=28, fill="#0B1728")
     draw.text((68, 48), "TRADER PLANNER PRO", font=small_font, fill="#46E2C2")
-    draw.text((68, 77), "Trading Performance Statement", font=title_font, fill="#F6F9FC")
+    draw.text((68, 77), document_title, font=title_font, fill="#F6F9FC")
     draw.text((width - 68, 70), timestamp, font=body_font, fill="#B8C7D8", anchor="ra")
     draw.text((68, 166), f"Profile: {profile_name}    •    Market: {market}", font=body_font, fill="#42536A")
 
@@ -176,17 +176,17 @@ def _pdf_safe(value):
     return str(value).encode("cp1252", "replace").decode("cp1252")
 
 
-def create_statement(rows, market, profile_name, out_dir):
+def create_statement(rows, market, profile_name, out_dir, document_title="Trading Performance Statement", file_prefix="TradingStatement"):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp_dt = datetime.now()
     stamp = stamp_dt.strftime("%Y%m%d_%H%M%S_%f")
     timestamp = stamp_dt.strftime("%Y-%m-%d %H:%M")
-    png_path = out_dir / f"TradingStatement_{market}_{stamp}.png"
-    pdf_path = out_dir / f"TradingStatement_{market}_{stamp}.pdf"
+    png_path = out_dir / f"{file_prefix}_{market}_{stamp}.png"
+    pdf_path = out_dir / f"{file_prefix}_{market}_{stamp}.pdf"
 
     stats = summarize(rows)
-    chart = _draw_statement_chart(rows, market, profile_name, stats, timestamp)
+    chart = _draw_statement_chart(rows, market, profile_name, stats, timestamp, document_title=document_title)
     chart.save(png_path, format="PNG", optimize=True)
 
     from reportlab.lib.pagesizes import A4
@@ -195,13 +195,13 @@ def create_statement(rows, market, profile_name, out_dir):
 
     pdf = canvas.Canvas(str(pdf_path), pagesize=A4)
     width, height = A4
-    pdf.setTitle(f"Trading Statement • {profile_name} • {market}")
+    pdf.setTitle(f"{document_title} • {profile_name} • {market}")
 
     pdf.setFillColorRGB(0.04, 0.09, 0.16)
     pdf.roundRect(30, height - 100, width - 60, 66, 12, fill=1, stroke=0)
     pdf.setFillColorRGB(0.96, 0.98, 0.99)
     pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(44, height - 60, "Trader Planner Pro • Trading Statement")
+    pdf.drawString(44, height - 60, f"Trader Planner Pro • {document_title}")
     pdf.setFillColorRGB(0.26, 0.88, 0.74)
     pdf.setFont("Helvetica", 9)
     pdf.drawString(44, height - 82, f"{_pdf_safe(profile_name)}  •  {_pdf_safe(market)}  •  {timestamp}")

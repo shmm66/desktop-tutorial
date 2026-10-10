@@ -3,53 +3,44 @@ import math
 
 ROOT = Path(__file__).resolve().parents[1]
 
-
 def read(name):
     return (ROOT / name).read_text(encoding="utf-8")
 
-
-def test_primary_routes_keep_offline_academy_and_remove_chat_and_tradingview():
+def test_primary_routes_remove_training_chatbot_and_tradingview_but_keep_journal_agent():
     app = read("TraderPlannerPro_v7_0_3.py")
     launcher = read("launcher.py")
-    for method in (
-        "def home(self):", "def daily(self):", "def weekly(self):",
-        "def plan(self):", "def check(self):", "def journal(self):",
-        "def insights(self):", "def academy(self):", "def resources(self):", "def news(self):",
-        "def calculators(self):", "def settings(self):",
-    ):
+    for method in ("def home(self):", "def daily(self):", "def weekly(self):", "def plan(self):",
+                   "def check(self):", "def journal(self):", "def insights(self):", "def resources(self):",
+                   "def news(self):", "def calculators(self):", "def settings(self):"):
         assert method in app
-    for removed in ("def ai_page(self):", "def chart(self):", "def open_ai_chat(self):",
-                    "def open_tradingview(", "AIOrchestrator", "from native_trading_desk import"):
+    for removed in ("def academy(self):", "def chart(self):", "def ai_page(self):", "def open_ai_chat(self):",
+                    "def open_tradingview(", "from academy_content import", "from academy_visuals import",
+                    "AIOrchestrator", "from native_trading_desk import"):
         assert removed not in app
-    assert "from academy_content import SMART_MONEY_STRATEGIES" in app
-    assert '"insights","academy","resources","news","calculators","settings"' in app
-    assert '"--tradingview"' not in launcher
-    assert '"--webview"' not in launcher
+    pages = launcher.split("    pages = (", 1)[1].split("    )", 1)[0]
+    assert "academy" not in pages and '"--tradingview"' not in launcher and '"--webview"' not in launcher
+    assert '"insights","resources","news","calculators","settings"' in app
+    assert "answer_coach" not in app and "coach_entry" not in app
 
-
-def test_local_trading_coach_uses_actual_journal_metrics_and_discloses_limits():
+def test_local_performance_agent_uses_saved_metrics_and_has_no_chat_controls():
     app = read("TraderPlannerPro_v7_0_3.py")
-    insights = app.split("    def insights(self):", 1)[1].split("    def academy(self):", 1)[0]
-    assert 'tx("مربی معاملاتی محلی","Local Trading Coach")' in insights
-    assert "def answer_coach(intent=None):" in insights
-    assert 'r["expectancy_r"]' in insights
-    assert 'r["max_drawdown_r"]' in insights
-    assert "does not predict prices or guarantee profits" in insights
+    insights = app.split("    def insights(self):", 1)[1].split("    def resources(self):", 1)[0]
+    assert '"expectancy_r"' in insights and '"max_drawdown_r"' in insights
+    assert "analyse_journal(rows)" in insights
+    assert "Build PDF Performance Resume" in insights
+    assert "def export_trader_resume(self):" in app
+    assert "answer_coach" not in insights and "coach_question" not in insights and "coach_entry" not in insights
 
-
-def test_offline_academy_uses_bundled_images_and_native_diagrams_only():
+def test_training_routes_and_assets_removed_from_app_and_package():
     app = read("TraderPlannerPro_v7_0_3.py")
-    academy = app.split("    def academy(self):", 1)[1].split("\n    def resources(self):", 1)[0]
-    assert "bundled_asset_for_visual" in academy
-    assert "from academy_diagrams import draw_setup, draw_candlestick" in academy
-    assert "render_visual(" not in academy
     launcher = read("launcher.py")
-    assert '"insights", "academy", "resources"' in launcher
     workflow = read(".github/workflows/build-windows.yml")
-    assert "prepare_education_assets.py" in workflow
-    assert '--add-data "education_sources;education_sources"' in workflow
-
-
+    assert "def academy(self):" not in app
+    assert "from academy_content import" not in app and "from academy_visuals import" not in app
+    pages = launcher.split("    pages = (", 1)[1].split("    )", 1)[0]
+    assert "academy" not in pages
+    assert "prepare_education_assets.py" not in workflow and "education_sources" not in workflow
+    assert "academy_content" not in workflow and "academy_diagrams" not in workflow and "academy_visuals" not in workflow
 def test_goal_manager_keeps_week_month_year_dates_and_editing():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert '"goals": []' in app
@@ -61,7 +52,6 @@ def test_goal_manager_keeps_week_month_year_dates_and_editing():
     assert 'self.tr("goal_yearly")' in app
     assert "date.fromisoformat(start_var.get().strip())" in app
 
-
 def test_profiles_remain_in_topbar_and_settings():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert 'self.profile_combo = ttk.Combobox(status, state="readonly"' in app
@@ -70,17 +60,18 @@ def test_profiles_remain_in_topbar_and_settings():
     assert "self.profile_panel(self.content)" in app
     assert "def on_profile_change(self, _=None):" in app
 
-
-def test_settings_highlight_current_selection_and_clock_variants():
+def test_settings_highlight_clock_variants_and_live_opacity_preview():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert 'bg=C["accent"], fg="#061019"' in app
     assert '"digital", "classic", "wrist"' in app
     assert "def set_clock_style(self, style):" in app
     assert "self.after_cancel(self.session_clock_job)" in app
-    assert "self.session_clock_container = clocks" in app
-    assert "apply_glass_after_map(self" in app
-
-
+    assert "self.session_clock_container = clocks" in app and "apply_glass_after_map(self" in app
+    assert "command=self._preview_glass_opacity" in app
+    preview = app.split("    def _preview_glass_opacity(", 1)[1].split("\n    def ", 1)[0]
+    assert 'self.wm_attributes("-alpha", current)' in preview and "apply_theme" not in preview
+    glass = read("glass_theme.py")
+    assert 'window.configure(bg="#07121D" if dark else "#F1F7F9)' not in glass
 def test_session_clocks_use_antialiased_local_rendering():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert "def _antialiased_clock_photo(self, canvas, now, session, is_open, progress, style):" in app
@@ -90,13 +81,11 @@ def test_session_clocks_use_antialiased_local_rendering():
     assert "ImageTk.PhotoImage(image, master=canvas)" in clock
     assert '"digital", "classic", "wrist"' in app
 
-
 def test_hamburger_autohide_uses_global_pointer_position():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert 'self.bind_all("<Motion>", self._shell_motion, add="+")' in app
     assert "def _shell_motion(self, event):" in app
     assert "def _schedule_menu_hide(self, delay=1200):" in app
-
 
 def test_no_expensive_ai_or_education_dependencies_in_package_requirements():
     requirements = read("requirements.txt").lower()
@@ -104,7 +93,6 @@ def test_no_expensive_ai_or_education_dependencies_in_package_requirements():
         assert removed not in requirements
     for needed in ("pillow", "pywinstyles", "reportlab", "google-api-python-client"):
         assert needed in requirements
-
 
 def test_glass_callbacks_are_bounded_and_never_recurse(monkeypatch):
     import glass_theme
@@ -144,7 +132,6 @@ def test_glass_callbacks_are_bounded_and_never_recurse(monkeypatch):
     assert window._tpp_glass_after_map_done is True
     assert window._tpp_glass_after_id is None
 
-
 def test_local_journal_analyst_is_deterministic_and_has_behavior_breakdowns():
     from journal_agent import analyse_journal
     rows = [
@@ -166,7 +153,6 @@ def test_local_journal_analyst_is_deterministic_and_has_behavior_breakdowns():
     assert result["by_setup"][0]["name"] in {"BOS", "FVG"}
     assert result["mistakes"][0] == ("Early entry", 1)
 
-
 def test_missing_r_values_are_reported_instead_of_hidden():
     from journal_agent import analyse_journal
     result = analyse_journal([{"Result": "WIN", "Setup": "A"}])
@@ -174,13 +160,11 @@ def test_missing_r_values_are_reported_instead_of_hidden():
     assert result["count"] == 1
     assert result["net_r"] == 0
 
-
 def test_news_references_open_in_system_browser_after_webview_removal():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert "def open_external_url(self, url, title=\"\"):" in app
     assert "webbrowser.open(value, new=2)" in app
     assert "self.open_webview(" not in app
-
 
 def test_statement_report_generates_png_and_pdf_without_matplotlib(tmp_path):
     from statement_report import create_statement
@@ -196,13 +180,11 @@ def test_statement_report_generates_png_and_pdf_without_matplotlib(tmp_path):
     assert math.isclose(result["stats"]["net_r"], 2.5)
     assert "matplotlib" not in read("statement_report.py").lower()
 
-
 def test_goal_navigation_has_no_old_weekly_planner_labels_or_handlers():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert '"weekly":"◎  اهداف"' in app
     for obsolete in ("def _shift_week(", "def _reset_week(", "def _open_week_day("):
         assert obsolete not in app
-
 
 def test_statement_pdf_accepts_unicode_profile_names(tmp_path):
     from statement_report import create_statement
@@ -215,13 +197,11 @@ def test_statement_pdf_accepts_unicode_profile_names(tmp_path):
     assert result["pdf"].is_file()
     assert result["pdf"].stat().st_size > 1000
 
-
 def test_main_window_uses_the_cached_redesigned_logo():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert "import tempfile" in app
     assert 'create_logo_image(Path(tempfile.gettempdir()) / "TraderPlannerPro_3D" / "logo.png", 420)' in app
     assert "tempfile_path()" not in app
-
 
 def test_settings_preserve_daily_reminder_management_and_valid_theme_save_path():
     app = read("TraderPlannerPro_v7_0_3.py")
@@ -233,8 +213,19 @@ def test_settings_preserve_daily_reminder_management_and_valid_theme_save_path()
     for method in ("def add_reminder(", "def delete_reminder(", "def toggle_reminder("):
         assert method in app
 
-
 def test_journal_screenshot_folder_action_has_a_defined_handler():
     app = read("TraderPlannerPro_v7_0_3.py")
     assert "def open_path(self, path):" in app
     assert "self.open_path(" in app
+
+def test_trader_resume_exports_pdf_and_visual_report(tmp_path):
+    from trader_resume import build_trader_resume
+    rows = [
+        {"Date": "2026-10-01", "Symbol": "BTCUSDT", "Result (R)": "2", "Result": "WIN", "Setup": "FVG", "Session": "London"},
+        {"Date": "2026-10-02", "Symbol": "ETHUSDT", "Result (R)": "-1", "Result": "LOSS", "Setup": "FVG", "Session": "London", "Mistake": "Early entry"},
+        {"Date": "2026-10-03", "Symbol": "SOLUSDT", "Result (R)": "1.5", "Result": "WIN", "Setup": "BOS", "Session": "New York"},
+    ]
+    result = build_trader_resume(rows, {"name": "QA Profile", "initial_balance": 10000, "currency": "USD"}, "Crypto", tmp_path)
+    assert result["pdf"].is_file() and result["pdf"].stat().st_size > 1000
+    assert result["png"].is_file() and result["png"].stat().st_size > 1000
+    assert result["stats"]["count"] == 3 and math.isclose(result["stats"]["net_r"], 2.5)

@@ -1,27 +1,20 @@
-# Trader Planner Pro 2.0
+# Trader Planner Pro 10.2.0
 
-Windows 11 desktop trading planner with a single Home dashboard and hamburger navigation.
+Native Windows desktop workspace for trading preparation, journaling, and evidence-based performance review.
 
-## Features
-- Home dashboard: trade count, win rate, net R, P&L, discipline and recent trades.
-- 30-day routine starting from the current day; editable tasks and drag-to-reorder.
-- Fixed core routine: 09:00–13:00 MARK UP and 15:30–19:00 TRADING.
-- Trading Plan with blank user-editable fields.
-- Pre-trade checklist with reset.
-- Separate Forex and Crypto journals with different field sets.
-- Screenshot upload to Google Drive using the user's own OAuth credentials.
-- Position sizing / risk calculator.
-- Live Sydney, Tokyo, London, New York and Crypto clocks with DST-aware time zones.
-- Forex Factory page with bull-vs-bear visual and browser launch button.
-- Persian/English and Dark/Light settings.
-- Local data stored in `%USERPROFILE%\TraderPlannerPro`.
+## Core workflow
+- Home dashboard with online market snapshots, Crypto/Forex mode, key market indicators, account statistics, and global trading-session clocks.
+- Selectable digital, classic analog, and wristwatch clock presentations.
+- Daily planner, editable weekly/monthly/yearly goals with start and end dates, trading plan, checklist, and reminders.
+- Independent profiles with separate initial balance, currency, market choice, and journal history.
+- Separate Crypto and Forex journal fields, trade screenshots, saved plans, and risk/position-size calculators.
+- Local Journal Performance Agent: win rate, net R, expectancy, profit factor, average win/loss, drawdown, losing streaks, and setup/session/emotion breakdowns.
+- Export a performance résumé as PDF plus a visual report image from saved journal records.
+- Windows glass-style shell with rounded native window corners, theme skins, live opacity control, Persian/English UI, and a self-hiding hamburger menu.
+- Optional Google OAuth and Gmail statement/report features use the user's own credentials.
 
-## Google Drive
-Create a Google OAuth Desktop application, download `credentials.json`, then select it in Settings. The first upload opens Google's consent flow. The token is stored locally for future uploads.
+## Privacy and limits
+Journal statistics and résumé generation run locally from saved profile data. They describe historical records, not price predictions or a promise of future results. Online market snapshots depend on network access and upstream source availability.
 
 ## Windows build
-GitHub Actions builds both `TraderPlannerPro.exe` and `TraderPlannerPro_Setup.exe` as artifacts after a push to `main` or a manual workflow run.
-
-
-## V8.2.0 build verification
-Windows EXE/installer pipeline verification stamp.
+The GitHub Actions workflow runs syntax and regression tests, UI smoke tests, builds the EXE, validates the installer, and performs install/launch/uninstall verification before publishing a verified build.

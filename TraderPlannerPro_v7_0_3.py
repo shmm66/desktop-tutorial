@@ -24,12 +24,10 @@ from glass_theme import apply_glass, apply_glass_after_map, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from journal_agent import analyse_journal
-from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY
-from academy_visuals import strategy_visual_key, pattern_visual_key, glossary_visual_key, bundled_asset_for_visual
 from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 
 APP = "Trader Planner Pro"
-VERSION = "10.1.0"
+VERSION = "10.2.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -1049,7 +1047,7 @@ class App(tk.Tk):
         tk.Label(self.menu, text="FAST NAVIGATION • AUTO HIDE", bg=C["panel"], fg=C["muted"],
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
-        for key in ("home","daily","weekly","plan","check","journal","insights","academy","resources","news","calculators","settings"):
+        for key in ("home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings"):
             cmd = lambda k=key: self.go(k)
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
@@ -1137,7 +1135,7 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        allowed={"home","daily","weekly","plan","check","journal","insights","academy","resources","news","calculators","settings"}
+        allowed={"home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings"}
         if key not in allowed:
             key="home"
         self._cancel_menu_hide()
@@ -1233,6 +1231,17 @@ class App(tk.Tk):
             left_tools = tk.Frame(band, bg=C["bg"])
             left_tools.pack(side="left", padx=2)
             self.btn(left_tools, self.tr("home"), self.go_home).pack(side="left", padx=(0, 5))
+
+    def _preview_glass_opacity(self, value):
+        """Preview only window alpha; preserve the selected theme and skin colors."""
+        try:
+            current = max(0.86, min(float(value), 0.995))
+            self.wm_attributes("-alpha", current)
+            label = getattr(self, "_glass_opacity_label", None)
+            if label is not None and label.winfo_exists():
+                label.configure(text=f"{current * 100:.1f}%")
+        except (TypeError, ValueError, tk.TclError, AttributeError):
+            return
 
     def _save_glass_opacity(self, var):
         try:
@@ -2526,6 +2535,28 @@ class App(tk.Tk):
         except Exception:
             pass
 
+    def export_trader_resume(self):
+        """Build a local résumé from the selected profile's saved journal."""
+        tx = lambda fa, en: fa if self.language == "fa" else en
+        profile = active_profile()
+        market = profile.get("market", self.market)
+        rows = profile.get("journals", {}).get(market, [])
+        try:
+            from trader_resume import build_trader_resume
+            result = build_trader_resume(rows, profile, market, REPORTS / "TraderResumes")
+            messagebox.showinfo(
+                self.ui_text("رزومه آماده شد", "Performance résumé ready"),
+                self.ui_text("گزارش در مسیر زیر ذخیره شد:", "The résumé was saved to:") + "\n" + str(result["pdf"]),
+                parent=self,
+            )
+            self.open_path(str(result["pdf"]))
+        except Exception as exc:
+            messagebox.showerror(
+                self.ui_text("ساخت رزومه ناموفق بود", "Could not create résumé"),
+                f'{tx("جزئیات", "Details")}: {type(exc).__name__}: {exc}',
+                parent=self,
+            )
+
     def insights(self):
         """Local journal analyst: deterministic metrics and visual behavior review."""
         tx = lambda fa, en: fa if self.language == "fa" else en
@@ -2690,316 +2721,21 @@ class App(tk.Tk):
         tk.Label(self.content, text=footnote, bg=C["bg"], fg=C["muted"],
                  font=("Segoe UI", 8), wraplength=1200, justify="right").pack(anchor="e", pady=(0, 4))
 
-        # Local, journal-grounded coach: no network call, API key or model download.
-        coach = self.card(self.content)
-        coach.pack(fill="x", pady=(5, 10))
-        tk.Label(coach, text=tx("مربی معاملاتی محلی","Local Trading Coach"),
+        # Export a journal-grounded performance résumé instead of a chat interface.
+        resume_card = self.card(self.content)
+        resume_card.pack(fill="x", pady=(5, 10))
+        tk.Label(resume_card, text=tx("رزومه و گزارش عملکرد تریدر", "Trader Performance Resume"),
                  bg=C["panel"], fg=C["accent"], font=("Segoe UI", 12, "bold")).pack(anchor="e", padx=14, pady=(10, 2))
-        tk.Label(coach, text=tx("سؤال بپرس یا یکی از تحلیل‌های آماده را انتخاب کن؛ پاسخ از داده‌های ذخیره‌شده همین پروفایل و بازار ساخته می‌شود.",
-                                "Ask a question or choose a diagnostic. Answers use this profile's saved journal data only."),
-                 bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9), justify="right", wraplength=1150).pack(anchor="e", padx=14, pady=(0, 7))
-        coach_bar = tk.Frame(coach, bg=C["panel"]); coach_bar.pack(fill="x", padx=10, pady=(0, 7))
-        coach_question = tk.StringVar()
-        coach_entry = tk.Entry(coach_bar, textvariable=coach_question, bg=C["panel3"], fg=C["text"],
-                               insertbackground=C["text"], relief="flat", font=("Segoe UI", 10), justify="right")
-        coach_entry.pack(side="right", fill="x", expand=True, padx=4, ipady=7)
-        coach_response = tk.Text(coach, height=5, bg=C["panel2"], fg=C["text"], relief="flat",
-                                 wrap="word", padx=12, pady=9, font=("Segoe UI", 9))
-        coach_response.pack(fill="x", padx=12, pady=(0, 12))
-
-        def answer_coach(intent=None):
-            question = (intent or coach_question.get() or "").strip().casefold()
-            p_now = active_profile()
-            current_market = p_now.get("market", self.market)
-            current_rows = p_now.get("journals", {}).get(current_market, [])
-            r = analyse_journal(current_rows)
-            answers = []
-            n = r["count"]
-            if n == 0:
-                answers.append(tx(
-                    "هنوز معامله‌ای در ژورنال این پروفایل/بازار ثبت نشده است. ابتدا حداقل ۱۰ تا ۲۰ معامله بسته‌شده را با تاریخ، ستاپ، نتیجه و Result (R) وارد کن؛ سپس همین مربی می‌تواند الگوها را از داده واقعی استخراج کند.",
-                    "No trades are recorded for this profile/market. Log 10–20 closed trades with date, setup, outcome and Result (R); then this coach can identify patterns from actual data."
-                ))
-            else:
-                answers.append(tx(
-                    f"بررسی {n} معامله: نرخ برد {r['win_rate']:.1f}٪، خالص {r['net_r']:+.2f}R، امید ریاضی {r['expectancy_r']:+.2f}R و افت بیشینه {r['max_drawdown_r']:.2f}R.",
-                    f"Review of {n} trades: win rate {r['win_rate']:.1f}%, net {r['net_r']:+.2f}R, expectancy {r['expectancy_r']:+.2f}R, and maximum drawdown {r['max_drawdown_r']:.2f}R."
-                ))
-                if r.get("missing_r_count", 0):
-                    answers.append(tx(
-                        f"{r['missing_r_count']} معامله Result (R) ندارد؛ نتیجه‌گیری درباره سودآوری با این داده ناقص است. مقدار R را ثبت کن.",
-                        f"{r['missing_r_count']} trades have no Result (R); profitability conclusions are incomplete until those values are logged."
-                    ))
-                if any(word in question for word in ("setup", "strategy", "ستاپ", "استراتژ", "بهترین")):
-                    groups = sorted(r.get("by_setup", []), key=lambda g: (g["avg_r"], g["count"]), reverse=True)
-                    if groups:
-                        best = groups[0]
-                        answers.append(tx(
-                            f"بهترین میانگین ثبت‌شده در ستاپ «{best['name']}» است: {best['avg_r']:+.2f}R میانگین، {best['count']} معامله و نرخ برد {best['win_rate']:.1f}٪.",
-                            f"Highest recorded setup average: “{best['name']}”, {best['avg_r']:+.2f}R average across {best['count']} trades, with a {best['win_rate']:.1f}% win rate."
-                        ))
-                        if best["count"] < 10:
-                            answers.append(tx("نمونه این ستاپ هنوز کم است؛ پیش از نتیجه‌گیری، آن را با قوانین ثابت روی نمونه بزرگ‌تری دنبال کن.",
-                                              "This setup has a small sample. Keep the rules fixed and collect more trades before treating the result as reliable."))
-                    else:
-                        answers.append(tx("برای مقایسه ستاپ‌ها، نام ستاپ را هنگام ثبت معامله وارد کن.",
-                                          "Record a setup name on trades before comparing setups."))
-                elif any(word in question for word in ("loss", "losing", "باخت", "ضرر", "weakness", "ضعف")):
-                    answers.append(tx(
-                        f"تعداد باخت‌ها: {r['losses']}؛ طولانی‌ترین زنجیره باخت: {r['max_losing_streak']}.",
-                        f"Recorded losses: {r['losses']}; longest losing streak: {r['max_losing_streak']}."
-                    ))
-                    if r.get("mistakes"):
-                        mistake, count = r["mistakes"][0]
-                        answers.append(tx(f"پرتکرارترین خطای ثبت‌شده «{mistake}» بوده ({count} بار). برای ۱۰ معامله بعدی قبل از ورود این مورد را در چک‌لیست کنترل کن.",
-                                          f"Most frequent recorded mistake: “{mistake}” ({count} times). Add a pre-entry check for it during the next 10 trades."))
-                    if r["expectancy_r"] <= 0:
-                        answers.append(tx("تا مثبت شدن امید ریاضی روی نمونه جدید، حجم را افزایش نده؛ ورودهای نامعتبر را جداگانه بازبینی کن.",
-                                          "Do not increase size while expectancy is non-positive; review invalid entries separately."))
-                elif any(word in question for word in ("risk", "drawdown", "ریسک", "افت", "حجم", "stop")):
-                    answers.append(tx(
-                        "پیشنهاد اجرایی: ریسک هر معامله را ثابت نگه دار، حد ضرر را پیش از ورود ثبت کن و پس از رسیدن به سقف ضرر روزانه معامله را متوقف کن.",
-                        "Practical control: keep per-trade risk fixed, record the stop before entry, and stop trading after reaching your daily loss limit."
-                    ))
-                    if r["max_drawdown_r"] > 0:
-                        answers.append(tx(f"افت ثبت‌شده {r['max_drawdown_r']:.2f}R است؛ قبل از افزایش ریسک، دلیل افت‌ها را در توالی تاریخ معاملات پیدا کن.",
-                                          f"Recorded drawdown is {r['max_drawdown_r']:.2f}R. Identify the causes in date order before increasing risk."))
-                elif any(word in question for word in ("emotion", "psych", "احساس", "روان", "ترس", "fomo")):
-                    emotions = r.get("by_emotion", [])
-                    if emotions:
-                        weakest = min(emotions, key=lambda g: g["avg_r"])
-                        answers.append(tx(f"کمترین میانگین R مربوط به حالت «{weakest['name']}» با {weakest['avg_r']:+.2f}R است؛ پیش از معامله در این وضعیت، ورود را به تأیید دوم مشروط کن.",
-                                          f"Lowest average R is associated with “{weakest['name']}” ({weakest['avg_r']:+.2f}R). Require a second confirmation before trading in that state."))
-                    else:
-                        answers.append(tx("حالت روانی را در ژورنال ثبت کن تا بتوان تفاوت عملکرد در حالت‌های مختلف را سنجید.",
-                                          "Record emotional state in the journal to compare outcomes by state."))
-                else:
-                    if r["expectancy_r"] > 0:
-                        answers.append(tx("اقدام بعدی: قوانین ستاپ سودآور را ثابت نگه دار و روی ۲۰ معامله بعدی فقط کیفیت اجرای همان قوانین را ارزیابی کن.",
-                                          "Next action: keep your setup rules fixed and evaluate execution quality over the next 20 trades."))
-                    else:
-                        answers.append(tx("اقدام بعدی: ورود، ابطال و R هر معامله را بازبینی کن؛ تا روشن شدن دلیل امید ریاضی غیرمثبت، ریسک را افزایش نده.",
-                                          "Next action: audit entry, invalidation and R for each trade; do not increase risk until non-positive expectancy is explained."))
-                    if r.get("by_setup"):
-                        best = max(r["by_setup"], key=lambda g: (g["avg_r"], g["count"]))
-                        answers.append(tx(f"ستاپ با بالاترین میانگین فعلی: «{best['name']}» ({best['avg_r']:+.2f}R، تعداد {best['count']}).",
-                                          f"Currently highest-average setup: “{best['name']}” ({best['avg_r']:+.2f}R over {best['count']} trades."))
-            answers.append(tx("محدودیت: این مربی محلی و قانون‌محور است؛ از ژورنال گزارش می‌دهد و پیش‌بینی قیمت یا تضمین سود ارائه نمی‌کند.",
-                              "Limit: this is a local, rule-based coach. It summarizes the journal and does not predict prices or guarantee profits."))
-            coach_response.configure(state="normal")
-            coach_response.delete("1.0", "end")
-            coach_response.insert("1.0", "\n\n".join(answers))
-            coach_response.configure(state="disabled")
-
-        for intent, label in (
-            ("setup", tx("مقایسه ستاپ‌ها","Compare setups")),
-            ("loss", tx("تحلیل باخت‌ها","Review losses")),
-            ("risk", tx("ریسک و افت","Risk & drawdown")),
-            ("emotion", tx("روانشناسی","Psychology")),
-        ):
-            self.btn(coach_bar, label, lambda value=intent: answer_coach(value)).pack(side="right", padx=2)
-        self.btn(coach_bar, tx("تحلیل","Analyze"), answer_coach, True).pack(side="left", padx=4)
-        coach_response.configure(state="normal")
-        coach_response.insert("1.0", tx("برای دریافت تحلیل، یکی از دکمه‌ها را بزن یا سؤال خود را وارد کن.",
-                                         "Choose a diagnostic or type a question to analyze your journal."))
-        coach_response.configure(state="disabled")
-
-    def academy(self):
-        """Offline-first academy: bundled reference images, local text, and native diagram fallbacks."""
-        tx = lambda fa, en: fa if self.language == "fa" else en
-        self.heading(tx("کتابخانه آموزش آفلاین", "Offline Trading Academy"),
-                     tx("آموزش SMC، مدل‌های ICT، الگوهای کندلی و لغتنامه؛ بدون درخواست اینترنت هنگام باز کردن صفحه.",
-                        "SMC, ICT models, candlestick patterns and glossary. Opening this page makes no network requests."))
-
-        items = []
-        for row in SMART_MONEY_STRATEGIES:
-            items.append({
-                "family":"smc", "family_label":"SMC", "title":row.get("name_fa" if self.language=="fa" else "name_en","SMC"),
-                "summary":row.get("summary_fa" if self.language=="fa" else "summary_en",""),
-                "steps":row.get("steps_fa" if self.language=="fa" else "steps_en",[]),
-                "caution":row.get("risk_fa" if self.language=="fa" else "risk_en",""),
-                "visual":strategy_visual_key(row.get("name_en","")), "model":row.get("name_en",""),
-            })
-        for row in ICT_STRATEGIES:
-            items.append({
-                "family":"ict", "family_label":"ICT", "title":row.get("name_fa" if self.language=="fa" else "name_en","ICT"),
-                "summary":row.get("summary_fa" if self.language=="fa" else "summary_en",""),
-                "steps":row.get("steps_fa" if self.language=="fa" else "steps_en",[]),
-                "caution":row.get("risk_fa" if self.language=="fa" else "risk_en",""),
-                "visual":strategy_visual_key(row.get("name_en","")), "model":row.get("name_en",""),
-            })
-        candle_en = {
-            "Pin Bar / Rejection Candle":"A rejection candle with a dominant wick; interpret it at a meaningful level and with structure.",
-            "Bullish Engulfing":"A bullish real body engulfs the prior bearish body; context and confirmation still matter.",
-            "Bearish Engulfing":"A bearish real body engulfs the prior bullish body; context and confirmation still matter.",
-            "Inside Bar":"The candle range sits inside the previous candle's range; it describes compression, not direction by itself.",
-            "Morning Star":"A three-candle reversal pattern that should be assessed near support and with follow-through.",
-            "Evening Star":"A three-candle reversal pattern that should be assessed near resistance and with follow-through.",
-            "Hammer":"A long lower wick and compact body; inspect support, sweep context and the next candle.",
-            "Shooting Star":"A long upper wick and compact body; inspect resistance, sweep context and the next candle.",
-            "Doji":"Open and close are close together; it indicates indecision, not a standalone entry.",
-            "Tweezer Top":"Two nearby highs may mark rejection; use a defined level and confirmation.",
-            "Tweezer Bottom":"Two nearby lows may mark rejection; use a defined level and confirmation.",
-            "Three White Soldiers":"Three strong bullish candles describe momentum; avoid chasing without a risk plan.",
-            "Three Black Crows":"Three strong bearish candles describe momentum; avoid chasing without a risk plan.",
-            "Marubozu":"A large directional body with little wick suggests one-sided movement within that candle.",
-            "Spinning Top":"A small body and two-sided wicks show short-term balance or indecision.",
-            "Long-Legged Doji":"A doji with long wicks reflects a volatile, indecisive range."
-        }
-        for name_en, name_fa, description_fa in CANDLE_PLAYBOOK:
-            items.append({
-                "family":"candles", "family_label":tx("کندل","Candlestick"),
-                "title":name_fa if self.language=="fa" else name_en,
-                "summary":description_fa if self.language=="fa" else candle_en.get(name_en,"Inspect candle patterns only in market context."),
-                "steps":[],
-                "caution":tx("الگوی کندلی به‌تنهایی سیگنال قطعی نیست؛ سطح، ساختار، ابطال و ریسک را بررسی کن.",
-                             "A candle pattern is not a standalone signal; check level, structure, invalidation and risk."),
-                "visual":pattern_visual_key(name_en), "model":name_en,
-            })
-        for row in GLOSSARY:
-            term = row.get("term", "")
-            items.append({
-                "family":"glossary", "family_label":tx("لغتنامه","Glossary"),
-                "title":term if self.language=="en" else (row.get("fa") or term),
-                "summary":row.get("meaning_fa" if self.language=="fa" else "meaning_en",row.get("fa" if self.language=="fa" else "en","")),
-                "steps":[],
-                "usage":row.get("usage_fa" if self.language=="fa" else "usage_en",""),
-                "caution":"",
-                "visual":glossary_visual_key(term,row.get("category",""),row.get("en","")), "model":term,
-            })
-
-        shell = tk.Frame(self.content, bg=C["bg"]); shell.pack(fill="both", expand=True, pady=(4, 8))
-        shell.columnconfigure(0, weight=3, minsize=320)
-        shell.columnconfigure(1, weight=5, minsize=500)
-        shell.rowconfigure(1, weight=1)
-        toolbar = tk.Frame(shell, bg=C["panel"]); toolbar.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
-        filter_labels = {
-            tx("همه بخش‌ها","All topics"):"all",
-            tx("اسمارت مانی / SMC","Smart Money / SMC"):"smc",
-            "ICT":"ict",
-            tx("الگوهای کندلی","Candlestick patterns"):"candles",
-            tx("لغتنامه","Glossary"):"glossary",
-        }
-        filter_var = tk.StringVar(value=next(iter(filter_labels)))
-        filter_box = ttk.Combobox(toolbar, textvariable=filter_var, values=list(filter_labels.keys()), state="readonly", width=24)
-        filter_box.pack(side="right", padx=8, pady=8)
-        search_var = tk.StringVar()
-        search_entry = tk.Entry(toolbar, textvariable=search_var, bg=C["panel3"], fg=C["text"],
-                                insertbackground=C["text"], relief="flat", font=("Segoe UI", 10),
-                                width=34, justify="right")
-        search_entry.pack(side="right", padx=5, pady=8, ipady=6)
-        search_entry.insert(0, "")
-        tk.Label(toolbar, text=tx("جستجو در کتابخانه","Search library"), bg=C["panel"], fg=C["muted"],
-                 font=("Segoe UI", 9, "bold")).pack(side="right", padx=(14, 3))
-
-        list_card = self.card(shell); list_card.grid(row=1, column=0, sticky="nsew", padx=(0, 6))
-        detail_card = self.card(shell); detail_card.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
-        tree = ttk.Treeview(list_card, columns=("family",), show="tree headings", selectmode="browse")
-        tree.heading("#0", text=tx("موضوع","Topic")); tree.heading("family", text=tx("بخش","Type"))
-        tree.column("#0", width=255, anchor="e"); tree.column("family", width=92, anchor="center", stretch=False)
-        tree.pack(fill="both", expand=True, padx=8, pady=8)
-        self.academy_tree = tree
-
-        detail_title = tk.Label(detail_card, text=tx("یک موضوع را انتخاب کن","Select a topic"),
-                                bg=C["panel"], fg=C["accent"], font=("Segoe UI", 15, "bold"), anchor="e")
-        detail_title.pack(fill="x", padx=14, pady=(12, 4))
-        detail_text = tk.Text(detail_card, height=9, bg=C["panel2"], fg=C["text"], insertbackground=C["text"],
-                              relief="flat", wrap="word", padx=12, pady=10, font=("Segoe UI", 10))
-        detail_text.pack(fill="x", padx=12, pady=(4, 8))
-        detail_text.configure(state="disabled")
-        image_head = tk.Label(detail_card, text=tx("تصویر/نمودار محلی","Local image / diagram"),
-                              bg=C["panel"], fg=C["gold"], font=("Segoe UI", 10, "bold"), anchor="e")
-        image_head.pack(fill="x", padx=14, pady=(0, 4))
-        image_host = tk.Frame(detail_card, bg=C["panel2"], highlightbackground=C["line"], highlightthickness=1)
-        image_host.pack(fill="both", expand=True, padx=12, pady=(0, 12))
-        self._academy_photo = None
-
-        def render_item(item):
-            detail_title.configure(text=item["title"])
-            paragraphs = [item.get("summary","").strip()]
-            if item.get("usage"):
-                paragraphs += [tx("کاربرد: ","Usage: ") + item["usage"].strip()]
-            if item.get("steps"):
-                paragraphs += [tx("مراحل پیشنهادی:","Suggested steps:")]
-                paragraphs += [f"{i+1}. {step}" for i, step in enumerate(item["steps"])]
-            if item.get("caution"):
-                paragraphs += [tx("نکته ریسک: ","Risk note: ") + item["caution"].strip()]
-            detail_text.configure(state="normal")
-            detail_text.delete("1.0", "end")
-            detail_text.insert("1.0", "\n\n".join(p for p in paragraphs if p))
-            detail_text.configure(state="disabled")
-
-            for child in image_host.winfo_children():
-                try: child.destroy()
-                except tk.TclError: pass
-            self._academy_photo = None
-            local_asset = bundled_asset_for_visual(item.get("visual",""))
-            if local_asset:
-                try:
-                    from PIL import Image, ImageTk
-                    with Image.open(local_asset) as source:
-                        image = source.convert("RGB")
-                        image.thumbnail((720, 340), Image.Resampling.LANCZOS)
-                        photo = ImageTk.PhotoImage(image)
-                    self._academy_photo = photo
-                    tk.Label(image_host, image=photo, bg=C["panel2"]).pack(fill="both", expand=True, padx=7, pady=7)
-                    tk.Label(image_host, text=tx("تصویر ذخیره‌شده داخل نرم‌افزار • بدون اینترنت",
-                                                 "Bundled local image • no internet required"),
-                             bg=C["panel2"], fg=C["muted"], font=("Segoe UI", 8)).pack(pady=(0, 6))
-                    return
-                except Exception:
-                    pass
-            # The fallback diagrams are drawn by Tk locally and never request web content.
-            try:
-                from academy_diagrams import draw_setup, draw_candlestick
-                family = item.get("family", "smc")
-                if family == "candles":
-                    draw_candlestick(image_host, item.get("model","Candlestick"), C)
-                elif family == "ict":
-                    draw_setup(image_host, "ict", item.get("model","ICT 2022 Model"), C)
-                else:
-                    draw_setup(image_host, "smc", item.get("model","Market Structure"), C)
-            except Exception as exc:
-                cv = tk.Canvas(image_host, height=260, bg=C["panel2"], highlightthickness=0)
-                cv.pack(fill="both", expand=True)
-                cv.create_text(350, 110, text=tx("نمودار محلی آماده نیست","Local chart unavailable"),
-                               fill=C["muted"], font=("Segoe UI", 12, "bold"))
-                cv.create_text(350, 145, text=type(exc).__name__, fill=C["danger"], font=("Consolas", 9))
-
-        def refill(_event=None):
-            chosen_family = filter_labels.get(filter_var.get(), "all")
-            query = search_var.get().strip().casefold()
-            for old in tree.get_children():
-                tree.delete(old)
-            visible = []
-            for idx, item in enumerate(items):
-                if chosen_family != "all" and item["family"] != chosen_family:
-                    continue
-                searchable = " ".join((item["title"], item.get("summary",""), item.get("model",""), item.get("usage",""))).casefold()
-                if query and query not in searchable:
-                    continue
-                tree.insert("", "end", iid=str(idx), text=item["title"], values=(item["family_label"],))
-                visible.append(idx)
-            if visible:
-                tree.selection_set(str(visible[0]))
-                tree.focus(str(visible[0]))
-                render_item(items[visible[0]])
-            else:
-                detail_title.configure(text=tx("نتیجه‌ای پیدا نشد","No matching topic"))
-                detail_text.configure(state="normal"); detail_text.delete("1.0","end")
-                detail_text.insert("1.0", tx("عبارت دیگری جستجو کن.","Try another search term.")); detail_text.configure(state="disabled")
-                for child in image_host.winfo_children(): child.destroy()
-
-        def selected(_event=None):
-            selection = tree.selection()
-            if not selection: return
-            try: render_item(items[int(selection[0])])
-            except (ValueError, IndexError): return
-
-        filter_box.bind("<<ComboboxSelected>>", refill)
-        search_var.trace_add("write", lambda *_: refill())
-        tree.bind("<<TreeviewSelect>>", selected)
-        refill()
+        tk.Label(
+            resume_card,
+            text=tx(
+                "گزارش PDF همراه با نمودار نتایج، نرخ برد، امید ریاضی، Profit Factor، افت بیشینه و نقاط قوت/ریسک‌های ثبت‌شده.",
+                "Generate a PDF résumé with result charts, win rate, expectancy, profit factor, maximum drawdown, strengths and recorded risks."
+            ),
+            bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9), wraplength=1150, justify="right"
+        ).pack(anchor="e", padx=14, pady=(0, 8))
+        self.btn(resume_card, tx("ساخت رزومه عملکردی PDF", "Build PDF Performance Resume"),
+                 self.export_trader_resume, True).pack(anchor="e", padx=14, pady=(0, 12))
 
     def resources(self):
         tx = lambda fa, en: fa if self.language == "fa" else en
@@ -3087,8 +2823,13 @@ class App(tk.Tk):
         opacity_var = tk.DoubleVar(value=self.glass_opacity)
         opacity = tk.Scale(panel, variable=opacity_var, from_=0.86, to=0.995, resolution=0.005,
                            orient="horizontal", length=280, bg=C["panel"], fg=C["text"],
-                           highlightthickness=0, troughcolor=C["soft"], activebackground=C["accent"])
+                           highlightthickness=0, troughcolor=C["soft"], activebackground=C["accent"],
+                           command=self._preview_glass_opacity)
         opacity.grid(row=4, column=0, sticky="w", padx=14, pady=9)
+        self._glass_opacity_label = tk.Label(panel, text=f"{self.glass_opacity * 100:.1f}%",
+                                             bg=C["accent"], fg="#061019",
+                                             font=("Segoe UI", 8, "bold"), padx=9, pady=5)
+        self._glass_opacity_label.grid(row=4, column=2, sticky="w", padx=(0, 14), pady=9)
 
         note = tx(
             "پروفایل‌ها و اطلاعات ژورنال مستقل ذخیره می‌شوند. تغییر پوسته پس از ذخیره روی پنجره اصلی و پنجره‌های جدید اعمال می‌شود.",
@@ -3203,8 +2944,6 @@ class App(tk.Tk):
             self.btn(parent,self.tr("calc"),calc,True).pack(anchor="e",padx=18,pady=8)
         build_forex(forex_tab)
 
-        shortcuts=tk.Frame(self.content,bg=C["bg"]); shortcuts.pack(fill="x",pady=(4,8))
-        self.btn(shortcuts,self.tr("home_shortcut"),self.go_home).pack(side="left")
 
     def add_reminder(self):
         dlg = self._glass_toplevel(self.tr("add_reminder"), "540x330", (480, 300))

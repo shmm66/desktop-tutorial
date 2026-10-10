@@ -1,4 +1,4 @@
-# CI RELEASE STAMP: V10.1.0
+# CI RELEASE STAMP: V10.2.0
 import tkinter as tk
 from pathlib import Path
 import tempfile
@@ -6,7 +6,7 @@ import sys
 import threading
 
 APP = "Trader Planner Pro"
-VERSION = "10.1.0"
+VERSION = "10.2.0"
 
 def show_splash(ready_event=None):
     root = tk.Tk()
@@ -131,7 +131,7 @@ def _run_ui_smoke_test():
 
     pages = (
         "home", "daily", "weekly", "plan", "check", "journal",
-        "insights", "academy", "resources", "news", "calculators", "settings",
+        "insights", "resources", "news", "calculators", "settings",
     )
     app = App()
     failures = []
@@ -216,7 +216,7 @@ def main():
             import importlib
             required = [
                 "TraderPlannerPro_v7_0_3", "market_data", "news_data",
-                "journal_agent", "glass_theme", "google_oauth", "statement_report"
+                "journal_agent", "glass_theme", "google_oauth", "statement_report", "trader_resume"
             ]
             for module_name in required:
                 importlib.import_module(module_name)

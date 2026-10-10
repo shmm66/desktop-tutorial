@@ -88,11 +88,6 @@ def _configure_window_transparency(window, dark: bool, opacity: float = 0.94):
         window.wm_attributes("-alpha", max(0.86, min(float(opacity), 0.995)))
     except Exception:
         pass
-    try:
-        window.configure(bg="#07121D" if dark else "#F1F7F9")
-    except Exception:
-        pass
-
 
 def apply_glass(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
     """Apply the native Windows backdrop once, without recursive Tk scheduling.
@@ -129,9 +124,11 @@ def apply_glass(window, dark: bool = True, style: str = "acrylic", opacity: floa
     except Exception:
         pass
     try:
-        _configure_window_transparency(window, dark, opacity)
         native_ok = _set_dwm_backdrop(window, dark=dark, acrylic=(style != "mica"))
         pywin_ok = _apply_pywinstyles(window, dark=dark, style=style)
+        # Apply alpha last because style helpers can reset attributes.
+        # The selected skin background remains owned by apply_theme().
+        _configure_window_transparency(window, dark, opacity)
         return native_ok or pywin_ok
     except Exception:
         return False
