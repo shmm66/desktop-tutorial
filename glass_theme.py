@@ -162,7 +162,11 @@ def set_widget_glass(widget, opacity: float = 0.88) -> bool:
 
 
 def apply_glass_after_map(window, dark: bool = True, style: str = "acrylic", opacity: float = 0.94) -> bool:
-    """Schedule at most one post-map glass application for a window."""
+    """Apply the backdrop once after Tk has had a chance to map the native window.
+
+    Only one timer is ever registered per window. The callback never reschedules
+    itself, and this helper has no recursive fallback path.
+    """
     if not is_windows():
         return False
     try:
@@ -177,14 +181,21 @@ def apply_glass_after_map(window, dark: bool = True, style: str = "acrylic", opa
             except Exception:
                 pass
             try:
-                if window.winfo_exists():
-                    apply_glass(window, dark=dark, style=style, opacity=opacity)
-            except Exception:
-                # Window teardown and DWM failures must never crash the Tk loop.
-                pass
+                if not window.winfo_exists():
+                    return
+                if getattr(window, "_tpp_glass_after_map_done", False):
+                    return
+                # Mark before applying to prevent any nested/re-entrant map
+                # event or theme callback from scheduling another attempt.
+                setattr(window, "_tpp_glass_after_map_done", True)
+                apply_glass(window, dark=dark, style=style, opacity=opacity)
+            except BaseException:
+                # DWM and window teardown failures must never interrupt Tk.
+                return
 
-        job = window.after(50, _apply_after_map)
+        job = window.after(120, _apply_after_map)
         setattr(window, "_tpp_glass_after_id", job)
         return True
-    except Exception:
-        return apply_glass(window, dark=dark, style=style, opacity=opacity)
+    except BaseException:
+        return False
+
