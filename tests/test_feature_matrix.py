@@ -27,6 +27,16 @@ def test_primary_routes_keep_offline_academy_and_remove_chat_and_tradingview():
     assert '"--webview"' not in launcher
 
 
+def test_local_trading_coach_uses_actual_journal_metrics_and_discloses_limits():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    insights = app.split("    def insights(self):", 1)[1].split("    def academy(self):", 1)[0]
+    assert 'tx("مربی معاملاتی محلی","Local Trading Coach")' in insights
+    assert "def answer_coach(intent=None):" in insights
+    assert 'r["expectancy_r"]' in insights
+    assert 'r["max_drawdown_r"]' in insights
+    assert "does not predict prices or guarantee profits" in insights
+
+
 def test_offline_academy_uses_bundled_images_and_native_diagrams_only():
     app = read("TraderPlannerPro_v7_0_3.py")
     academy = app.split("    def academy(self):", 1)[1].split("\n    def resources(self):", 1)[0]
