@@ -198,3 +198,9 @@ def test_settings_preserve_daily_reminder_management_and_valid_theme_save_path()
     assert "self.refresh_shell_theme()" not in settings
     for method in ("def add_reminder(", "def delete_reminder(", "def toggle_reminder("):
         assert method in app
+
+
+def test_journal_screenshot_folder_action_has_a_defined_handler():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert "def open_path(self, path):" in app
+    assert "self.open_path(" in app
