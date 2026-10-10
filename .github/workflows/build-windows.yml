@@ -1,153 +1,339 @@
 name: CI + Windows EXE + Installer
-# Production verification: Quality -> Build EXE -> Installer -> Smoke Test -> Release
+# Triggered build includes regression coverage for bounded Acrylic callbacks and lazy AI startup.
+# V10.1.2 regression fix for local Academy and antialiased clocks
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main, "feature/**" ]
+    branches: [ "v10-professional-visual-online", main ]
   pull_request:
     branches: [ main ]
 
 permissions:
   contents: write
+  checks: write
 
 jobs:
-  quality:
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install test/build dependencies
-        run: python -m pip install --upgrade pip pytest pyinstaller pillow tzdata jdatetime hijridate pywebview pywinstyles matplotlib reportlab google-auth google-auth-oauthlib google-api-python-client openai-agents
-      - name: Syntax check
-        run: |
-          python -m py_compile TraderPlannerPro_v7_0_3.py
-          python -m py_compile TraderPlannerPro_v7.py
-          python -m py_compile launcher.py
-          python -m py_compile logo_3d.py
-          python -m py_compile branding_assets.py
-          python -m py_compile prepare_branding.py
-          python -m py_compile academy_visuals.py
-          python -m py_compile market_data.py
-          python -m py_compile calendar_utils.py
-          python -m py_compile ai_assistant.py
-          python -m py_compile news_data.py
-          python -m py_compile webview_runner.py
-          python -m py_compile prepare_education_assets.py
-          python -m py_compile glass_theme.py
-          python -m py_compile academy_diagrams.py
-          python -m py_compile google_oauth.py
-          python -m py_compile statement_report.py
-      - name: Run tests
-        run: python -m pytest -q
-
   package:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Provision isolated Python 3.13 environment
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: "3.12"
-      - name: Install build dependencies
+          python-version: '3.13'
+          cache: pip
+
+      - name: Select setup-python interpreter
+        shell: powershell
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller
-      - name: Prepare exact education image assets
-        run: python prepare_education_assets.py
+          $ErrorActionPreference = 'Stop'
+          $py = Join-Path $env:pythonLocation 'python.exe'
+          if (-not (Test-Path $py)) { throw "Python executable not found: $py" }
+          & $py --version
+          & $py -m pip --version
+          "TP_PYTHON=$py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Install build dependencies
+        shell: powershell
+        env:
+          PIP_DEFAULT_TIMEOUT: '35'
+          PIP_RETRIES: '2'
+          PIP_DISABLE_PIP_VERSION_CHECK: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Try the official index first, then two public mirrors. Keeping
+          # retries bounded prevents a stalled CDN from delaying the build for
+          # an hour; pip's cache is retained between endpoints.
+          $indexes = @(
+            'https://pypi.org/simple',
+            'https://pypi.tuna.tsinghua.edu.cn/simple',
+            'https://mirrors.aliyun.com/pypi/simple'
+          )
+          $dependenciesInstalled = $false
+          foreach ($index in $indexes) {
+            Write-Host "Installing build dependencies from $index"
+            & $env:TP_PYTHON -m pip install --prefer-binary --index-url $index --default-timeout 35 --retries 2 --no-input -r requirements.txt pyinstaller==6.22.3 'pytest>=8,<9'
+            if ($LASTEXITCODE -eq 0) {
+              $dependenciesInstalled = $true
+              break
+            }
+            Write-Warning "Dependency installation failed through $index; trying the next index."
+          }
+          if (-not $dependenciesInstalled) {
+            throw 'Dependency installation failed through all configured Python package indexes.'
+          }
+
+          & $env:TP_PYTHON -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'pip dependency consistency check failed.' }
+
+      - name: Prepare offline Academy image library
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON prepare_education_assets.py
+          if ($LASTEXITCODE -ne 0) { throw "Offline Academy asset preparation failed with exit code $LASTEXITCODE" }
+
+      - name: Syntax check
+        shell: powershell
+        run: |
+          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','build_icon.py','branding_assets.py','prepare_branding.py','prepare_education_assets.py','academy_content.py','academy_diagrams.py','academy_visuals.py','market_data.py','calendar_utils.py','news_data.py','journal_agent.py','glass_theme.py','google_oauth.py','statement_report.py')
+          foreach ($file in $files) { & $env:TP_PYTHON -m py_compile $file }
+
+      - name: Run tests and preserve report
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $output = & $env:TP_PYTHON -m pytest -q --tb=long 2>&1 | Out-String
+          $code = $LASTEXITCODE
+          $output | Set-Content -Path pytest-report.txt -Encoding utf8
+          "pytest_exit_code=$code" | Add-Content -Path pytest-report.txt -Encoding utf8
+          Get-Content pytest-report.txt
+          "TP_PYTEST_EXIT=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          exit 0
+
+
+      - name: Enforce pytest result
+        shell: powershell
+        run: |
+          if ([int]$env:TP_PYTEST_EXIT -ne 0) { throw "pytest failed with exit code $env:TP_PYTEST_EXIT; see pytest-report artifact" }
+
+      - name: Run real Tk UI section smoke test
+        shell: powershell
+        run: |
+          $outLog = Join-Path $env:RUNNER_TEMP 'tpp-ui-smoke.stdout.log'
+          $errLog = Join-Path $env:RUNNER_TEMP 'tpp-ui-smoke.stderr.log'
+          $smoke = Start-Process -FilePath $env:TP_PYTHON -ArgumentList @('-u','launcher.py','--ui-smoke-test') -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+          if (-not $smoke.WaitForExit(180000)) {
+            Stop-Process -Id $smoke.Id -Force -ErrorAction SilentlyContinue
+            Get-Content $outLog -ErrorAction SilentlyContinue
+            Get-Content $errLog -ErrorAction SilentlyContinue
+            throw 'Tk UI section smoke test timed out after 180 seconds.'
+          }
+          $smoke.Refresh()
+          $stdout = Get-Content $outLog -Raw -ErrorAction SilentlyContinue
+          $stderr = Get-Content $errLog -Raw -ErrorAction SilentlyContinue
+          if ($stdout) { Write-Host $stdout }
+          if ($stderr) { Write-Host $stderr }
+          $exitCode = $smoke.ExitCode
+          if ($null -eq $exitCode) {
+            # Some Windows process wrappers return an empty ExitCode even after
+            # WaitForExit. Accept only the explicit success marker and no traceback.
+            if ($stdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
+              throw 'Tk UI smoke test did not provide a reliable success marker.'
+            }
+            Write-Warning 'Process exit code was unavailable; all 11 page renders reported success.'
+          } elseif ([int]$exitCode -ne 0) {
+            throw "Tk UI section smoke test failed with exit code $exitCode"
+          }
+
       - name: Build Windows icon
-        run: python build_icon.py
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON build_icon.py
+
+      - name: Prepare branded installer assets
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON prepare_branding.py
+          if ($LASTEXITCODE -ne 0) { throw "Branding asset generation failed with exit code $LASTEXITCODE" }
+          $assets = @('assets/trader_planner_logo.ico','assets/installer_wizard.bmp','assets/installer_small.bmp')
+          foreach ($asset in $assets) { if (-not (Test-Path $asset)) { throw "Required installer asset was not generated: $asset" } }
+
       - name: Build EXE
+        shell: powershell
         run: >-
-          pyinstaller --noconfirm --clean --onefile --windowed
-          --name TraderPlannerPro
-          --hidden-import tkinter
-          --hidden-import tkinter.font
-          --hidden-import tkinter.messagebox
-          --hidden-import tkinter.filedialog
-          --hidden-import PIL
-          --hidden-import PIL.Image
-          --hidden-import PIL.ImageTk
-          --hidden-import json
-          --hidden-import csv
-          --hidden-import datetime
-          --hidden-import pathlib
-          --hidden-import shutil
-          --hidden-import re
-          --hidden-import uuid
-          --collect-all tzdata
-          --collect-all webview
-          --collect-all agents
-          --collect-all matplotlib
-          --collect-all reportlab
-          --hidden-import webview.platforms.edgechromium
-          --hidden-import glass_theme
-          --hidden-import academy_diagrams
-          --hidden-import pywinstyles
-          --hidden-import googleapiclient.discovery
-          --hidden-import google_auth_oauthlib.flow
-          --add-data "education_sources;education_sources"
-          --add-data "trading_chart.html;."
-          launcher.py
+          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --icon assets/trader_planner_logo.ico --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import glass_theme --hidden-import pywinstyles --hidden-import academy_content --hidden-import academy_diagrams --hidden-import academy_visuals --add-data "education_sources;education_sources" --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
+
       - name: Verify EXE
         shell: powershell
         run: |
-          $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
+          $exe = Join-Path $PWD 'dist/TraderPlannerPro.exe'
           if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
-          if ((Get-Item $exe).Length -lt 1000000) { throw "EXE is unexpectedly small." }
-      - name: Launch EXE smoke test
+          if ((Get-Item $exe).Length -lt 1000000) { throw 'EXE is unexpectedly small.' }
+          Write-Host "EXE ready: $exe"
+
+      - name: EXE self-test
         shell: powershell
         run: |
-          $exe = Join-Path $PWD 'dist\TraderPlannerPro.exe'
-          $p = Start-Process -FilePath $exe -PassThru
-          Start-Sleep -Seconds 10
-          if ($p.HasExited) { throw "TraderPlannerPro.exe exited during startup with code $($p.ExitCode)" }
-          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          $exe = Join-Path $PWD 'dist/TraderPlannerPro.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "EXE self-test failed with exit code $($p.ExitCode)" }
+
+      - name: Install official Inno Setup 7.1.0
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $env:RUNNER_TEMP 'innosetup-7.1.0-x64.exe'
+          $urls = @(
+            'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe',
+            'https://files.jrsoftware.org/is/7/innosetup-7.1.0-x64.exe'
+          )
+          $downloaded = $false
+          foreach ($url in $urls) {
+            try {
+              if (Test-Path $installer) { Remove-Item $installer -Force -ErrorAction SilentlyContinue }
+              Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing -ErrorAction Stop
+              if ((Test-Path $installer) -and (Get-Item $installer).Length -gt 5000000) {
+                $downloaded = $true
+                Write-Host "Downloaded official Inno Setup from $url"
+                break
+              }
+              Write-Warning "Downloaded file from $url was too small; trying the next official endpoint."
+            } catch {
+              Write-Warning "Download failed from $url : $($_.Exception.Message)"
+            }
+          }
+          if (-not $downloaded) { throw 'Unable to download the official Inno Setup installer from the official release endpoints.' }
+          $sig = Get-AuthenticodeSignature -FilePath $installer
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'Pyrsys B.V.') { throw "Inno Setup signature verification failed: $($sig.Status) / $($sig.SignerCertificate.Subject)" }
+          $p = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Inno Setup installation failed with exit code $($p.ExitCode)" }
+          $candidates = @('C:/Program Files/Inno Setup 7/ISCC.exe','C:/Program Files (x86)/Inno Setup 7/ISCC.exe','C:/Program Files/Inno Setup 6/ISCC.exe','C:/Program Files (x86)/Inno Setup 6/ISCC.exe')
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw 'ISCC.exe was not found after Inno Setup installation.' }
+          "TP_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          & $iscc /?
+
       - name: Build installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
-        with:
-          path: TraderPlannerPro.iss
-          options: /O+
-      - name: Installer smoke test
         shell: powershell
         run: |
-          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          & $env:TP_ISCC 'TraderPlannerPro.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compiler failed with exit code $LASTEXITCODE" }
+
+      - name: Verify installer output
+        shell: powershell
+        run: |
           $installer = Get-ChildItem -Recurse -File -Filter '*Setup*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $installer) { throw "Installer EXE was not produced." }
-          $testRoot = Join-Path $env:TEMP 'TraderPlannerPro-CI-Test'
+          if (-not $installer) { throw 'Installer EXE was not produced.' }
+          Write-Host "Installer ready: $($installer.FullName)"
+
+      - name: Installer install/launch/uninstall smoke test
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $PWD 'installer/TraderPlannerPro_Setup_v10.1.0.exe'
+          if (-not (Test-Path $installer)) { throw "Installer not found: $installer" }
+
+          $testRoot = Join-Path $env:RUNNER_TEMP 'TraderPlannerPro-CI-Test'
           if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Path $testRoot | Out-Null
           $installDir = Join-Path $testRoot 'App'
-          $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$installDir") -Wait -PassThru
+          $install = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$installDir") -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer failed with exit code $($install.ExitCode)" }
+
           $installedExe = Join-Path $installDir 'TraderPlannerPro.exe'
-          if (-not (Test-Path $installedExe)) { throw "Installed EXE not found." }
-          $p = Start-Process -FilePath $installedExe -PassThru
-          Start-Sleep -Seconds 8
-          if ($p.HasExited) { throw "Installed EXE exited during startup." }
-          Get-Process -Name TraderPlannerPro -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          if (-not (Test-Path $installedExe)) { throw 'Installed TraderPlannerPro.exe was not found.' }
+          $appTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
+          if ($appTest.ExitCode -ne 0) { throw "Installed EXE self-test failed with exit code $($appTest.ExitCode)" }
+
+          $uiOutLog = Join-Path $env:RUNNER_TEMP 'tpp-installed-ui.stdout.log'
+          $uiErrLog = Join-Path $env:RUNNER_TEMP 'tpp-installed-ui.stderr.log'
+          $uiTest = Start-Process -FilePath $installedExe -ArgumentList '--ui-smoke-test' -PassThru -RedirectStandardOutput $uiOutLog -RedirectStandardError $uiErrLog
+          if (-not $uiTest.WaitForExit(180000)) {
+            Stop-Process -Id $uiTest.Id -Force -ErrorAction SilentlyContinue
+            Get-Content $uiOutLog -ErrorAction SilentlyContinue
+            Get-Content $uiErrLog -ErrorAction SilentlyContinue
+            throw 'Installed EXE UI section smoke test timed out after 180 seconds.'
+          }
+          # Refresh the .NET process snapshot after WaitForExit before reading ExitCode.
+          $uiTest.Refresh()
+          if (-not $uiTest.HasExited) { throw 'Installed EXE UI smoke-test process did not exit.' }
+          $uiStdout = [string](Get-Content $uiOutLog -Raw -ErrorAction SilentlyContinue)
+          $uiStderr = [string](Get-Content $uiErrLog -Raw -ErrorAction SilentlyContinue)
+          if ($uiStdout) { Write-Output $uiStdout }
+          if ($uiStderr) { Write-Output $uiStderr }
+          $uiExitCode = $uiTest.ExitCode
+          if ($null -eq $uiExitCode) {
+            # Some Windows GUI-process wrappers do not expose the exit code.
+            # Accept only an explicit all-pages success marker and clean stderr.
+            if ($uiStdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or
+                $uiStderr -match 'Traceback|Exception|Error:') {
+              throw 'Installed EXE UI test returned no exit code and did not produce a clean 12-page success report.'
+            }
+            Write-Warning 'GUI process exit code unavailable; verified success marker and clean stderr.'
+          } elseif ([int]$uiExitCode -ne 0) {
+            throw "Installed EXE UI section smoke test failed with exit code $uiExitCode"
+          }
+
           $uninstaller = Join-Path $installDir 'unins000.exe'
-          if (-not (Test-Path $uninstaller)) { throw "Uninstaller not found." }
+          if (-not (Test-Path $uninstaller)) { throw 'Uninstaller was not found.' }
           $un = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
           if ($un.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($un.ExitCode)" }
-          if (Test-Path $installedExe) { throw "Installed EXE still exists after uninstall." }
+          if (Test-Path $installedExe) { throw 'Installed EXE still exists after uninstall.' }
 
-      - name: Publish V9.0.0 Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+      - name: Write build manifest
+        shell: powershell
+        run: |
+          $manifest = @()
+          $manifest += "Trader Planner Pro V10.1.0"
+          $manifest += "Commit: $env:GITHUB_SHA"
+          $manifest += "Ref: $env:GITHUB_REF"
+          $manifest += "Run: $env:GITHUB_RUN_ID"
+          $manifest += "Runner: $env:RUNNER_NAME"
+          $manifest += "Timestamp UTC: $([DateTime]::UtcNow.ToString('o'))"
+          $manifest | Out-File -FilePath "build-manifest.txt" -Encoding utf8
+
+      - name: Upload verified EXE, installer and manifest as a workflow artifact
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          tag_name: v9.0.0
-          name: Trader Planner Pro V9.0.0
+          name: TraderPlannerPro-V10.1.0-Windows-Verified
+          path: |
+            dist/TraderPlannerPro.exe
+            installer/TraderPlannerPro_Setup_v10.1.0.exe
+            build-manifest.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload verified assets to draft release
+        id: publish_release
+        continue-on-error: true
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: v10.1.0-build-${{ github.run_number }}
+          name: Trader Planner Pro V10.1.0 — Verified Windows Build ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          generate_release_notes: false
+          prerelease: true
+          draft: true
           body: |
-            ## Trader Planner Pro V9.0.0
+            Automated Windows build for commit ${{ github.sha }}.
 
-            Trader Planner Pro V9.0.0 — integrated Trading Desk, Windows theme sync Windows Desktop Acrylic glass surface, synchronous Home navigation, persistent AI Command Center, flagship multi-agent routing, resilient no-key market feed fallbacks, and an Academy rebuilt around distinct SMC, ICT and candlestick visual semantics.
+            Verified gates:
+            - Dependency installation, Python syntax check and pytest
+            - Tk UI smoke test across 12 primary application sections, including the offline Academy
+            - Bundled education reference images where available, with local diagram fallbacks
+            - Antialiased digital, analog and wristwatch session clocks with bounded refresh timers
+            - Windows EXE creation and EXE self-test
+            - Inno Setup compiler and installer output verification
+            - Silent install, installed EXE self-test and UI section smoke test, and uninstall
 
+            This is a pre-release build for validation. The Journal Performance Agent analyses saved journal records locally. Live market feeds remain dependent on network and source availability.
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v9.0.0.exe
+            installer/TraderPlannerPro_Setup_v10.1.0.exe
+            build-manifest.txt
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish verified draft release
+        if: ${{ steps.publish_release.outcome == 'success' }}
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ steps.publish_release.outputs.id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:RELEASE_ID) { Write-Warning 'No release ID was returned; verified files remain downloadable from the workflow artifact.'; exit 0 }
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID"
+          $body = @{ draft = $false; prerelease = $true } | ConvertTo-Json
+          $release = Invoke-RestMethod -Method Patch -Uri $uri -Headers $headers -ContentType 'application/json' -Body $body
+          if ($release.draft -ne $false -or $release.prerelease -ne $true) { throw 'Release did not become a published prerelease.' }
+          Write-Host "Published release: $($release.html_url)"
