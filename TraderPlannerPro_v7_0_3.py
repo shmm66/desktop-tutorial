@@ -1636,6 +1636,12 @@ class App(tk.Tk):
         # Refresh only the clocks; a visual choice should not re-render Home or
         # restart live market requests.
         if self.cur == "home" and hasattr(self, "session_clock_container"):
+            if self.session_clock_job is not None:
+                try:
+                    self.after_cancel(self.session_clock_job)
+                except Exception:
+                    pass
+                self.session_clock_job = None
             for child in self.session_clock_container.winfo_children():
                 try:
                     child.destroy()
