@@ -139,3 +139,10 @@ def test_missing_r_values_are_reported_instead_of_hidden():
     assert result["missing_r_count"] == 1
     assert result["count"] == 1
     assert result["net_r"] == 0
+
+
+def test_news_references_open_in_system_browser_after_webview_removal():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert "def open_external_url(self, url, title=\"\"):" in app
+    assert "webbrowser.open(value, new=2)" in app
+    assert "self.open_webview(" not in app
