@@ -187,3 +187,14 @@ def test_main_window_uses_the_cached_redesigned_logo():
     assert "import tempfile" in app
     assert 'create_logo_image(Path(tempfile.gettempdir()) / "TraderPlannerPro_3D" / "logo.png", 420)' in app
     assert "tempfile_path()" not in app
+
+
+def test_settings_preserve_daily_reminder_management_and_valid_theme_save_path():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    settings = app.split("    def settings(self):", 1)[1].split("\n    def ", 1)[0]
+    assert "self.reminders_tree = ttk.Treeview" in settings
+    assert "self.add_reminder" in settings and "self.delete_reminder" in settings
+    assert "self.toggle_reminder" in settings
+    assert "self.refresh_shell_theme()" not in settings
+    for method in ("def add_reminder(", "def delete_reminder(", "def toggle_reminder("):
+        assert method in app
