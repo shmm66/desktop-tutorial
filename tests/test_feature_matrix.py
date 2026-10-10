@@ -146,3 +146,18 @@ def test_news_references_open_in_system_browser_after_webview_removal():
     assert "def open_external_url(self, url, title=\"\"):" in app
     assert "webbrowser.open(value, new=2)" in app
     assert "self.open_webview(" not in app
+
+
+def test_statement_report_generates_png_and_pdf_without_matplotlib(tmp_path):
+    from statement_report import create_statement
+    rows = [
+        {"Date": "2026-10-01", "Symbol": "BTCUSDT", "Result (R)": "2"},
+        {"Date": "2026-10-02", "Symbol": "ETHUSDT", "Result (R)": "-1"},
+        {"Date": "2026-10-03", "Symbol": "SOLUSDT", "Result (R)": "1.5"},
+    ]
+    result = create_statement(rows, "Crypto", "Regression Test", tmp_path)
+    assert result["png"].is_file() and result["png"].stat().st_size > 1000
+    assert result["pdf"].is_file() and result["pdf"].stat().st_size > 1000
+    assert result["stats"]["trades"] == 3
+    assert math.isclose(result["stats"]["net_r"], 2.5)
+    assert "matplotlib" not in read("statement_report.py").lower()
