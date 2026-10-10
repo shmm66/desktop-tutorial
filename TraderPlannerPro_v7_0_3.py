@@ -136,7 +136,7 @@ INDICATOR_LABELS = {
 
 I18N = {
     "fa": {
-        "home":"⌂  خانه","daily":"◫  برنامه روزانه","weekly":"▦  برنامه هفتگی","plan":"◈  Trading Plan","check":"✓  چک‌لیست",
+        "home":"⌂  خانه","daily":"◫  برنامه روزانه","weekly":"◎  اهداف","plan":"◈  Trading Plan","check":"✓  چک‌لیست",
         "journal":"▣  ژورنال","settings":"⚙  تنظیمات","new_profile":"＋ پروفایل جدید","edit_profile":"ویرایش پروفایل",
         "delete_profile":"حذف پروفایل","active_profile":"پروفایل فعال","initial_capital":"سرمایه اولیه",
         "dashboard":"داشبورد حرفه‌ای","dashboard_sub":"پروفایل، سرمایه، عملکرد ژورنال و وضعیت معاملاتی در یک نگاه",
@@ -1986,18 +1986,6 @@ class App(tk.Tk):
         goal["updated_at"] = datetime.now().isoformat(timespec="seconds")
         save_db(); self.show("weekly")
 
-
-    def _shift_week(self, delta):
-        self.week_offset += int(delta)
-        self.show("weekly")
-
-    def _reset_week(self):
-        self.week_offset=0
-        self.show("weekly")
-
-    def _open_week_day(self, day_key):
-        self.day=day_key
-        self.show("daily")
 
     def daily(self):
         self.heading("برنامه روزانه","قابل ویرایش، قابل تیک‌زدن و ذخیره روی همان مسیر داده قبلی")
