@@ -245,8 +245,10 @@ def main():
         try:
             from PIL import Image,ImageTk
             from logo_3d import create_logo_image
-            p=Path(tempfile.gettempdir())/"TraderPlannerPro_3D"/"app_icon.png"
-            create_logo_image(p,256)
+            # Reuse the splash's cached 420px logo and downscale it for
+            # the window icon; avoid a second logo render on cold launch.
+            p=Path(tempfile.gettempdir())/"TraderPlannerPro_3D"/"logo.png"
+            create_logo_image(p,420)
             icon=ImageTk.PhotoImage(Image.open(p).convert("RGBA").resize((64,64)))
             app.iconphoto(True,icon); app._app_icon=icon
         except Exception:
