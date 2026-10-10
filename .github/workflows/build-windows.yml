@@ -1,6 +1,6 @@
 name: CI + Windows EXE + Installer
 # Triggered build includes regression coverage for bounded Acrylic callbacks and lazy AI startup.
-# V10.0.0 production build
+# V10.1.0 native desktop redesign
 
 on:
   workflow_dispatch:
@@ -71,7 +71,7 @@ jobs:
       - name: Syntax check
         shell: powershell
         run: |
-          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','branding_assets.py','prepare_branding.py','academy_visuals.py','market_data.py','calendar_utils.py','ai_assistant.py','news_data.py','webview_runner.py','prepare_education_assets.py','glass_theme.py','academy_diagrams.py','google_oauth.py','statement_report.py','tradingview_runner.py')
+          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','build_icon.py','branding_assets.py','prepare_branding.py','market_data.py','calendar_utils.py','news_data.py','journal_agent.py','glass_theme.py','google_oauth.py','statement_report.py')
           foreach ($file in $files) { & $env:TP_PYTHON -m py_compile $file }
 
       - name: Run tests and preserve report
@@ -91,11 +91,6 @@ jobs:
         shell: powershell
         run: |
           if ([int]$env:TP_PYTEST_EXIT -ne 0) { throw "pytest failed with exit code $env:TP_PYTEST_EXIT; see pytest-report artifact" }
-
-      - name: Prepare exact education image assets
-        shell: powershell
-        run: |
-          & $env:TP_PYTHON prepare_education_assets.py
 
       - name: Run real Tk UI section smoke test
         shell: powershell
@@ -118,7 +113,7 @@ jobs:
           if ($null -eq $exitCode) {
             # Some Windows process wrappers return an empty ExitCode even after
             # WaitForExit. Accept only the explicit success marker and no traceback.
-            if ($stdout -notmatch 'UI smoke-test: 12 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
+            if ($stdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
               throw 'Tk UI smoke test did not provide a reliable success marker.'
             }
             Write-Warning 'Process exit code was unavailable; all 12 page renders reported success.'
@@ -142,7 +137,7 @@ jobs:
       - name: Build EXE
         shell: powershell
         run: >-
-          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all webview --collect-all agents --collect-all matplotlib --collect-all reportlab --hidden-import webview.platforms.edgechromium --hidden-import glass_theme --hidden-import academy_diagrams --hidden-import native_trading_desk --hidden-import tradingview_runner --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow --add-data 'education_sources;education_sources' launcher.py
+          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import glass_theme --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
 
       - name: Verify EXE
         shell: powershell
@@ -211,7 +206,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $installer = Join-Path $PWD 'installer/TraderPlannerPro_Setup_v10.0.0.exe'
+          $installer = Join-Path $PWD 'installer/TraderPlannerPro_Setup_v10.1.0.exe'
           if (-not (Test-Path $installer)) { throw "Installer not found: $installer" }
 
           $testRoot = Join-Path $env:RUNNER_TEMP 'TraderPlannerPro-CI-Test'
@@ -265,7 +260,7 @@ jobs:
         shell: powershell
         run: |
           $manifest = @()
-          $manifest += "Trader Planner Pro V10"
+          $manifest += "Trader Planner Pro V10.1.0"
           $manifest += "Commit: $env:GITHUB_SHA"
           $manifest += "Ref: $env:GITHUB_REF"
           $manifest += "Run: $env:GITHUB_RUN_ID"
@@ -277,8 +272,8 @@ jobs:
         id: publish_release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
-          tag_name: v10.0.0-build-${{ github.run_number }}
-          name: Trader Planner Pro V10 — Verified Windows Build ${{ github.run_number }}
+          tag_name: v10.1.0-build-${{ github.run_number }}
+          name: Trader Planner Pro V10.1.0 — Verified Windows Build ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           prerelease: true
           draft: true
@@ -292,7 +287,7 @@ jobs:
             - Inno Setup compiler and installer output verification
             - Silent install, installed EXE self-test and UI section smoke test, and uninstall
 
-            This is a pre-release build for validation. Market feeds and TradingView access depend on their online service availability and account entitlements.
+            This is a pre-release build for validation. The Journal Performance Agent analyses saved journal records locally. Live market feeds remain dependent on network and source availability.
           files: |
             dist/TraderPlannerPro.exe
             installer/TraderPlannerPro_Setup_v10.0.0.exe
