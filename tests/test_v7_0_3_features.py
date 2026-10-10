@@ -84,8 +84,8 @@ def test_news_service_exposes_cache_and_source_fallbacks():
 def test_main_navigation_contains_only_the_redesigned_pages():
     app = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     launcher = (ROOT / "launcher.py").read_text(encoding="utf-8")
-    assert '("home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings")' in app
-    for obsolete in ('"academy"', '"ai"', '"chart"'):
+    assert '("home","daily","weekly","plan","check","journal","insights","academy","resources","news","calculators","settings")' in app
+    for obsolete in ('"ai"', '"chart"'):
         route_list = app.split('allowed={', 1)[1].split('}', 1)[0]
         assert obsolete not in route_list
     for removed_route in ('"--tradingview"', '"--webview"'):
