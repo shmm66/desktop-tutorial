@@ -170,7 +170,7 @@ def test_goal_navigation_has_no_old_weekly_planner_labels_or_handlers():
         assert obsolete not in app
 
 
-def test_statement_pdf_accepts_unicode_profile_names():
+def test_statement_pdf_accepts_unicode_profile_names(tmp_path):
     from statement_report import create_statement
     result = create_statement(
         [{"Date": "2026-10-01", "Result (R)": "1"}],
