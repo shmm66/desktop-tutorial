@@ -1,6 +1,6 @@
 name: CI + Windows EXE + Installer
 # Triggered build includes regression coverage for bounded Acrylic callbacks and lazy AI startup.
-# V10.1.2 regression fix for local Academy and antialiased clocks
+# V10.1.4 final QA with local Trading Coach
 
 on:
   workflow_dispatch:
@@ -305,6 +305,7 @@ jobs:
             - Tk UI smoke test across 12 primary application sections, including the offline Academy
             - Bundled education reference images where available, with local diagram fallbacks
             - Antialiased digital, analog and wristwatch session clocks with bounded refresh timers
+            - Local Trading Coach with journal-grounded setup, loss, risk and psychology diagnostics
             - Windows EXE creation and EXE self-test
             - Inno Setup compiler and installer output verification
             - Silent install, installed EXE self-test and UI section smoke test, and uninstall
