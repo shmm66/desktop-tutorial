@@ -2887,6 +2887,20 @@ class App(tk.Tk):
         except (ValueError, IndexError):
             self.show("settings")
 
+    def open_path(self, path):
+        """Open a local folder or path in the operating system's file manager."""
+        target = Path(path)
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+            if sys.platform.startswith("win"):
+                os.startfile(str(target))
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(target)])
+            else:
+                subprocess.Popen(["xdg-open", str(target)])
+        except (OSError, RuntimeError) as exc:
+            messagebox.showerror(self.ui_text("خطا"), str(exc), parent=self)
+
     def open_external_url(self, url, title=""):
         """Open market-news and reference links in the system browser, not an embedded WebView."""
         value = str(url or "").strip()
