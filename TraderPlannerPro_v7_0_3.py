@@ -19,19 +19,14 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from logo_3d import create_logo_image
-from academy_content import SMART_MONEY_STRATEGIES, ICT_STRATEGIES, CANDLE_PLAYBOOK, GLOSSARY, ACADEMY_NOTE_FA, ACADEMY_NOTE_EN
-from academy_visuals import render_visual, visual_key_for, source_for_visual, strategy_visual_key, pattern_visual_key, glossary_visual_key, bundled_asset_for_visual
-from academy_diagrams import draw_setup, draw_candlestick
-from glass_theme import apply_glass, set_widget_glass
+from glass_theme import apply_glass, apply_glass_after_map, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
-from ai_assistant import AIOrchestrator
+from journal_agent import analyse_journal
 from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
-from google_oauth import google_status, login_google, logout_google, send_gmail, find_client_file
-from statement_report import create_statement
 
 APP = "Trader Planner Pro"
-VERSION = "10.0.0"
+VERSION = "10.1.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -174,10 +169,10 @@ I18N = {
         "academy":"◉  آموزش","academy_title":"مرکز آموزش","academy_sub":"اسمارت مانی، ICT، کندل‌شناسی و لغتنامه جستجوپذیر",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"جستجوی اصطلاح...",
         "all_categories":"همه دسته‌ها","definition":"تعریف","usage":"کاربرد","steps":"مراحل","invalidation":"ابطال",
-        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  AI Chat","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","chart":"📈  TradingView Pro","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","ai_open_chat":"باز کردن چت هوش مصنوعی","ai_clear":"پاک کردن گفتگو","ai_close":"بستن","ai_welcome":"سلام. من دستیار Trader Planner Pro هستم. درباره فرم‌ها، استراتژی ثبت‌شده، روانشناسی و نظم معاملاتی سؤال بپرس.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","quick_nav":"دسترسی سریع","crypto_mode":"کریپتو","forex_mode":"فارکس","academy_hub":"آکادمی","ai_chat":"گفت‌وگو با AI","nav_home":"خانه","source_chart":"نمودار منبع","setup_anatomy":"آناتومی ستاپ","family":"چارچوب","smc_family":"چارچوب SMC","ict_family":"مدل نام‌گذاری‌شده ICT","no_exact_image":"برای این اصطلاح تصویر اختصاصی منبع پیدا نشد؛ مرجع معتبر کنار آن نمایش داده می‌شود.","news_live":"اخبار زنده","news_fallback":"فید زنده در دسترس نیست؛ ترمینال منابع همچنان فعال است.","ai_quick_forms":"کمک برای پر کردن فرم","ai_quick_strategy":"توضیح این ستاپ","ai_quick_psychology":"بررسی روانشناسی","ai_quick_routine":"ساخت روتین","ai_placeholder":"سؤال خودت را از دستیار تریدر بپرس...","ai_page_note":"درباره ژورنال، چک‌لیست، پلن یا تعاریف آکادمی سؤال کن.","market_state_live":"فید زنده","market_state_cache":"نمایش آخرین Snapshot","market_state_offline":"آفلاین / بدون فید","market_switch":"تغییر بازار","skin_preview":"انتخاب پوسته","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی","avg_r":"میانگین R","profit_factor":"Profit Factor","best_trade":"بهترین معامله","worst_trade":"بدترین معامله","weekly_tasks":"عملکرد هفتگی","today_tasks":"برنامه امروز","weekly_title":"برنامه هفتگی","weekly_sub":"هفت روز معاملاتی را یکجا ببین، وضعیت اجرا را دنبال کن و با یک کلیک وارد روز موردنظر شو","week_prev":"هفته قبل","week_next":"هفته بعد","week_current":"هفته جاری","open_day":"باز کردن روز","weekly_progress":"پیشرفت هفته","google_account":"حساب Google","google_login":"ورود با Google","google_logout":"خروج از Google","google_connected":"متصل به Google","google_credentials":"فایل OAuth Google","google_pick_credentials":"انتخاب فایل credentials.json","google_no_credentials":"برای Google Login یک OAuth Desktop Client از Google Cloud انتخاب کن.","email_statement":"ارسال Statement به Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement آماده شد و در حال ارسال است.","email_statement_sent":"Statement به Gmail ارسال شد.","email_statement_error":"ارسال Statement ناموفق بود.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"ذخیره کلید AI","ai_clear_key":"پاک کردن کلید AI","ai_cloud_ready":"Cloud Agent فعال","ai_cloud_missing":"Cloud Agent نیازمند API Key است","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"ایده‌های ارتقای محصول","ai_cloud_note":"مدل محلی رایگان با Ollama همیشه قابل استفاده است؛ OpenAI Cloud برای Agent قوی‌تر به API Key نیاز دارد."
+        "education_note":"یادداشت آموزشی","calendar":"تقویم","ai":"🤖  AI Chat","news":"📰  اخبار بازار","calculators":"🧮  ماشین‌حساب‌ها","chart":"📈  TradingView Pro","insights":"◉  تحلیل ژورنال","resources":"↗  لینک‌های ثبت‌نام","theme":"پوسته","theme_help":"پوسته را انتخاب کنید و برای حالت خودکار بازه زمانی تعیین کنید.","save_theme":"ذخیره پوسته","market_indicators":"شاخص‌های بازار","retry_market":"بروزرسانی بازار","market_source":"منبع بازار","offline":"آفلاین","market_error":"اتصال مستقیم به فید بازار برقرار نشد.","fear_greed":"ترس و طمع","btc_dom":"دامیننس بیت‌کوین","usdt_dom":"دامیننس تتر","vix":"VIX / نوسان","total_mcap":"ارزش کل بازار","crypto_calc":"ماشین‌حساب کریپتو","forex_calc":"ماشین‌حساب فارکس","risk_calc":"محاسبه ریسک","news_title":"مرکز اخبار بازار","news_sub":"اخبار کریپتو و تقویم اقتصادی فارکس در یک پنجره","open_forex_factory":"باز کردن Forex Factory داخل برنامه","open_coindesk":"باز کردن CoinDesk داخل برنامه","refresh_news":"بروزرسانی اخبار","ai_title":"دستیار هوشمند تریدر","ai_sub":"کمک در فرم‌ها، استراتژی، روانشناسی و نظم روزانه","ai_role":"نقش دستیار","ai_message":"پیام شما","ai_send":"ارسال","ai_status":"وضعیت دستیار","ai_local_note":"در صورت نصب Ollama، از مدل محلی نصب‌شده استفاده می‌شود؛ در غیر این صورت راهنمای داخلی فعال است.","ai_open_chat":"باز کردن چت هوش مصنوعی","ai_clear":"پاک کردن گفتگو","ai_close":"بستن","ai_welcome":"سلام. من دستیار Trader Planner Pro هستم. درباره فرم‌ها، استراتژی ثبت‌شده، روانشناسی و نظم معاملاتی سؤال بپرس.","reminders":"یادآورها","add_reminder":"＋ یادآور جدید","reminder_title":"عنوان یادآور","reminder_time":"ساعت","reminder_daily":"روزانه","reminder_enabled":"فعال","save_reminder":"ذخیره یادآور","delete_reminder":"حذف یادآور","calc":"محاسبه","balance":"موجودی حساب","risk_pct":"ریسک (%)","entry":"ورود","stop":"حد ضرر","target":"هدف","pip_size":"اندازه پیپ","pip_value":"ارزش هر پیپ برای ۱ لات","crypto_qty":"تعداد/حجم","notional":"ارزش معامله","risk_usd":"ریسک دلاری","stop_distance":"فاصله حد ضرر","rr":"R:R","lot_size":"لات","units":"واحد","invalid_input":"ورودی عددی را بررسی کنید","home_shortcut":"Home","date_info":"تاریخ","weekday":"روز","jalali":"شمسی","hijri":"قمری","quick_nav":"دسترسی سریع","crypto_mode":"کریپتو","forex_mode":"فارکس","academy_hub":"آکادمی","ai_chat":"گفت‌وگو با AI","nav_home":"خانه","source_chart":"نمودار منبع","setup_anatomy":"آناتومی ستاپ","family":"چارچوب","smc_family":"چارچوب SMC","ict_family":"مدل نام‌گذاری‌شده ICT","no_exact_image":"برای این اصطلاح تصویر اختصاصی منبع پیدا نشد؛ مرجع معتبر کنار آن نمایش داده می‌شود.","news_live":"اخبار زنده","news_fallback":"فید زنده در دسترس نیست؛ ترمینال منابع همچنان فعال است.","ai_quick_forms":"کمک برای پر کردن فرم","ai_quick_strategy":"توضیح این ستاپ","ai_quick_psychology":"بررسی روانشناسی","ai_quick_routine":"ساخت روتین","ai_placeholder":"سؤال خودت را از دستیار تریدر بپرس...","ai_page_note":"درباره ژورنال، چک‌لیست، پلن یا تعاریف آکادمی سؤال کن.","market_state_live":"فید زنده","market_state_cache":"نمایش آخرین Snapshot","market_state_offline":"آفلاین / بدون فید","market_switch":"تغییر بازار","skin_preview":"انتخاب پوسته","language_now":"زبان فعلی","choose_language":"انتخاب زبان","apply":"اعمال","market_tape":"نوار بازار","live":"زنده","cached":"کش","market_loading":"در حال دریافت داده بازار...","market_unavailable":"داده بازار در دسترس نیست","last_update":"آخرین بروزرسانی","home_shortcut":"برای برگشت به خانه کلید Home را بزنید","original_source":"تصویر اصلی منبع — بدون تغییر","open_source":"باز کردن منبع","session_strip":"سشن‌های جهانی","market_mode":"حالت بازار","live_feed":"فید زنده بازار","updated":"بروزرسانی","avg_r":"میانگین R","profit_factor":"Profit Factor","best_trade":"بهترین معامله","worst_trade":"بدترین معامله","weekly_tasks":"عملکرد هفتگی","today_tasks":"برنامه امروز","weekly_title":"برنامه هفتگی","weekly_sub":"هفت روز معاملاتی را یکجا ببین، وضعیت اجرا را دنبال کن و با یک کلیک وارد روز موردنظر شو","week_prev":"هفته قبل","week_next":"هفته بعد","week_current":"هفته جاری","open_day":"باز کردن روز","weekly_progress":"پیشرفت هفته","google_account":"حساب Google","google_login":"ورود با Google","google_logout":"خروج از Google","google_connected":"متصل به Google","google_credentials":"فایل OAuth Google","google_pick_credentials":"انتخاب فایل credentials.json","google_no_credentials":"برای Google Login یک OAuth Desktop Client از Google Cloud انتخاب کن.","email_statement":"ارسال Statement به Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement آماده شد و در حال ارسال است.","email_statement_sent":"Statement به Gmail ارسال شد.","email_statement_error":"ارسال Statement ناموفق بود.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"ذخیره کلید AI","ai_clear_key":"پاک کردن کلید AI","ai_cloud_ready":"Cloud Agent فعال","ai_cloud_missing":"Cloud Agent نیازمند API Key است","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"ایده‌های ارتقای محصول","ai_cloud_note":"مدل محلی رایگان با Ollama همیشه قابل استفاده است؛ OpenAI Cloud برای Agent قوی‌تر به API Key نیاز دارد."
     },
     "en": {
-        "home":"⌂  Home","daily":"◫  Daily Planner","weekly":"▦  Weekly Planner","plan":"◈  Trading Plan","check":"✓  Checklist",
+        "home":"⌂  Home","daily":"◫  Daily Planner","weekly":"◎  Goals","plan":"◈  Trading Plan","check":"✓  Checklist",
         "journal":"▣  Journal","settings":"⚙  Settings","new_profile":"＋ New Profile","edit_profile":"Edit Profile",
         "delete_profile":"Delete Profile","active_profile":"Active Profile","initial_capital":"Initial Capital",
         "dashboard":"Professional Dashboard","dashboard_sub":"Profile, capital, journal performance and trading status at a glance",
@@ -209,7 +204,7 @@ I18N = {
         "academy":"◉  Academy","academy_title":"Training Center","academy_sub":"Smart Money, ICT, candlestick reading and searchable glossary",
         "smc":"Smart Money","ict":"ICT","candles":"Candlestick","glossary":"Glossary","search_term":"Search a term...",
         "all_categories":"All Categories","definition":"Definition","usage":"Usage","steps":"Steps","invalidation":"Invalidation",
-        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Chat","news":"📰  Market News","calculators":"🧮  Calculators","chart":"📈  TradingView Pro","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","ai_open_chat":"Open AI Chat","ai_clear":"Clear Chat","ai_close":"Close","ai_welcome":"Hi. I am the Trader Planner Pro assistant. Ask about forms, documented strategies, psychology or your trading routine.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","quick_nav":"Quick Nav","crypto_mode":"Crypto","forex_mode":"Forex","academy_hub":"Academy Hub","ai_chat":"Chat with AI","nav_home":"Home","source_chart":"Source chart","setup_anatomy":"Setup Anatomy","family":"Framework","smc_family":"SMC-style framework","ict_family":"ICT named model","no_exact_image":"No dedicated source image is mapped for this term; the source reference is shown instead.","news_live":"LIVE NEWS","news_fallback":"Live feed unavailable — source terminals remain available.","ai_quick_forms":"Help fill my form","ai_quick_strategy":"Explain this setup","ai_quick_psychology":"Psychology check","ai_quick_routine":"Build my routine","ai_placeholder":"Ask your trading assistant...","ai_page_note":"Ask about your journal, checklist, plan or Academy definitions.","market_state_live":"LIVE FEED","market_state_cache":"CACHED SNAPSHOT","market_state_offline":"OFFLINE / NO FEED","market_switch":"Switch market","skin_preview":"Choose a visual skin","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated","avg_r":"Average R","profit_factor":"Profit Factor","best_trade":"Best Trade","worst_trade":"Worst Trade","weekly_tasks":"Weekly Progress","today_tasks":"Today Plan","weekly_title":"Weekly Planner","weekly_sub":"See all seven days, track execution and jump into any day instantly","week_prev":"Previous Week","week_next":"Next Week","week_current":"Current Week","open_day":"Open Day","weekly_progress":"Weekly Progress","google_account":"Google Account","google_login":"Continue with Google","google_logout":"Sign out","google_connected":"Google connected","google_credentials":"Google OAuth credentials","google_pick_credentials":"Choose credentials.json","google_no_credentials":"Choose a Google Cloud OAuth Desktop client to enable Google Login.","email_statement":"Send Statement to Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement is ready and will be sent.","email_statement_sent":"Statement sent to Gmail.","email_statement_error":"Statement delivery failed.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"Save AI Key","ai_clear_key":"Clear AI Key","ai_cloud_ready":"Cloud Agent ready","ai_cloud_missing":"Cloud Agent needs an API key","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"Product upgrade ideas","ai_cloud_note":"Local Ollama remains available without cloud cost; the stronger OpenAI Cloud Agent requires an API key."
+        "education_note":"Training note","calendar":"Calendar","ai":"🤖  AI Chat","news":"📰  Market News","calculators":"🧮  Calculators","chart":"📈  TradingView Pro","insights":"◉  Journal Agent","resources":"↗  Registration Links","theme":"Theme","theme_help":"Choose a theme and set the light-mode interval for automatic mode.","save_theme":"Save Theme","market_indicators":"Market Indicators","retry_market":"Refresh Market","market_source":"Market Source","offline":"OFFLINE","market_error":"Direct market feed is unavailable.","fear_greed":"Fear & Greed","btc_dom":"BTC Dominance","usdt_dom":"USDT Dominance","vix":"VIX / Volatility","total_mcap":"Total Market Cap","crypto_calc":"Crypto Calculator","forex_calc":"Forex Calculator","risk_calc":"Risk Calculator","news_title":"Market News Center","news_sub":"Crypto news and the Forex economic calendar in one window","open_forex_factory":"Open Forex Factory in App","open_coindesk":"Open CoinDesk in App","refresh_news":"Refresh News","ai_title":"Trader AI Assistant","ai_sub":"Help with forms, strategies, psychology and daily discipline","ai_role":"Assistant Role","ai_message":"Your message","ai_send":"Send","ai_status":"Assistant Status","ai_local_note":"When Ollama is installed, the assistant uses an installed local model; otherwise built-in guidance stays available.","ai_open_chat":"Open AI Chat","ai_clear":"Clear Chat","ai_close":"Close","ai_welcome":"Hi. I am the Trader Planner Pro assistant. Ask about forms, documented strategies, psychology or your trading routine.","reminders":"Reminders","add_reminder":"＋ New Reminder","reminder_title":"Reminder Title","reminder_time":"Time","reminder_daily":"Daily","reminder_enabled":"Enabled","save_reminder":"Save Reminder","delete_reminder":"Delete Reminder","calc":"Calculate","balance":"Account Balance","risk_pct":"Risk (%)","entry":"Entry","stop":"Stop Loss","target":"Target","pip_size":"Pip Size","pip_value":"Pip Value per 1 Lot","crypto_qty":"Quantity / Size","notional":"Position Notional","risk_usd":"Risk $","stop_distance":"Stop Distance","rr":"R:R","lot_size":"Lot Size","units":"Units","invalid_input":"Check numeric inputs","home_shortcut":"Home","date_info":"Date","weekday":"Weekday","jalali":"Jalali","hijri":"Hijri","quick_nav":"Quick Nav","crypto_mode":"Crypto","forex_mode":"Forex","academy_hub":"Academy Hub","ai_chat":"Chat with AI","nav_home":"Home","source_chart":"Source chart","setup_anatomy":"Setup Anatomy","family":"Framework","smc_family":"SMC-style framework","ict_family":"ICT named model","no_exact_image":"No dedicated source image is mapped for this term; the source reference is shown instead.","news_live":"LIVE NEWS","news_fallback":"Live feed unavailable — source terminals remain available.","ai_quick_forms":"Help fill my form","ai_quick_strategy":"Explain this setup","ai_quick_psychology":"Psychology check","ai_quick_routine":"Build my routine","ai_placeholder":"Ask your trading assistant...","ai_page_note":"Ask about your journal, checklist, plan or Academy definitions.","market_state_live":"LIVE FEED","market_state_cache":"CACHED SNAPSHOT","market_state_offline":"OFFLINE / NO FEED","market_switch":"Switch market","skin_preview":"Choose a visual skin","language_now":"Current language","choose_language":"Choose language","apply":"Apply","market_tape":"MARKET TAPE","live":"LIVE","cached":"CACHED","market_loading":"Loading market data...","market_unavailable":"Market data unavailable","last_update":"Last update","home_shortcut":"Press Home anytime to return to Home","original_source":"Original source image — unmodified","open_source":"Open source page","session_strip":"GLOBAL SESSIONS","market_mode":"MARKET MODE","live_feed":"Live market feed","updated":"Updated","avg_r":"Average R","profit_factor":"Profit Factor","best_trade":"Best Trade","worst_trade":"Worst Trade","weekly_tasks":"Weekly Progress","today_tasks":"Today Plan","weekly_title":"Weekly Planner","weekly_sub":"See all seven days, track execution and jump into any day instantly","week_prev":"Previous Week","week_next":"Next Week","week_current":"Current Week","open_day":"Open Day","weekly_progress":"Weekly Progress","google_account":"Google Account","google_login":"Continue with Google","google_logout":"Sign out","google_connected":"Google connected","google_credentials":"Google OAuth credentials","google_pick_credentials":"Choose credentials.json","google_no_credentials":"Choose a Google Cloud OAuth Desktop client to enable Google Login.","email_statement":"Send Statement to Gmail","email_statement_subject":"Trading Statement","email_statement_ready":"Statement is ready and will be sent.","email_statement_sent":"Statement sent to Gmail.","email_statement_error":"Statement delivery failed.","ai_cloud":"OpenAI Cloud Agent","ai_cloud_key":"OpenAI API Key","ai_save_key":"Save AI Key","ai_clear_key":"Clear AI Key","ai_cloud_ready":"Cloud Agent ready","ai_cloud_missing":"Cloud Agent needs an API key","ai_agent_product":"Product Strategist","ai_agent_academy":"Academy Tutor","ai_agent_roles":"Multi-Agent Roles","ai_provider":"AI Provider","agent_upgrade_ideas":"Product upgrade ideas","ai_cloud_note":"Local Ollama remains available without cloud cost; the stronger OpenAI Cloud Agent requires an API key."
     }
 }
 
@@ -560,8 +555,6 @@ class App(tk.Tk):
         self.market_data_payload = cached_market_payload(self.market)
         self.ticker_offset = 0
         self.ticker_job = None
-        self.ai = AIOrchestrator()
-        self.ai_history = []
         self.news_items = []
         self._news_token = 0
         self._news_timeout_job = None
@@ -572,13 +565,9 @@ class App(tk.Tk):
         self.skin = DB.get("settings", {}).get("skin", "glass")
         self.clock_style = DB.get("settings", {}).get("clock_style", "digital")
         if self.clock_style not in {"digital", "classic", "wrist"}: self.clock_style = "digital"
-        self._academy_photo_cache = {}
         self.glass_opacity = float(DB.get("settings", {}).get("glass_opacity", 0.94) or 0.94)
         self.glass_opacity = max(0.86, min(self.glass_opacity, 0.995))
         if self.skin not in SKINS: self.skin = "glass"
-        self.ai_chat_window = None
-        self.ai_chat_text = None
-        self.ai_chat_input = None
         self._nav_job = None
         self._nav_token = 0
         self.quickbar = None
@@ -587,7 +576,7 @@ class App(tk.Tk):
         self.style.configure("Treeview", background=C["panel"], fieldbackground=C["panel"], foreground=C["text"],
                              rowheight=38, borderwidth=0, font=("Segoe UI", 10))
         self.style.map("Treeview", background=[("selected", C["soft"])], foreground=[("selected", C["text"])])
-        self.style.configure("TCombobox", fieldbackground=C["panel3"], background=C["panel3"], foreground=C["accent"], arrowcolor=C["accent"], padding=6)
+        self.style.configure("TCombobox", fieldbackground=C["panel3"], background=C["panel2"], foreground=C["accent"], arrowcolor=C["accent"], padding=7, selectbackground=C["accent"], selectforeground="#061019")
         self.style.map("TCombobox",
                        fieldbackground=[("readonly", C["panel3"]), ("focus", C["soft"]), ("disabled", C["panel"])],
                        foreground=[("readonly", C["accent"]), ("focus", C["text"]), ("disabled", C["muted"])],
@@ -596,11 +585,11 @@ class App(tk.Tk):
         self.apply_theme(initial=True)
         self.protocol("WM_DELETE_WINDOW", self.close_app)
         self.bind_all("<Escape>", lambda e: self._escape_ui())
-        self.bind("<Motion>", self._shell_motion, add="+")
+        self.bind_all("<Motion>", self._shell_motion, add="+")
         self.build_shell()
         self.apply_language()
         self.update_idletasks()
-        apply_glass(self, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
+        apply_glass_after_map(self, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
         # Let Windows paint the shell before the first dashboard render.
         self._finish_startup_job = self.after(80, self._finish_startup)
 
@@ -715,29 +704,25 @@ class App(tk.Tk):
         return "break"
 
     def close_app(self):
+        """Stop recurring work and close the Tk root without callback chains."""
         try:
-            if self.market_data:
+            if getattr(self, "market_data", None):
                 self.market_data.stop()
         except Exception:
             pass
-        for job_name in ("session_clock_job", "ticker_job", "menu_hide_job", "theme_auto_job", "reminder_job", "market_timeout_job", "_nav_job"):
+        self._cancel_navigation_jobs()
+        for job_name in ("theme_auto_job", "reminder_job"):
             job = getattr(self, job_name, None)
             if job:
-                try: self.after_cancel(job)
-                except Exception: pass
+                try:
+                    self.after_cancel(job)
+                except Exception:
+                    pass
+                setattr(self, job_name, None)
         try:
-            win=getattr(self, "ai_chat_window", None)
-            if win is not None and win.winfo_exists():
-                win.destroy()
-        except Exception:
+            self.destroy()
+        except tk.TclError:
             pass
-        try:
-            proc=getattr(self, "tradingview_process", None)
-            if proc is not None and proc.poll() is None:
-                proc.terminate()
-        except Exception:
-            pass
-        self.destroy()
 
     def _parse_hhmm(self, value, fallback="08:00"):
         try:
@@ -852,7 +837,7 @@ class App(tk.Tk):
                 button.configure(bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"])
             except Exception:
                 pass
-        for widget_name in ("menu_button", "market_btn", "global_home_btn", "global_ai_btn"):
+        for widget_name in ("menu_button", "market_btn", "profile_manage_btn", "global_home_btn"):
             widget = getattr(self, widget_name, None)
             if widget:
                 try:
@@ -1025,9 +1010,14 @@ class App(tk.Tk):
         self.date_label.pack(side="left", padx=3)
         self.clock_label = tk.Label(status, bg=C["panel3"], fg=C["cyan"], font=("Consolas", 11, "bold"),
                                      padx=10, pady=6); self.clock_label.pack(side="left", padx=3)
-        self.profile_combo = ttk.Combobox(status, state="readonly", width=18, justify="right")
+        self.profile_combo = ttk.Combobox(status, state="readonly", width=22, justify="right")
         self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
         self.profile_combo.pack(side="left", padx=5)
+        self.profile_manage_btn = tk.Button(status, text="👤", command=lambda: self.show("settings"),
+                                            bg=C["panel2"], fg=C["accent"], activebackground=C["accent"],
+                                            activeforeground="#061019", relief="flat", font=("Segoe UI Symbol", 10, "bold"),
+                                            padx=8, pady=5, cursor="hand2")
+        self.profile_manage_btn.pack(side="left", padx=2)
         self.market_btn = tk.Button(status, text=self.market, command=self.change_market, bg=C["soft"], fg=C["text"],
                                     activebackground=C["gold"], relief="flat", highlightthickness=0,
                                     font=("Segoe UI", 9, "bold"), padx=12, pady=6, cursor="hand2")
@@ -1048,8 +1038,8 @@ class App(tk.Tk):
         tk.Label(self.menu, text="FAST NAVIGATION • AUTO HIDE", bg=C["panel"], fg=C["muted"],
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
-        for key in ("home","daily","weekly","plan","check","journal","academy","ai","news","calculators","chart","settings"):
-            cmd = self.go_ai if key == "ai" else (lambda k=key: self.go(k))
+        for key in ("home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings"):
+            cmd = lambda k=key: self.go(k)
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
                           relief="flat", highlightthickness=0, font=("Segoe UI", 10, "bold"),
@@ -1061,14 +1051,21 @@ class App(tk.Tk):
 
 
     def _shell_motion(self, event):
-        if self.menu_open:
+        """Hide the hamburger menu only after the pointer truly leaves it."""
+        if not self.menu_open:
+            return
+        try:
             x, y = event.x_root, event.y_root
             mx, my = self.menu.winfo_rootx(), self.menu.winfo_rooty()
-            inside = mx <= x <= mx + self.menu.winfo_width() + 12 and my <= y <= my + self.menu.winfo_height()
-            if inside:
+            inside_menu = mx <= x <= mx + self.menu.winfo_width() and my <= y <= my + self.menu.winfo_height()
+            bx, by = self.menu_button.winfo_rootx(), self.menu_button.winfo_rooty()
+            inside_button = bx <= x <= bx + self.menu_button.winfo_width() and by <= y <= by + self.menu_button.winfo_height()
+            if inside_menu or inside_button:
                 self._cancel_menu_hide()
             else:
-                self._schedule_menu_hide(900)
+                self._schedule_menu_hide(650)
+        except Exception:
+            self._schedule_menu_hide(900)
 
     def _escape_ui(self):
         if self.menu_open:
@@ -1094,11 +1091,13 @@ class App(tk.Tk):
             self.menu_open = False
 
     def refresh_profile_selector(self):
-        names = [p.get("name", "Profile") for p in DB["profiles"]]
-        self.profile_combo["values"] = names
+        labels = [f"{p.get('name', 'Profile')}  ·  {p.get('market', 'Crypto')}" for p in DB["profiles"]]
+        self._profile_labels = labels
+        self.profile_combo["values"] = labels
         p = active_profile()
-        try: self.profile_combo.current(names.index(p["name"]))
-        except ValueError: self.profile_combo.current(0)
+        try: self.profile_combo.current(DB["profiles"].index(p))
+        except (ValueError, tk.TclError):
+            if labels: self.profile_combo.current(0)
 
     def on_profile_change(self, _=None):
         idx = self.profile_combo.current()
@@ -1119,9 +1118,6 @@ class App(tk.Tk):
             self.menu_open = True
             self._schedule_menu_hide(1800)
 
-    def go_ai(self):
-        return self.go("ai")
-
     def go(self, key):
         self._cancel_menu_hide()
         if self.menu_open:
@@ -1130,7 +1126,7 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        allowed={"home","daily","weekly","plan","check","journal","academy","ai","news","calculators","chart","settings"}
+        allowed={"home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings"}
         if key not in allowed:
             key="home"
         self._cancel_menu_hide()
@@ -1159,9 +1155,7 @@ class App(tk.Tk):
             try: widget.destroy()
             except Exception: pass
         try:
-            # The AI service is stored at self.ai; route its page explicitly
-            # to avoid calling that service object as if it were a page method.
-            renderer = self.ai_page if key == "ai" else getattr(self, key)
+            renderer = getattr(self, key)
             renderer()
             self.translate_widget_tree(self.content)
             self.content.update_idletasks()
@@ -1213,24 +1207,21 @@ class App(tk.Tk):
 
     def heading(self, title, sub=""):
         title = self.ui_text(title); sub = self.ui_text(sub)
-        band = tk.Frame(self.content, bg=C["bg"]); band.pack(fill="x", pady=(7,4))
-        accent = tk.Frame(band, bg=C["accent"], width=4, height=44); accent.pack(side="right", padx=(9,0), pady=2)
-        texts = tk.Frame(band, bg=C["bg"]); texts.pack(side="right", fill="x", expand=True)
-        tk.Label(texts, text=title, bg=C["bg"], fg=C["text"], font=("Segoe UI", 20, "bold")).pack(anchor="e")
+        band = tk.Frame(self.content, bg=C["bg"])
+        band.pack(fill="x", pady=(7, 4))
+        accent = tk.Frame(band, bg=C["accent"], width=4, height=44)
+        accent.pack(side="right", padx=(9, 0), pady=2)
+        texts = tk.Frame(band, bg=C["bg"])
+        texts.pack(side="right", fill="x", expand=True)
+        tk.Label(texts, text=title, bg=C["bg"], fg=C["text"],
+                 font=("Segoe UI", 20, "bold")).pack(anchor="e")
         if sub:
-            tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9)).pack(anchor="e", pady=(2,0))
-        left_tools = tk.Frame(band, bg=C["bg"]); left_tools.pack(side="left", padx=2)
-        home_btn = tk.Button(left_tools, text=self.tr("home"), command=self.go_home,
-                             bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
-                             relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
-        home_btn.pack(side="left", padx=(0,5))
+            tk.Label(texts, text=sub, bg=C["bg"], fg=C["muted"],
+                     font=("Segoe UI", 9)).pack(anchor="e", pady=(2, 0))
         if self.cur != "home":
-            ai_btn = tk.Button(left_tools, text="AI Command Center", command=self.go_ai,
-                               bg=C["panel2"], fg=C["text"], activebackground=C["accent"], activeforeground="#061019",
-                               relief="flat", font=("Segoe UI", 8, "bold"), padx=10, pady=6, cursor="hand2")
-            ai_btn.pack(side="left", padx=(0,5))
-        tk.Label(left_tools, text="HOME", bg=C["panel3"], fg=C["muted"],
-                 font=("Consolas", 7, "bold"), padx=6, pady=5).pack(side="left")
+            left_tools = tk.Frame(band, bg=C["bg"])
+            left_tools.pack(side="left", padx=2)
+            self.btn(left_tools, self.tr("home"), self.go_home).pack(side="left", padx=(0, 5))
 
     def _save_glass_opacity(self, var):
         try:
@@ -1256,7 +1247,7 @@ class App(tk.Tk):
         dlg.configure(bg=C["bg"])
         dlg.transient(self)
         try:
-            apply_glass(dlg, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
+            apply_glass_after_map(dlg, dark=self._effective_theme()=="dark", style="acrylic", opacity=self.glass_opacity)
         except Exception:
             pass
         return dlg
@@ -1385,7 +1376,7 @@ class App(tk.Tk):
             ("TODAY TASKS", f"{sum(1 for x in today_tasks if x.get('done'))}/{len(today_tasks)}", C["accent"]),
             ("WEEK EXECUTION", f"{week_done}/{week_total}", C["gold"]),
             ("WEEK NET R", f"{week_net_r:+.2f} R", C["violet"]),
-            ("AI AGENT", "CLOUD" if self.ai.status().get("cloud") else "LOCAL / FALLBACK", C["blue"]),
+            ("JOURNAL AGENT", "LOCAL • READY", C["blue"]),
         ]
         for title,value,color in snap_specs:
             c=tk.Frame(cells,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
@@ -2053,6 +2044,7 @@ class App(tk.Tk):
         self.btn(bar,"خروجی CSV",self.export_journal).pack(side="left",padx=3)
         self.btn(bar,self.tr("email_statement"),self.email_statement,True).pack(side="left",padx=3)
         self.btn(bar,"باز کردن پوشه تصاویر",lambda:self.open_path(SCREENSHOTS / safe(p["id"]))).pack(side="left",padx=3)
+        self.btn(bar, "تحلیل‌گر ژورنال" if self.language == "fa" else "Journal Agent", lambda: self.show("insights"), True).pack(side="left", padx=3)
         metrics=self._trade_metrics(rows)
         summary=tk.Frame(self.content,bg=C["bg"]); summary.pack(fill="x",pady=(4,5))
         pf="∞" if math.isinf(metrics["profit_factor"]) else f"{metrics['profit_factor']:.2f}"
@@ -2351,222 +2343,6 @@ class App(tk.Tk):
         self.btn(footer,self.tr("save"),submit,True).pack(side="right",padx=4)
         self.translate_widget_tree(dlg)
 
-    def open_ai_chat(self):
-        """Persistent AI Command Center available globally without leaving the current page."""
-        try:
-            if self.ai_chat_window is not None and self.ai_chat_window.winfo_exists():
-                self.ai_chat_window.deiconify()
-                self.ai_chat_window.lift()
-                self.ai_chat_window.focus_force()
-                if self.ai_chat_input is not None and self.ai_chat_input.winfo_exists():
-                    self.ai_chat_input.focus_set()
-                return "break"
-        except Exception:
-            pass
-
-        win = self._glass_toplevel(f"{APP} • AI Command Center","980x760",(820,620))
-        self.ai_chat_window = win
-
-        header=tk.Frame(win,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        header.pack(fill="x",padx=14,pady=(14,8),ipady=8)
-        tk.Label(header,text="AI COMMAND CENTER",bg=C["panel"],fg=C["accent"],
-                 font=("Segoe UI",15,"bold")).pack(side="right",padx=14)
-        tk.Label(header,text=self.tr("ai_sub"),bg=C["panel"],fg=C["muted"],
-                 font=("Segoe UI",9)).pack(side="right",padx=8)
-
-        state=self.ai.status()
-        model_text=state.get("model", self.ai.model)
-        state_text=("LIVE CLOUD AGENT" if state.get("cloud") else
-                    "LOCAL OLLAMA" if state.get("ollama") else "OFFLINE ASSISTANT")
-        state_fg=C["accent"] if state.get("cloud") else C["cyan"] if state.get("ollama") else C["gold"]
-        tk.Label(header,text=f"{state_text} • {model_text}",bg=C["panel3"],fg=state_fg,
-                 font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left",padx=10)
-
-        tools_row=tk.Frame(win,bg=C["bg"]); tools_row.pack(fill="x",padx=14,pady=(0,7))
-        role_var=tk.StringVar(value="Master Agent")
-        role_labels={
-            "Master Agent":"orchestrator","Form Coach":"form","Strategy Coach":"strategy",
-            "Psychology Coach":"psychology","Routine Coach":"planner",
-            "Academy Tutor":"academy","Product Strategist":"product"
-        }
-        role_combo=ttk.Combobox(tools_row,textvariable=role_var,state="readonly",
-                               values=list(role_labels.keys()),width=22,justify="right")
-        role_combo.pack(side="right",padx=4)
-        tk.Label(tools_row,text=self.tr("ai_role"),bg=C["bg"],fg=C["muted"],
-                 font=("Segoe UI",9,"bold")).pack(side="right",padx=4)
-
-        self.btn(tools_row,"WEB AI",
-                 lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • Web AI")).pack(side="left",padx=3)
-        for _name,_url in [("GEMINI","https://gemini.google.com/"),("CLAUDE","https://claude.ai/"),("COPILOT","https://copilot.microsoft.com/"),("PERPLEXITY","https://www.perplexity.ai/")]:
-            self.btn(tools_row,_name,lambda u=_url,n=_name:self.open_webview(u,"Trader Planner Pro • "+n)).pack(side="left",padx=3)
-        self.btn(tools_row,"OPENAI KEY",lambda:self.show("settings")).pack(side="left",padx=3)
-        self.btn(tools_row,"CLEAR",self._clear_float_ai_chat).pack(side="left",padx=3)
-
-        quick=tk.Frame(win,bg=C["bg"]); quick.pack(fill="x",padx=14,pady=(0,6))
-        quick_specs=[
-            ("FORM","Help me fill today's Trading Plan and Checklist from my current journal."),
-            ("STRATEGY","Explain the selected strategy as context, setup, trigger, invalidation and target."),
-            ("PSYCHOLOGY","Run a two-minute pre-trade discipline check for FOMO and revenge trading."),
-            ("PRODUCT","Act as the product strategist and suggest three concrete UX improvements for Trader Planner Pro."),
-        ]
-
-        shell=self.card(win); shell.pack(fill="both",expand=True,padx=14,pady=(0,7))
-        chat=tk.Text(shell,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
-                     wrap="word",relief="flat",font=("Segoe UI",11),padx=16,pady=14)
-        chat.pack(fill="both",expand=True,padx=7,pady=7)
-        chat.insert("1.0",self.tr("ai_welcome")+"\n\n")
-        chat.configure(state="disabled")
-
-        input_row=tk.Frame(win,bg=C["bg"]); input_row.pack(fill="x",padx=14,pady=(0,10))
-        input_box=tk.Entry(input_row,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
-                           relief="flat",font=("Segoe UI",12),justify="right")
-        input_box.pack(side="right",fill="x",expand=True,padx=5,ipady=11)
-        self.btn(input_row,"SEND",
-                 lambda:self._send_float_ai(None,role_var,role_labels,chat,input_box),
-                 True).pack(side="left",padx=5)
-        input_box.bind("<Return>",lambda e:self._send_float_ai(None,role_var,role_labels,chat,input_box))
-
-        # Build quick prompts after chat exists so callbacks capture valid widgets.
-        for label,prompt_text in quick_specs:
-            self.btn(quick,label,
-                     lambda p=prompt_text:self._send_float_ai(p,role_var,role_labels,chat,input_box)).pack(side="left",padx=3)
-
-        self.ai_chat_text=chat
-        self.ai_chat_input=input_box
-        self._float_role_var=role_var
-        win.protocol("WM_DELETE_WINDOW",lambda:self._close_float_ai(win))
-        input_box.focus_set()
-        return "break"
-
-    def _send_float_ai(self,message,role_var,role_labels,chat,input_box):
-        msg=(message if message is not None else input_box.get()).strip()
-        if not msg:
-            return
-        if input_box.winfo_exists():
-            input_box.delete(0,"end")
-        try:
-            chat.configure(state="normal")
-            chat.insert("end",f"You: {msg}\n\n")
-            wait_start=chat.index("end-1c")
-            chat.insert("end","Assistant: …\n\n")
-            chat.configure(state="disabled")
-            chat.see("end")
-        except Exception:
-            return
-        role=role_labels.get(role_var.get(),"orchestrator")
-        context=self._ai_context()
-        self.ai.respond(role,msg,context,
-            lambda answer:self.after(0,lambda:self._replace_float_ai_wait(chat,wait_start,answer)))
-
-    def _replace_float_ai_wait(self,chat,start,answer):
-        try:
-            chat.configure(state="normal")
-            end=chat.index(f"{start} lineend + 1c")
-            chat.delete(start,end)
-            chat.insert(start,f"Assistant: {answer}\n\n")
-            chat.configure(state="disabled")
-            chat.see("end")
-        except Exception:
-            try:
-                chat.configure(state="normal")
-                chat.insert("end",f"Assistant: {answer}\n\n")
-                chat.configure(state="disabled")
-            except Exception:
-                pass
-
-    def _clear_float_ai_chat(self):
-        chat=self.ai_chat_text
-        if chat is None or not chat.winfo_exists():
-            return
-        try:
-            chat.configure(state="normal")
-            chat.delete("1.0","end")
-            chat.insert("1.0",self.tr("ai_welcome")+"\n\n")
-            chat.configure(state="disabled")
-        except Exception:
-            pass
-
-    def _close_float_ai(self,win):
-        try:
-            if win.winfo_exists():
-                win.destroy()
-        finally:
-            self.ai_chat_window=None
-            self.ai_chat_text=None
-            self.ai_chat_input=None
-
-    def _ai_context(self):
-        p=active_profile()
-        recent=p.get("journals",{}).get(self.market,[])
-        checklist=p.get("checklist",[])
-        return (
-            f"Current page: {self.cur}\n"
-            f"Market: {self.market}\n"
-            f"Profile: {p.get('name','')}\n"
-            f"Trading plan: {json.dumps(p.get('plan_draft',{}),ensure_ascii=False)}\n"
-            f"Recent trades: {json.dumps(recent[-5:],ensure_ascii=False)}\n"
-            f"Checklist completed: {sum(1 for x in checklist if x.get('done'))}/{len(checklist)}\n"
-            f"Market payload: {json.dumps(self.market_data_payload,ensure_ascii=False)}"
-        )
-
-    def _append_ai(self,speaker,text):
-        if not self.ai_chat_text: return
-        try:
-            self.ai_chat_text.configure(state="normal")
-            self.ai_chat_text.insert("end",f"{speaker}: {text}\n\n")
-            self.ai_chat_text.configure(state="disabled")
-            self.ai_chat_text.see("end")
-        except Exception:
-            pass
-
-    def _replace_ai_waiting(self,answer):
-        if not self.ai_chat_text: return
-        try:
-            self.ai_chat_text.configure(state="normal")
-            current=self.ai_chat_text.get("1.0","end-1c")
-            pos=current.rfind("Assistant: …")
-            if pos>=0:
-                self.ai_chat_text.delete(f"1.0+{pos}c",f"1.0+{pos+13}c")
-                self.ai_chat_text.insert(f"1.0+{pos}c",f"Assistant: {answer}")
-            else:
-                self.ai_chat_text.insert("end",f"Assistant: {answer}\n")
-            self.ai_chat_text.configure(state="disabled")
-            self.ai_chat_text.see("end")
-        except Exception:
-            self._append_ai("Assistant",str(answer))
-
-    def _clear_ai_chat(self):
-        if self.ai_chat_text:
-            try:
-                self.ai_chat_text.configure(state="normal")
-                self.ai_chat_text.delete("1.0","end")
-                self.ai_chat_text.insert("1.0",self.tr("ai_welcome")+"\n\n")
-                self.ai_chat_text.configure(state="disabled")
-            except Exception:
-                pass
-
-    def _save_ai_key(self, api_key):
-        try:
-            from ai_assistant import save_openai_key
-            save_openai_key(api_key)
-            messagebox.showinfo(self.tr("ai_cloud"), self.tr("ai_cloud_ready"), parent=self)
-            self.show("settings")
-        except Exception as exc:
-            messagebox.showerror(self.tr("ai_cloud"), str(exc), parent=self)
-
-    def _clear_ai_key(self):
-        try:
-            from ai_assistant import clear_openai_key
-            clear_openai_key()
-            messagebox.showinfo(self.tr("ai_cloud"), self.tr("ai_cloud_missing"), parent=self)
-            self.show("settings")
-        except Exception as exc:
-            messagebox.showerror(self.tr("ai_cloud"), str(exc), parent=self)
-
-    def _open_product_agent_from_settings(self):
-        self.show("ai")
-        self.after(120, lambda: self.open_ai_chat())
-
     def _pick_google_credentials(self, status_label=None):
         path = filedialog.askopenfilename(
             parent=self,
@@ -2651,122 +2427,290 @@ class App(tk.Tk):
         except Exception:
             pass
 
-    def open_webview(self, url, title="Trader Planner Pro"):
-        try:
-            if getattr(sys, "frozen", False):
-                cmd = [sys.executable, "--webview", url, title]
-            else:
-                launcher = Path(__file__).with_name("launcher.py")
-                cmd = [sys.executable, str(launcher), "--webview", url, title]
-            creationflags = 0x08000000 if sys.platform.startswith("win") else 0
-            subprocess.Popen(cmd, creationflags=creationflags)
-        except Exception:
-            webbrowser.open(url)
+    def insights(self):
+        """Local journal analyst: deterministic metrics and visual behavior review."""
+        tx = lambda fa, en: fa if self.language == "fa" else en
+        profile = active_profile()
+        market = profile.get("market", "Crypto")
+        rows = profile.get("journals", {}).get(market, [])
+        report = analyse_journal(rows)
+        subtitle = tx("پروفایل", "Profile") + f": {profile.get('name', 'Profile')}  •  {market}  •  " + str(report["count"]) + " " + tx("معامله", "trades")
+        self.heading(tx("تحلیل‌گر ژورنال", "Journal Performance Agent"), subtitle)
 
-    def open_tradingview(self, symbol=None, interval="1H"):
-        """Launch the official TradingView Advanced Chart inside the desktop workflow."""
-        market = self.market if self.market in ("Crypto", "Forex") else "Crypto"
-        if symbol is None:
-            symbol = "BINANCE:BTCUSDT" if market == "Crypto" else "OANDA:XAUUSD"
-        try:
-            if getattr(sys, "frozen", False):
-                cmd = [sys.executable, "--tradingview", symbol, interval,
-                       getattr(self, "language", "en"), self._effective_theme(), market]
-            else:
-                launcher = Path(__file__).with_name("launcher.py")
-                cmd = [sys.executable, str(launcher), "--tradingview", symbol, interval,
-                       getattr(self, "language", "en"), self._effective_theme(), market]
-            creationflags = 0x08000000 if sys.platform.startswith("win") else 0
-            self.tradingview_process = subprocess.Popen(cmd, creationflags=creationflags)
-        except Exception as exc:
-            messagebox.showerror(self.tr("chart"), f"TradingView window could not start:\n{exc}", parent=self)
+        toolbar = tk.Frame(self.content, bg=C["bg"])
+        toolbar.pack(fill="x", pady=(1, 6))
+        self.btn(toolbar, tx("بازگشت به ژورنال", "Back to Journal"), lambda: self.show("journal")).pack(side="right", padx=3)
+        self.btn(toolbar, tx("به‌روزرسانی تحلیل", "Refresh analysis"), lambda: self.show("insights"), True).pack(side="right", padx=3)
 
-    def chart(self):
-        """Full-area native chart; official TradingView is a compact optional action."""
-        self.heading(self.tr("chart"), "Live market chart • drawings • symbol search • multiple timeframes")
-        top = tk.Frame(self.content, bg=C["bg"])
-        top.pack(fill="x", pady=(0, 5))
-        # Keep the TradingView launch affordance small and out of the chart's way.
-        self.btn(
-            top,
-            "↗ TradingView Pro",
-            lambda: self.open_tradingview(
-                "BINANCE:BTCUSDT" if self.market == "Crypto" else "OANDA:XAUUSD",
-                "1H",
-            ),
-            True,
-        ).pack(side="right", padx=(0, 4), pady=2)
-        tk.Label(
-            top,
-            text="Live candles • zoom/pan • crosshair • drawing tools • auto refresh",
-            bg=C["bg"], fg=C["muted"], font=("Segoe UI", 9),
-        ).pack(side="left", padx=8)
+        summary = tk.Frame(self.content, bg=C["bg"])
+        summary.pack(fill="x", pady=(2, 7))
+        pf = "∞" if math.isinf(report["profit_factor"]) else f'{report["profit_factor"]:.2f}'
+        metrics = [
+            (tx("تعداد معاملات", "Trades"), str(report["count"]), C["cyan"]),
+            (tx("نرخ برد", "Win rate"), f'{report["win_rate"]:.1f}%', C["accent"]),
+            (tx("خالص عملکرد", "Net result"), f'{report["net_r"]:+.2f} R', C["gold"]),
+            (tx("امید ریاضی", "Expectancy"), f'{report["expectancy_r"]:+.2f} R', C["violet"]),
+            (tx("Profit Factor", "Profit Factor"), pf, C["blue"]),
+            (tx("افت سرمایه بیشینه", "Max drawdown"), f'{report["max_drawdown_r"]:.2f} R', C["danger"]),
+        ]
+        for label, value, color in metrics:
+            self._metric_card(summary, label, value, color).pack(side="left", fill="both", expand=True, padx=3)
 
-        chart_shell = tk.Frame(
-            self.content, bg=C["bg"],
-            highlightbackground=C["line"], highlightthickness=1,
-        )
-        chart_shell.pack(fill="both", expand=True, pady=(0, 4))
-        self._load_native_trading_desk(chart_shell)
-    def _load_native_trading_desk(self, holder):
-        """Load the optional Matplotlib chart only after a deliberate user action."""
-        if getattr(holder, "_tpp_native_chart_loaded", False):
-            return
-        try:
-            for widget in holder.winfo_children():
-                widget.destroy()
-            from native_trading_desk import NativeTradingDesk
-            NativeTradingDesk(holder, C, getattr(self, "language", "en")).pack(fill="both", expand=True)
-            holder._tpp_native_chart_loaded = True
-        except Exception as exc:
-            tk.Label(holder, text=f"Native chart unavailable: {exc}", bg=C["bg"], fg=C["danger"],
-                     font=("Segoe UI", 10), wraplength=900).pack(expand=True, padx=20, pady=20)
+        charts = tk.Frame(self.content, bg=C["bg"])
+        charts.pack(fill="x", pady=(0, 7))
+        eq_card = self.card(charts); eq_card.pack(side="left", fill="both", expand=True, padx=(0, 4))
+        setup_card = self.card(charts); setup_card.pack(side="left", fill="both", expand=True, padx=(4, 0))
+        tk.Label(eq_card, text=tx("منحنی تجمعی R", "Cumulative R curve"), bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 10, "bold")).pack(anchor="e", padx=12, pady=(9, 2))
+        equity = tk.Canvas(eq_card, height=210, bg=C["panel2"], highlightthickness=0, bd=0)
+        equity.pack(fill="both", expand=True, padx=10, pady=(2, 10))
+        tk.Label(setup_card, text=tx("عملکرد ستاپ‌ها (میانگین R)", "Setup performance (average R)"),
+                 bg=C["panel"], fg=C["text"], font=("Segoe UI", 10, "bold")).pack(anchor="e", padx=12, pady=(9, 2))
+        bars = tk.Canvas(setup_card, height=210, bg=C["panel2"], highlightthickness=0, bd=0)
+        bars.pack(fill="both", expand=True, padx=10, pady=(2, 10))
+
+        def draw_equity(_event=None):
+            equity.delete("all")
+            w = max(160, equity.winfo_width()); h = max(150, equity.winfo_height())
+            values = report["equity_curve"]
+            if len(values) <= 1:
+                equity.create_text(w/2, h/2, text=tx("پس از ثبت نتایج R نمودار ساخته می‌شود", "Record Result (R) values to build the curve"),
+                                   fill=C["muted"], font=("Segoe UI", 9))
+                return
+            pad_l, pad_r, pad_t, pad_b = 36, 14, 15, 25
+            lo, hi = min(values + [0.0]), max(values + [0.0])
+            if hi-lo < 0.001: hi = lo + 1.0
+            def xy(i, val):
+                return (pad_l + i*(w-pad_l-pad_r)/max(1, len(values)-1),
+                        h-pad_b-(val-lo)*(h-pad_t-pad_b)/(hi-lo))
+            for idx in range(5):
+                yy = pad_t + idx*(h-pad_t-pad_b)/4
+                equity.create_line(pad_l, yy, w-pad_r, yy, fill=C["line"], dash=(2, 4))
+            zero_y = xy(0, 0.0)[1]
+            equity.create_line(pad_l, zero_y, w-pad_r, zero_y, fill=C["muted"], dash=(3, 3))
+            points = []
+            for i, value in enumerate(values):
+                px, py = xy(i, value); points.extend((px, py))
+            if len(points) >= 4:
+                equity.create_line(*points, fill=C["accent"], width=3, smooth=True)
+            for i in {0, len(values)-1}:
+                px, py = xy(i, values[i])
+                equity.create_oval(px-3, py-3, px+3, py+3, fill=C["gold"], outline="")
+            equity.create_text(pad_l, h-8, text=tx("شروع", "Start"), anchor="w", fill=C["muted"], font=("Segoe UI", 8))
+            equity.create_text(w-pad_r, h-8, text=f'{values[-1]:+.2f} R', anchor="e", fill=C["accent"], font=("Segoe UI", 8, "bold"))
+        def draw_setup_bars(_event=None):
+            bars.delete("all")
+            w = max(160, bars.winfo_width()); h = max(150, bars.winfo_height())
+            groups = report["by_setup"][:6]
+            if not groups:
+                bars.create_text(w/2, h/2, text=tx("هنوز ستاپی ثبت نشده است", "No setup data yet"),
+                                 fill=C["muted"], font=("Segoe UI", 9))
+                return
+            left = 108; right = 18; top = 14; bottom = 13
+            vals = [g["avg_r"] for g in groups]
+            span = max([abs(v) for v in vals] + [0.5])
+            usable = w-left-right
+            row_h = (h-top-bottom)/len(groups)
+            zero_x = left + usable*span/(2*span)
+            bars.create_line(zero_x, top-2, zero_x, h-bottom, fill=C["muted"], dash=(2, 3))
+            for idx, group in enumerate(groups):
+                cy = top + idx*row_h + row_h/2
+                label = group["name"][:16]
+                bars.create_text(left-7, cy, text=label, fill=C["text"], anchor="e", font=("Segoe UI", 8))
+                width = (group["avg_r"]/span)*(usable/2)
+                x0 = zero_x if width >= 0 else zero_x + width
+                x1 = zero_x + width if width >= 0 else zero_x
+                color = C["accent"] if width >= 0 else C["danger"]
+                bars.create_rectangle(x0, cy-7, x1, cy+7, fill=color, outline="")
+                bars.create_text(w-right, cy, text=f'{group["avg_r"]:+.2f}R', fill=color,
+                                 anchor="e", font=("Consolas", 8, "bold"))
+        equity.bind("<Configure>", draw_equity)
+        bars.bind("<Configure>", draw_setup_bars)
+        self.after_idle(draw_equity)
+        self.after_idle(draw_setup_bars)
+
+        detail_row = tk.Frame(self.content, bg=C["bg"])
+        detail_row.pack(fill="both", expand=True, pady=(0, 5))
+        setup_panel = self.card(detail_row); setup_panel.pack(side="left", fill="both", expand=True, padx=(0, 4))
+        behavior_panel = self.card(detail_row); behavior_panel.pack(side="left", fill="both", expand=True, padx=(4, 0))
+        tk.Label(setup_panel, text=tx("جزئیات ستاپ", "Setup breakdown"), bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 10, "bold")).pack(anchor="e", padx=10, pady=(8, 3))
+        tree = ttk.Treeview(setup_panel, columns=("name", "count", "wr", "net", "avg"), show="headings", height=5)
+        for col, label, width in (("name", tx("ستاپ", "Setup"), 180), ("count", tx("تعداد", "Trades"), 62),
+                                  ("wr", tx("برد٪", "Win %"), 70), ("net", "Net R", 75), ("avg", "Avg R", 75)):
+            tree.heading(col, text=label); tree.column(col, width=width, anchor="center")
+        tree.pack(fill="both", expand=True, padx=8, pady=(2, 8))
+        for group in report["by_setup"][:10]:
+            tree.insert("", "end", values=(group["name"], group["count"], f'{group["win_rate"]:.1f}%',
+                                          f'{group["net_r"]:+.2f}', f'{group["avg_r"]:+.2f}'))
+
+        tk.Label(behavior_panel, text=tx("رفتار، سشن و خطاهای تکراری", "Behavior, sessions and recurring mistakes"),
+                 bg=C["panel"], fg=C["text"], font=("Segoe UI", 10, "bold")).pack(anchor="e", padx=10, pady=(8, 3))
+        text_box = tk.Text(behavior_panel, height=8, bg=C["panel2"], fg=C["text"], relief="flat",
+                           wrap="word", padx=10, pady=8, font=("Segoe UI", 9))
+        text_box.pack(fill="both", expand=True, padx=8, pady=(2, 8))
+        lines = []
+        if report["count"] == 0:
+            lines.append(tx("برای تحلیل، ابتدا چند معامله در ژورنال ثبت کن.", "Log a few trades to generate a useful analysis."))
+        else:
+            lines.append(tx(f'برد {report["wins"]} • باخت {report["losses"]} • سربه‌سر {report["breakeven"]}',
+                            f'Wins {report["wins"]} • Losses {report["losses"]} • Breakeven {report["breakeven"]}'))
+            lines.append(tx(f'میانگین برد: {report["avg_win_r"]:+.2f}R | میانگین باخت: {report["avg_loss_r"]:+.2f}R',
+                            f'Average win: {report["avg_win_r"]:+.2f}R | Average loss: {report["avg_loss_r"]:+.2f}R'))
+            lines.append(tx(f'بیشترین زنجیره باخت: {report["max_losing_streak"]} | افت بیشینه: {report["max_drawdown_r"]:.2f}R',
+                            f'Max loss streak: {report["max_losing_streak"]} | Max drawdown: {report["max_drawdown_r"]:.2f}R'))
+            if report["missing_r_count"]:
+                lines.append(tx(f'{report["missing_r_count"]} معامله مقدار Result (R) ندارد؛ برای امید ریاضی دقیق آن را تکمیل کن.',
+                                f'{report["missing_r_count"]} trades have no Result (R); fill these values for more reliable expectancy.'))
+            if report["count"] < 20:
+                lines.append(tx("نمونه کوچک است؛ نتیجه‌گیری قطعی از نرخ برد نکن.", "Small sample: avoid firm conclusions from win rate alone."))
+            if report["expectancy_r"] > 0:
+                lines.append(tx("امید ریاضی ثبت‌شده مثبت است؛ حفظ انضباط و بررسی افت سرمایه را ادامه بده.",
+                                "Recorded expectancy is positive; keep monitoring discipline and drawdown."))
+            elif report["expectancy_r"] < 0:
+                lines.append(tx("امید ریاضی منفی است؛ قبل از افزایش ریسک، ستاپ‌ها و اجرای قوانین را بازبینی کن.",
+                                "Recorded expectancy is negative; review setups and execution before increasing risk."))
+            if report["profit_factor"] < 1 and not math.isinf(report["profit_factor"]):
+                lines.append(tx("سود ناخالص کمتر از زیان ناخالص است.", "Gross profit is below gross loss."))
+            if report["by_setup"]:
+                top = report["by_setup"][0]
+                lines.append(tx(f'بالاترین خالص R در ستاپ «{top["name"]}» دیده می‌شود؛ تعداد نمونه را هم بررسی کن.',
+                                f'The highest net R is in setup “{top["name"]}”; check its sample size too.'))
+            if report["mistakes"]:
+                name, count = report["mistakes"][0]
+                lines.append(tx(f'رایج‌ترین مورد ثبت‌شده در خطاها: «{name}» ({count} بار).',
+                                f'Most frequent recorded mistake: “{name}” ({count} times).'))
+            if report["by_emotion"]:
+                weakest = min(report["by_emotion"], key=lambda g: g["avg_r"])
+                lines.append(tx(f'کمترین میانگین R در حالت ثبت‌شده «{weakest["name"]}» است.',
+                                f'The lowest average R is associated with emotion “{weakest["name"]}”.'))
+        text_box.insert("1.0", "\n".join(lines))
+        text_box.configure(state="disabled")
+        footnote = tx("تحلیل کاملاً محلی است؛ فقط داده‌های ذخیره‌شده همین پروفایل/بازار محاسبه می‌شود و پیش‌بینی سود نیست.",
+                      "Analysis runs locally on this profile/market's saved records; it is descriptive, not a profit prediction.")
+        tk.Label(self.content, text=footnote, bg=C["bg"], fg=C["muted"],
+                 font=("Segoe UI", 8), wraplength=1200, justify="right").pack(anchor="e", pady=(0, 4))
+
+    def resources(self):
+        tx = lambda fa, en: fa if self.language == "fa" else en
+        self.heading(tx("لینک‌های ثبت‌نام", "Registration links"),
+                     tx("بخش آماده برای افزودن لینک و بنر در به‌روزرسانی بعدی", "Placeholders ready for links and banners in the next update"))
+        grid = tk.Frame(self.content, bg=C["bg"])
+        grid.pack(fill="both", expand=True, pady=(5, 12))
+        cards = [
+            ("🇮🇷", tx("صرافی ایرانی", "Iranian exchanges"),
+             tx("لینک ثبت‌نام صرافی‌های ایرانی در این بخش اضافه می‌شود.", "Registration links for Iranian exchanges will appear here.")),
+            ("🌐", tx("صرافی خارجی", "International exchanges"),
+             tx("لینک و بنر صرافی‌های خارجی بعداً جایگزین این جایگاه می‌شود.", "International exchange links and banners will be added here later.")),
+            ("↗", tx("بروکر خارجی", "International brokers"),
+             tx("جایگاه اختصاصی لینک ثبت‌نام بروکرها.", "Dedicated space for international broker registration links.")),
+            ("◆", tx("پراپ فرم", "Prop firms"),
+             tx("جایگاه اختصاصی لینک و بنر پراپ‌فرم‌ها.", "Dedicated space for prop-firm links and banners.")),
+        ]
+        for col in range(2):
+            grid.columnconfigure(col, weight=1)
+        for idx, (icon, title, detail) in enumerate(cards):
+            card = self.card(grid)
+            card.grid(row=idx//2, column=idx%2, sticky="nsew", padx=5, pady=5)
+            grid.rowconfigure(idx//2, weight=1)
+            head = tk.Frame(card, bg=C["panel"]); head.pack(fill="x", padx=14, pady=(14, 6))
+            tk.Label(head, text=icon, bg=C["panel"], fg=C["accent"], font=("Segoe UI Emoji", 22, "bold")).pack(side="right", padx=(0, 8))
+            tk.Label(head, text=title, bg=C["panel"], fg=C["text"], font=("Segoe UI", 14, "bold")).pack(side="right", pady=4)
+            tk.Label(card, text=detail, bg=C["panel"], fg=C["muted"], font=("Segoe UI", 10),
+                     justify="right", wraplength=470).pack(fill="x", padx=18, pady=(6, 8))
+            tk.Label(card, text=tx("در انتظار افزودن لینک", "LINK SLOT READY"),
+                     bg=C["panel3"], fg=C["gold"], font=("Segoe UI", 8, "bold"),
+                     padx=10, pady=6).pack(anchor="e", padx=18, pady=(3, 15))
 
     def settings(self):
+        tx = lambda fa, en: fa if self.language == "fa" else en
         self.heading(self.tr("settings_title"), self.tr("settings_sub"))
         self.profile_panel(self.content)
-        grid = self.card(self.content); grid.pack(fill="x", pady=(4, 10)); grid.columnconfigure(0, weight=1); grid.columnconfigure(1, weight=1)
-        tk.Label(grid,text=self.tr("language"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=0,column=1,sticky="e",padx=14,pady=(16,6))
-        language_var=tk.StringVar(value=self.language); language_box=ttk.Combobox(grid,textvariable=language_var,values=["fa","en"],state="readonly",width=20); language_box.grid(row=0,column=0,sticky="w",padx=14,pady=(16,6))
-        tk.Label(grid,text=self.tr("language_help"),bg=C["panel"],fg=C["muted"],justify="right",wraplength=650).grid(row=1,column=0,columnspan=2,sticky="e",padx=14,pady=(0,10))
-        tk.Label(grid,text=self.tr("theme"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=2,column=1,sticky="e",padx=14,pady=6)
-        theme_var=tk.StringVar(value=self.theme_mode); theme_box=ttk.Combobox(grid,textvariable=theme_var,values=["dark","light","auto"],state="readonly",width=20); theme_box.grid(row=2,column=0,sticky="w",padx=14,pady=6)
-        tk.Label(grid,text="Skin",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=3,column=1,sticky="e",padx=14,pady=6)
-        skin_var=tk.StringVar(value=self.skin); skin_box=ttk.Combobox(grid,textvariable=skin_var,values=list(SKINS.keys()),state="readonly",width=20); skin_box.grid(row=3,column=0,sticky="w",padx=14,pady=6)
-        tk.Label(grid,text="Glass opacity",bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=4,column=1,sticky="e",padx=14,pady=6)
-        opacity_var=tk.DoubleVar(value=self.glass_opacity)
-        opacity=tk.Scale(grid,variable=opacity_var,from_=0.86,to=0.995,resolution=0.005,orient="horizontal",length=280,bg=C["panel"],fg=C["text"],highlightthickness=0,troughcolor=C["soft"],activebackground=C["accent"]); opacity.grid(row=4,column=0,sticky="w",padx=14,pady=6)
-        tk.Label(grid,text=self.tr("clock_style"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=5,column=1,sticky="e",padx=14,pady=6)
-        clock_labels={self.tr("clock_digital"):"digital",self.tr("clock_classic"):"classic",self.tr("clock_wrist"):"wrist"}
-        clock_var=tk.StringVar(value=next((label for label,key in clock_labels.items() if key==self.clock_style),self.tr("clock_digital")))
-        clock_box=ttk.Combobox(grid,textvariable=clock_var,values=list(clock_labels.keys()),state="readonly",width=20); clock_box.grid(row=5,column=0,sticky="w",padx=14,pady=6)
-        tk.Label(grid,text=self.tr("ai_cloud_key"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10,"bold")).grid(row=6,column=1,sticky="e",padx=14,pady=6)
-        api_frame=tk.Frame(grid,bg=C["panel"]); api_frame.grid(row=6,column=0,sticky="ew",padx=14,pady=6)
-        api_var=tk.StringVar(); api_entry=tk.Entry(api_frame,textvariable=api_var,show="*",bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="left",font=("Consolas",10))
-        api_entry.pack(side="left",fill="x",expand=True,padx=(0,5),ipady=7)
-        def save_api_key():
-            key=api_var.get().strip()
-            if not key: return messagebox.showwarning(self.tr("ai_cloud"),self.tr("api_key_empty"),parent=self)
-            self._save_ai_key(key)
-        self.btn(api_frame,self.tr("ai_save_key"),save_api_key,True).pack(side="left",padx=2); self.btn(api_frame,self.tr("ai_clear_key"),self._clear_ai_key).pack(side="left",padx=2)
-        tk.Label(grid,text=self.tr("api_key_security"),bg=C["panel"],fg=C["muted"],justify="right",wraplength=680).grid(row=7,column=0,columnspan=2,sticky="e",padx=14,pady=(0,5))
-        try:
-            from ai_assistant import cloud_status
-            api_status=self.tr("api_key_configured") if cloud_status().get("enabled") else self.tr("api_key_missing")
-        except Exception: api_status=self.tr("api_key_missing")
-        status=tk.Label(grid,text=api_status,bg=C["panel"],fg=C["accent"],justify="right",wraplength=680); status.grid(row=8,column=0,columnspan=2,sticky="e",padx=14,pady=(6,16))
+
+        panel = self.card(self.content)
+        panel.pack(fill="x", pady=(5, 10))
+        panel.columnconfigure(0, weight=1)
+        panel.columnconfigure(1, weight=1)
+        panel.columnconfigure(2, weight=0)
+
+        def dropdown(row, label, variable, values, selected_text):
+            tk.Label(panel, text=label, bg=C["panel"], fg=C["muted"],
+                     font=("Segoe UI", 10, "bold")).grid(row=row, column=1, sticky="e", padx=14, pady=9)
+            combo = ttk.Combobox(panel, textvariable=variable, values=list(values),
+                                 state="readonly", width=22, style="TCombobox")
+            combo.grid(row=row, column=0, sticky="ew", padx=14, pady=9)
+            current = tk.Label(panel, text=selected_text(), bg=C["accent"], fg="#061019",
+                               font=("Segoe UI", 8, "bold"), padx=9, pady=5)
+            current.grid(row=row, column=2, sticky="w", padx=(0, 14), pady=9)
+            def update_current(_event=None):
+                current.configure(text=selected_text())
+            combo.bind("<<ComboboxSelected>>", update_current)
+            return combo
+
+        lang_labels = {tx("فارسی", "Persian"): "fa", "English": "en"}
+        lang_var = tk.StringVar(value=next((name for name, key in lang_labels.items() if key == self.language), "English"))
+        dropdown(0, tx("زبان رابط", "Interface language"), lang_var, lang_labels,
+                 lambda: tx("انتخاب فعلی", "CURRENT") + " · " + lang_var.get())
+
+        theme_labels = {tx("تیره", "Dark"): "dark", tx("روشن", "Light"): "light", tx("خودکار", "System / Auto"): "auto"}
+        theme_var = tk.StringVar(value=next((name for name, key in theme_labels.items() if key == self.theme_mode), tx("تیره", "Dark")))
+        dropdown(1, tx("حالت رنگ", "Color mode"), theme_var, theme_labels,
+                 lambda: tx("انتخاب فعلی", "CURRENT") + " · " + theme_var.get())
+
+        skin_labels = {
+            tx("شیشه‌ای آکریلیک", "Acrylic Glass"): "glass",
+            tx("آبسیدین", "Obsidian"): "obsidian",
+            tx("روشن مینیمال", "Minimal Light"): "minimal",
+        }
+        skin_values = [name for name, key in skin_labels.items() if key in SKINS]
+        skin_var = tk.StringVar(value=next((name for name, key in skin_labels.items() if key == self.skin),
+                                           skin_values[0] if skin_values else "glass"))
+        dropdown(2, tx("پوسته", "Interface skin"), skin_var, skin_values,
+                 lambda: tx("انتخاب فعلی", "CURRENT") + " · " + skin_var.get())
+
+        clock_labels = {self.tr("clock_digital"): "digital", self.tr("clock_classic"): "classic", self.tr("clock_wrist"): "wrist"}
+        clock_var = tk.StringVar(value=next((label for label, key in clock_labels.items() if key == self.clock_style), self.tr("clock_digital")))
+        dropdown(3, self.tr("clock_style"), clock_var, clock_labels,
+                 lambda: tx("انتخاب فعلی", "CURRENT") + " · " + clock_var.get())
+
+        tk.Label(panel, text=tx("شفافیت افکت شیشه‌ای", "Glass transparency"),
+                 bg=C["panel"], fg=C["muted"], font=("Segoe UI", 10, "bold")).grid(row=4, column=1, sticky="e", padx=14, pady=9)
+        opacity_var = tk.DoubleVar(value=self.glass_opacity)
+        opacity = tk.Scale(panel, variable=opacity_var, from_=0.86, to=0.995, resolution=0.005,
+                           orient="horizontal", length=280, bg=C["panel"], fg=C["text"],
+                           highlightthickness=0, troughcolor=C["soft"], activebackground=C["accent"])
+        opacity.grid(row=4, column=0, sticky="w", padx=14, pady=9)
+
+        note = tx(
+            "پروفایل‌ها و اطلاعات ژورنال مستقل ذخیره می‌شوند. تغییر پوسته پس از ذخیره روی پنجره اصلی و پنجره‌های جدید اعمال می‌شود.",
+            "Profiles and journal records are stored separately. Saving applies the selected skin to the main window and new dialogs."
+        )
+        tk.Label(panel, text=note, bg=C["panel"], fg=C["muted"], wraplength=900,
+                 justify="right").grid(row=5, column=0, columnspan=3, sticky="ew", padx=14, pady=(4, 14))
+
+        actions = self.card(self.content)
+        actions.pack(fill="x", pady=4)
+
         def save_settings():
-            self.language=language_var.get() if language_var.get() in {"fa","en"} else "fa"
-            self.theme_mode=theme_var.get() if theme_var.get() in {"dark","light","auto"} else "dark"
-            self.skin=skin_var.get() if skin_var.get() in SKINS else "glass"
-            self.clock_style=clock_labels.get(clock_var.get(),"digital")
-            self.glass_opacity=max(0.86,min(float(opacity_var.get()),0.995))
-            DB.setdefault("settings",{}).update({"language":self.language,"theme":self.theme_mode,"skin":self.skin,"clock_style":self.clock_style,"glass_opacity":self.glass_opacity,"theme_auto_start":self.theme_auto_start,"theme_auto_end":self.theme_auto_end})
-            save_db(); self.apply_theme(); self.refresh_shell_theme(); self.refresh_profile_selector()
-            status.config(text=self.tr("language_saved")); self.after(120,lambda:self.show("settings"))
-        actions=self.card(self.content); actions.pack(fill="x",pady=4)
-        self.btn(actions,self.tr("save_theme"),save_settings,True).pack(side="right",padx=14,pady=12)
-        self.btn(actions,self.tr("nav_home"),self.go_home).pack(side="right",padx=4,pady=12)
+            self.language = lang_labels.get(lang_var.get(), "fa")
+            self.theme_mode = theme_labels.get(theme_var.get(), "dark")
+            self.skin = skin_labels.get(skin_var.get(), "glass")
+            self.clock_style = clock_labels.get(clock_var.get(), "digital")
+            self.glass_opacity = max(0.86, min(float(opacity_var.get()), 0.995))
+            DB.setdefault("settings", {}).update({
+                "language": self.language, "theme": self.theme_mode, "skin": self.skin,
+                "clock_style": self.clock_style, "glass_opacity": self.glass_opacity,
+                "theme_auto_start": self.theme_auto_start, "theme_auto_end": self.theme_auto_end,
+            })
+            save_db()
+            self.apply_theme()
+            self.refresh_shell_theme()
+            self.refresh_profile_selector()
+            self.apply_language()
+            self.show("settings")
+
+        self.btn(actions, tx("ذخیره تنظیمات", "Save settings"), save_settings, True).pack(side="right", padx=14, pady=12)
+        self.btn(actions, self.tr("nav_home"), self.go_home).pack(side="right", padx=4, pady=12)
 
     def calculators(self):
         self.heading(self.tr("calculators"), self.tr("dashboard_sub"))
@@ -2928,477 +2872,3 @@ class App(tk.Tk):
             self.open_webview(row["link"],f"Trader Planner Pro • {row.get('source','News')}")
         except Exception:
             pass
-
-    def ai_page(self):
-        self.heading(self.tr("ai_title"), self.tr("ai_sub"))
-
-        hero=self.card(self.content)
-        hero.pack(fill="x",pady=(4,8))
-        left=tk.Frame(hero,bg=C["panel"]); left.pack(side="right",fill="both",expand=True,padx=14,pady=12)
-        tk.Label(left,text=self.tr("ai_page_note"),bg=C["panel"],fg=C["muted"],
-                 font=("Segoe UI",10,"bold"),justify="right",anchor="e",
-                 wraplength=850).pack(fill="x",anchor="e")
-
-        role_labels={"orchestrator":"Trader Planner Master Agent","form":"Form Coach","strategy":"Strategy Coach","psychology":"Psychology Coach","planner":"Routine & Reminder Coach","academy":"Academy Tutor","product":"Product Strategist"}
-        role_var=tk.StringVar(value=role_labels["orchestrator"])
-        row=tk.Frame(hero,bg=C["panel"]); row.pack(fill="x",padx=14,pady=(0,12))
-        tk.Label(row,text=self.tr("ai_role"),bg=C["panel"],fg=C["muted"],
-                 font=("Segoe UI",9,"bold")).pack(side="right",padx=6)
-        role_combo=ttk.Combobox(
-            row,textvariable=role_var,state="readonly",
-            values=list(role_labels.values()),justify="right",width=25
-        )
-        role_combo.pack(side="right",padx=6)
-        status=self.ai.status()
-        if status.get("cloud"):
-            status_text=f"CLOUD MASTER AGENT • {status.get('model', self.ai.model)} • HIGH REASONING"
-            status_fg=C["accent"]
-        elif status.get("ollama"):
-            status_text=f"LOCAL OLLAMA • {status.get('model', 'READY')}"
-            status_fg=C["cyan"]
-        else:
-            status_text="BUILT-IN TRADER AGENT • READY | LIVE AI: CONNECT OPENAI OR OLLAMA"
-            status_fg=C["gold"]
-        tk.Label(row,text=status_text,bg=C["panel3"],fg=status_fg,
-                 font=("Consolas",8,"bold"),padx=10,pady=5).pack(side="left")
-        if not status.get("cloud") and not status.get("ollama"):
-            self.btn(row,"⚡ "+self.tr("ai_cloud"),lambda:self.show("settings")).pack(side="left",padx=6)
-        self.btn(row,"Get AI Key",lambda:self.open_webview("https://platform.openai.com/api-keys","OpenAI API Keys")).pack(side="left",padx=6)
-        self.btn(row,"AI Web",lambda:self.open_webview("https://chatgpt.com/","Trader Planner Pro • AI Web")).pack(side="left",padx=6)
-
-        quick=tk.Frame(self.content,bg=C["bg"])
-        quick.pack(fill="x",pady=(0,7))
-        quick_prompts=[
-            ("ai_quick_forms","Form coach: help me fill today's trading plan and checklist."),
-            ("ai_quick_strategy","Explain the current setup step-by-step and tell me what condition is still missing."),
-            ("ai_quick_psychology","Run a short psychology check before I take a trade."),
-            ("ai_quick_routine","Build a disciplined trading routine for today's sessions."),
-        ]
-
-        shell=self.card(self.content)
-        shell.pack(fill="both",expand=True,pady=4)
-        chat=tk.Text(
-            shell,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
-            wrap="word",relief="flat",font=("Segoe UI",12),padx=16,pady=14
-        )
-        chat.pack(fill="both",expand=True,padx=7,pady=7)
-        chat.insert("1.0",self.tr("ai_page_note")+"\n\n")
-        chat.configure(state="disabled")
-
-        input_row=tk.Frame(self.content,bg=C["bg"])
-        input_row.pack(fill="x",pady=8)
-        prompt=tk.Entry(
-            input_row,bg=C["soft"],fg=C["text"],insertbackground=C["text"],
-            relief="flat",font=("Segoe UI",12),justify="right"
-        )
-        prompt.pack(side="right",fill="x",expand=True,padx=5,ipady=10)
-        send_btn=self.btn(input_row,self.tr("ai_send"),None,True)
-        send_btn.pack(side="left",padx=5)
-
-        def append_chat(speaker,text_value):
-            chat.configure(state="normal")
-            chat.insert("end",f"{speaker}: {text_value}\n\n")
-            chat.configure(state="disabled")
-            chat.see("end")
-
-        def send_message(message=None):
-            msg=(message if message is not None else prompt.get()).strip()
-            if not msg: return
-            prompt.delete(0,"end")
-            append_chat("You",msg)
-            append_chat("Assistant","…")
-            role=next((k for k,v in role_labels.items() if v==role_var.get()),"orchestrator")
-            context=self._ai_context()
-            self.ai.respond(
-                role,msg,context,
-                lambda answer:self.after(
-                    0,lambda:self._replace_page_ai_waiting(chat,answer)
-                )
-            )
-
-        send_btn.configure(command=send_message)
-        prompt.bind("<Return>",lambda e:send_message())
-        for key, prompt_text in quick_prompts:
-            self.btn(
-                quick,self.tr(key),lambda p=prompt_text:send_message(p)
-            ).pack(side="left",padx=3)
-
-        self.btn(
-            quick,self.tr("ai_clear"),lambda:self._clear_page_ai(chat)
-        ).pack(side="left",padx=3)
-
-        reminders=self.card(self.content)
-        reminders.pack(fill="x",pady=(7,4))
-        tk.Label(
-            reminders,text=self.tr("reminders"),bg=C["panel"],fg=C["gold"],
-            font=("Segoe UI",10,"bold")
-        ).pack(anchor="e",padx=12,pady=7)
-        rem_tree=ttk.Treeview(
-            reminders,columns=("time","title","enabled"),show="headings",height=4
-        )
-        rem_tree.heading("time",text=self.tr("reminder_time"))
-        rem_tree.heading("title",text=self.tr("reminder_title"))
-        rem_tree.heading("enabled",text=self.tr("reminder_enabled"))
-        rem_tree.column("time",width=90)
-        rem_tree.column("title",width=500)
-        rem_tree.column("enabled",width=90)
-        rem_tree.pack(fill="x",padx=10,pady=5)
-        for idx,r in enumerate(DB.get("settings",{}).get("ai_reminders",[])):
-            rem_tree.insert(
-                "","end",iid=str(idx),
-                values=(r.get("time",""),r.get("title",""),
-                        "✓" if r.get("enabled",True) else "")
-            )
-        controls=tk.Frame(reminders,bg=C["panel"]); controls.pack(fill="x",padx=10,pady=5)
-        self.btn(controls,self.tr("add_reminder"),self.add_reminder,True).pack(side="right",padx=3)
-        self.btn(controls,self.tr("delete_reminder"),lambda:self.delete_reminder(rem_tree)).pack(side="right",padx=3)
-
-    def _replace_page_ai_waiting(self,chat,answer):
-        try:
-            chat.configure(state="normal")
-            current=chat.get("1.0","end-1c")
-            pos=current.rfind("Assistant: …")
-            if pos>=0:
-                chat.delete(f"1.0+{pos}c",f"1.0+{pos+13}c")
-                chat.insert(f"1.0+{pos}c",f"Assistant: {answer}")
-            else:
-                chat.insert("end",f"Assistant: {answer}\n")
-            chat.configure(state="disabled")
-            chat.see("end")
-        except Exception:
-            pass
-
-    def _clear_page_ai(self,chat):
-        try:
-            chat.configure(state="normal")
-            chat.delete("1.0","end")
-            chat.insert("1.0",self.tr("ai_page_note")+"\n\n")
-            chat.configure(state="disabled")
-        except Exception:
-            pass
-
-    def _ai_finish(self,chat,answer):
-        try:
-            lines=chat.get("1.0","end-1c").splitlines()
-            if lines and lines[-1].strip()=="Assistant: ...":
-                chat.delete(f"{len(lines)}.0", "end")
-            chat.insert("end",str(answer)+"\n")
-            chat.see("end")
-        except Exception: pass
-
-    def add_reminder(self):
-        dlg=self._glass_toplevel("add_reminder","520x300"); dlg.grab_set()
-        title=tk.StringVar(); tm=tk.StringVar(value="09:00"); enabled=tk.BooleanVar(value=True)
-        tk.Label(dlg,text=self.tr("reminder_title"),bg=C["bg"],fg=C["muted"]).pack(anchor="e",padx=16,pady=(16,5))
-        tk.Entry(dlg,textvariable=title,bg=C["soft"],fg=C["text"],relief="flat",justify="right").pack(fill="x",padx=16)
-        row=tk.Frame(dlg,bg=C["bg"]); row.pack(fill="x",padx=16,pady=12)
-        tk.Label(row,text=self.tr("reminder_time"),bg=C["bg"],fg=C["muted"]).pack(side="right",padx=5)
-        tk.Entry(row,textvariable=tm,width=8,bg=C["soft"],fg=C["text"],relief="flat",justify="center").pack(side="right",padx=5)
-        tk.Checkbutton(dlg,text=self.tr("reminder_enabled"),variable=enabled,bg=C["bg"],fg=C["text"],selectcolor=C["soft"],activebackground=C["bg"],activeforeground=C["text"]).pack(anchor="e",padx=16)
-        def save():
-            value=tm.get().strip()
-            if not self._valid_hhmm(value):
-                return messagebox.showwarning(self.tr("reminders"),self.tr("reminder_time"),parent=dlg)
-            DB.setdefault("settings",{}).setdefault("ai_reminders",[]).append({"id":str(uuid4()),"title":title.get().strip() or self.tr("reminders"),"time":value,"daily":True,"enabled":enabled.get(),"last_notified":""})
-            save_db(); dlg.destroy(); self.show("ai")
-        self.btn(dlg,self.tr("save_reminder"),save,True).pack(anchor="e",padx=16,pady=14)
-
-    def delete_reminder(self,tree):
-        sel=tree.selection()
-        if not sel: return
-        idx=int(sel[0]); reminders=DB.get("settings",{}).get("ai_reminders",[])
-        if 0<=idx<len(reminders):
-            reminders.pop(idx); save_db(); self.show("ai")
-
-    def _academy_visual(self, parent, key, title, subtitle, visual_kind=None, family=""):
-        """Show the exact bundled source visual first, then a clearly labeled anatomy diagram."""
-        kind=visual_kind or key
-        family_key="ict" if str(family).lower()=="ict" else ("smc" if str(family).lower()=="smc" else "candles")
-        family_text={"smc":self.tr("smc_family"),"ict":self.tr("ict_family"),"candles":self.tr("candles")}[family_key]
-        family_fg={"smc":C["accent"],"ict":C["violet"],"candles":C["gold"]}[family_key]
-        box=tk.Frame(parent,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
-        box.pack(fill="x",padx=8,pady=(4,8))
-        header=tk.Frame(box,bg=C["panel3"]); header.pack(fill="x",padx=12,pady=(10,5))
-        tk.Label(header,text=family_text,bg=C["soft"],fg=family_fg,font=("Segoe UI",8,"bold"),padx=9,pady=4).pack(side="right")
-        tk.Label(header,text=self.ui_text(title),bg=C["panel3"],fg=C["text"],font=("Segoe UI",14,"bold")).pack(side="right",padx=8)
-        source_frame=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        source_frame.pack(fill="x",padx=10,pady=(0,8))
-        tk.Label(source_frame,text=self.tr("source_chart"),bg=C["panel"],fg=family_fg,font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,4))
-        source_holder=tk.Frame(source_frame,bg=C["panel3"]); source_holder.pack(fill="x",padx=8,pady=(0,8))
-        try:
-            from PIL import Image, ImageTk
-            photo = self._academy_photo_cache.get(kind)
-            if photo is None:
-                source_path = bundled_asset_for_visual(kind)
-                if not source_path or not Path(source_path).exists():
-                    raise FileNotFoundError(f"Missing bundled offline education image: {kind}")
-                image = Image.open(source_path).convert("RGB")
-                max_w, max_h = 1040, 360
-                scale = min(max_w / image.width, max_h / image.height, 1.0)
-                if scale < 1:
-                    image = image.resize((max(1, int(image.width * scale)), max(1, int(image.height * scale))), Image.Resampling.LANCZOS)
-                photo = ImageTk.PhotoImage(image)
-                self._academy_photo_cache[kind] = photo
-            label = tk.Label(source_holder, image=photo, bg=C["panel3"], bd=0)
-            label.image = photo
-            label.pack(anchor="center", pady=4)
-        except Exception as exc:
-            tk.Label(source_holder,text=f"{self.tr('no_exact_image')}\\n{exc}",bg=C["panel3"],fg=C["danger"],font=("Segoe UI",9,"bold"),padx=20,pady=25,justify="center",wraplength=1050).pack(fill="x")
-        anatomy=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        anatomy.pack(fill="x",padx=10,pady=(0,8))
-        tk.Label(anatomy,text=self.tr("setup_anatomy")+" • APP EXPLANATION",bg=C["panel"],fg=family_fg,font=("Consolas",9,"bold")).pack(anchor="w",padx=12,pady=(8,2))
-        tk.Label(anatomy,text=self.ui_text(subtitle),bg=C["panel"],fg=C["muted"],font=("Segoe UI",10),wraplength=1120,justify="right").pack(fill="x",padx=12,pady=(0,5))
-        diagram_holder=tk.Frame(anatomy,bg=C["panel3"]); diagram_holder.pack(fill="x",padx=4,pady=(0,7))
-        try:
-            if family_key in ("smc","ict"):
-                draw_setup(diagram_holder,family_key,self.ui_text(title),C)
-            else:
-                draw_candlestick(diagram_holder,self.ui_text(title),C)
-        except Exception as exc:
-            tk.Label(diagram_holder,text=str(exc),bg=C["panel3"],fg=C["danger"],font=("Consolas",9)).pack(fill="x",pady=20)
-        source_title,_source_url=source_for_visual(kind)
-        footer=tk.Frame(box,bg=C["panel"],highlightbackground=C["line"],highlightthickness=1)
-        footer.pack(fill="x",padx=10,pady=(0,8))
-        tk.Label(footer,text=self.tr("offline_library"),bg=C["panel"],fg=family_fg,font=("Segoe UI",8,"bold")).pack(side="left",padx=10,pady=8)
-        tk.Label(footer,text=self.ui_text(source_title),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9,"bold"),wraplength=820,justify="right").pack(side="right",fill="x",expand=True,padx=12,pady=10)
-        return box
-
-    def academy(self):
-        self.heading(self.tr("academy_title"), self.tr("academy_sub"))
-        note=tk.Label(
-            self.content,
-            text=ACADEMY_NOTE_FA if self.language=="fa" else ACADEMY_NOTE_EN,
-            bg=C["panel2"], fg=C["muted"], wraplength=1180, justify="right",
-            padx=14, pady=10
-        )
-        note.pack(fill="x",pady=(0,7))
-
-        family_map=self.card(self.content)
-        family_map.pack(fill="x",pady=(0,7))
-        tk.Label(family_map,text="SMC ≠ ICT",bg=C["panel"],fg=C["gold"],
-                 font=("Segoe UI",12,"bold")).pack(anchor="e",padx=14,pady=(10,3))
-        tk.Label(
-            family_map,
-            text=self.ui_text("SMC: ساختار بازار، نقدینگی، BOS/CHoCH، Order Block، FVG و ناحیه‌ها  •  ICT: مدل‌ها و اصطلاحات نام‌گذاری‌شده مانند 2022 Model، Silver Bullet، Judas Swing، AMD، OTE و Unicorn"),
-            bg=C["panel"],fg=C["text"],font=("Segoe UI",10,"bold"),
-            wraplength=1180,justify="right"
-        ).pack(fill="x",padx=14,pady=(0,10))
-
-        legend=tk.Frame(self.content,bg=C["bg"])
-        legend.pack(fill="x",pady=(0,7))
-        smc_badge=tk.Label(legend,text=self.tr("smc_family"),bg=C["soft"],fg=C["accent"],
-                           font=("Segoe UI",9,"bold"),padx=10,pady=5)
-        smc_badge.pack(side="right",padx=3)
-        ict_badge=tk.Label(legend,text=self.tr("ict_family"),bg=C["soft"],fg=C["violet"],
-                           font=("Segoe UI",9,"bold"),padx=10,pady=5)
-        ict_badge.pack(side="right",padx=3)
-        tk.Label(legend,text=self.tr("family"),bg=C["bg"],fg=C["muted"],
-                 font=("Segoe UI",9,"bold"),padx=8).pack(side="right")
-
-        nb=ttk.Notebook(self.content)
-        nb.pack(fill="both",expand=True)
-        tab_smc=tk.Frame(nb,bg=C["bg"])
-        tab_ict=tk.Frame(nb,bg=C["bg"])
-        tab_candle=tk.Frame(nb,bg=C["bg"])
-        tab_gloss=tk.Frame(nb,bg=C["bg"])
-        nb.add(tab_smc,text=self.tr("smc"))
-        nb.add(tab_ict,text=self.tr("ict"))
-        nb.add(tab_candle,text=self.tr("candles"))
-        nb.add(tab_gloss,text=self.tr("glossary"))
-        self._academy_notebook=nb
-
-        self._build_strategy_tab(tab_smc, SMART_MONEY_STRATEGIES, "smc")
-        self._build_strategy_tab(tab_ict, ICT_STRATEGIES, "ict")
-        self._build_candle_tab(tab_candle)
-        self._build_glossary_tab(tab_gloss)
-
-    def _build_strategy_tab(self,parent,items,family):
-        outer=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8,showhandle=False)
-        outer.pack(fill="both",expand=True,padx=8,pady=8)
-
-        left=tk.Frame(outer,bg=C["panel"])
-        right_shell=tk.Frame(outer,bg=C["panel"])
-        outer.add(left,minsize=300)
-        outer.add(right_shell,minsize=820)
-
-        lb=tk.Listbox(
-            left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],
-            selectforeground="#061019",font=("Segoe UI",10,"bold"),
-            activestyle="none",borderwidth=0,highlightthickness=0
-        )
-        lb.pack(fill="both",expand=True,padx=8,pady=8)
-        for item in items:
-            lb.insert("end", item["name_fa"] if self.language=="fa" else item["name_en"])
-
-        canvas=tk.Canvas(right_shell,bg=C["panel"],highlightthickness=0,bd=0)
-        scrollbar=ttk.Scrollbar(right_shell,orient="vertical",command=canvas.yview)
-        canvas.pack(side="left",fill="both",expand=True)
-        scrollbar.pack(side="right",fill="y")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        right=tk.Frame(canvas,bg=C["panel"])
-        right_id=canvas.create_window((0,0),window=right,anchor="nw")
-        right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.bind("<Configure>",lambda e: canvas.itemconfigure(right_id,width=e.width))
-        def wheel(e):
-            canvas.yview_scroll(int(-1*(e.delta/120)) if e.delta else 0,"units")
-        canvas.bind("<MouseWheel>",wheel)
-
-        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",18,"bold"),anchor="e",justify="right")
-        title.pack(fill="x",padx=18,pady=(14,5))
-        badge_row=tk.Frame(right,bg=C["panel"]); badge_row.pack(fill="x",padx=18,pady=(0,5))
-        family_text=self.tr("smc_family") if family=="smc" else self.tr("ict_family")
-        family_badge=tk.Label(badge_row,text=family_text,bg=C["soft"],fg=C["accent"] if family=="smc" else C["violet"],
-                              font=("Segoe UI",9,"bold"),padx=10,pady=5)
-        family_badge.pack(side="right")
-        visual_name=tk.Label(badge_row,text="",bg=C["panel"],fg=C["muted"],font=("Consolas",8,"bold")); visual_name.pack(side="left",padx=8)
-        summary=tk.Label(right,text="",bg=C["panel"],fg=C["text"],font=("Segoe UI",12),anchor="e",justify="right",wraplength=940)
-        summary.pack(fill="x",padx=18,pady=5)
-
-        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=3)
-        tk.Label(visual_holder,text=self.tr("select_term_to_preview"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),pady=16).pack(fill="x")
-        anatomy_title=tk.Label(right,text=self.tr("setup_anatomy"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",11,"bold"))
-        anatomy_title.pack(anchor="e",padx=18,pady=(6,3))
-        anatomy=tk.Frame(right,bg=C["panel"]); anatomy.pack(fill="x",padx=18,pady=(0,8))
-        steps_frame=tk.Frame(right,bg=C["panel"]); steps_frame.pack(fill="both",expand=True,padx=18,pady=8)
-        text=tk.Text(steps_frame,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",wrap="word",font=("Segoe UI",12),height=13)
-        text.pack(side="left",fill="both",expand=True)
-        scr=ttk.Scrollbar(steps_frame,orient="vertical",command=text.yview); scr.pack(side="right",fill="y"); text.configure(yscrollcommand=scr.set)
-
-        def render(_=None):
-            sel=lb.curselection()
-            if not sel: return
-            item=items[sel[0]]
-            name_en=item["name_en"]
-            title.config(text=item["name_fa"] if self.language=="fa" else name_en)
-            summary.config(text=item["summary_fa"] if self.language=="fa" else item["summary_en"])
-            kind=strategy_visual_key(name_en)
-            visual_name.config(text=f"SOURCE VISUAL • {kind.upper()}")
-            for w in visual_holder.winfo_children(): w.destroy()
-            self._academy_visual(visual_holder,"strategy",name_en,item["summary_en"],visual_kind=kind,family=family)
-            for w in anatomy.winfo_children(): w.destroy()
-            lines=item["steps_fa"] if self.language=="fa" else item["steps_en"]
-            inv=item["risk_fa"] if self.language=="fa" else item["risk_en"]
-            for idx,line in enumerate(lines,1):
-                chip=tk.Frame(anatomy,bg=C["soft"],highlightbackground=C["line"],highlightthickness=1)
-                chip.pack(side="left",fill="both",expand=True,padx=3)
-                tk.Label(chip,text=f"{idx:02d}",bg=C["accent"] if family=="smc" else C["violet"],fg="#061019",
-                         font=("Segoe UI",9,"bold"),padx=7,pady=4).pack(anchor="w")
-                tk.Label(chip,text=line,bg=C["soft"],fg=C["text"],font=("Segoe UI",9,"bold"),wraplength=180,justify="right",padx=8,pady=8).pack(fill="both",expand=True)
-            text.configure(state="normal"); text.delete("1.0","end")
-            text.insert("end",self.tr("definition")+"\n\n"+(item["summary_fa"] if self.language=="fa" else item["summary_en"])+"\n\n")
-            text.insert("end",self.tr("steps")+"\n\n")
-            for i,line in enumerate(lines,1): text.insert("end",f"{i}. {line}\n")
-            text.insert("end","\n"+self.tr("invalidation")+"\n\n"+inv+"\n\n")
-            text.insert("end",f"Source visual key: {kind}\n")
-            text.configure(state="disabled")
-            right.update_idletasks()
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        lb.bind("<<ListboxSelect>>",render)
-        lb.bind("<ButtonRelease-1>",lambda _e:right.after_idle(render))
-
-    def _build_candle_tab(self,parent):
-        wrap=tk.Frame(parent,bg=C["panel"]); wrap.pack(fill="both",expand=True,padx=8,pady=8)
-        left=tk.Frame(wrap,bg=C["panel"]); left.pack(side="left",fill="y",padx=8,pady=8)
-        left.config(width=300)
-        right_shell=tk.Frame(wrap,bg=C["panel"]); right_shell.pack(side="left",fill="both",expand=True,padx=8,pady=8)
-        lb=tk.Listbox(left,bg=C["panel2"],fg=C["text"],selectbackground=C["accent"],selectforeground="#061019",font=("Segoe UI",10,"bold"),activestyle="none",borderwidth=0,highlightthickness=0,width=30)
-        lb.pack(fill="both",expand=True)
-        for name,en,fa in CANDLE_PLAYBOOK: lb.insert("end",fa if self.language=="fa" else name)
-        canvas=tk.Canvas(right_shell,bg=C["panel"],highlightthickness=0); scr=ttk.Scrollbar(right_shell,orient="vertical",command=canvas.yview)
-        canvas.pack(side="left",fill="both",expand=True); scr.pack(side="right",fill="y"); canvas.configure(yscrollcommand=scr.set)
-        right=tk.Frame(canvas,bg=C["panel"]); rid=canvas.create_window((0,0),window=right,anchor="nw")
-        right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all"))); canvas.bind("<Configure>",lambda e: canvas.itemconfigure(rid,width=e.width))
-        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=4)
-        tk.Label(visual_holder,text=self.tr("select_term_to_preview"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),pady=16).pack(fill="x")
-        tk.Label(right,text=self.ui_text("الگوهای کندلی"),bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold")).pack(anchor="e",padx=12,pady=10)
-        desc=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); desc.pack(fill="x",padx=16,pady=10)
-        en_desc={
-            "Pin Bar / Rejection Candle":"A one-candle rejection pattern with a small body and a pronounced wick. Read it with trend, level and confirmation.",
-            "Bullish Engulfing":"After selling pressure, the second candle's real body fully overtakes the prior bearish real body. This is a candlestick pattern, not an ICT setup by itself.",
-            "Bearish Engulfing":"After buying pressure, the second candle's real body fully overtakes the prior bullish real body. This is a candlestick pattern, not an ICT setup by itself.",
-            "Inside Bar":"A two-candle containment pattern: the second candle remains inside the previous candle's range. Direction requires context and confirmation.",
-            "Morning Star":"A three-candle bullish reversal sequence studied after a decline.",
-            "Evening Star":"A three-candle bearish reversal sequence studied after a rise.",
-            "Hammer":"A small body with a long lower shadow; context and confirmation matter.",
-            "Shooting Star":"A small body with a long upper shadow; context and confirmation matter.",
-            "Doji":"Open and close are very close, indicating temporary balance or indecision.",
-            "Tweezer Top":"Two nearby candles form matching or nearly matching highs near resistance.",
-            "Tweezer Bottom":"Two nearby candles form matching or nearly matching lows near support.",
-            "Three White Soldiers":"Three strong bullish candles with progressively higher closes.",
-            "Three Black Crows":"Three strong bearish candles with progressively lower closes.",
-            "Marubozu":"A large body with little or no visible shadow, emphasizing directional movement.",
-            "Spinning Top":"A small body with visible upper and lower shadows, showing balance/indecision.",
-            "Long-Legged Doji":"A doji with long shadows showing a wide battle between buyers and sellers."
-        }
-        def render(_=None):
-            if not lb.curselection(): return
-            name,en,fa=CANDLE_PLAYBOOK[lb.curselection()[0]]
-            for w in visual_holder.winfo_children(): w.destroy()
-            self._academy_visual(visual_holder,"candlestick",name,en_desc.get(name,"Candlestick reference."),visual_kind=pattern_visual_key(name),family="candles")
-            desc.config(text=f"{name}\n\n{fa if self.language=='fa' else en_desc.get(name,'Candlestick reference.')}\n\nCANDLESTICK PATTERN ≠ ICT MODEL")
-            canvas.configure(scrollregion=canvas.bbox("all"))
-        lb.bind("<<ListboxSelect>>",render)
-        lb.bind("<ButtonRelease-1>",lambda _e:right.after_idle(render))
-    def _build_glossary_tab(self,parent):
-        bar=tk.Frame(parent,bg=C["panel"]); bar.pack(fill="x",padx=8,pady=8)
-        q=tk.StringVar(); entry=tk.Entry(bar,textvariable=q,bg=C["soft"],fg=C["text"],insertbackground=C["text"],relief="flat",justify="right",font=("Segoe UI",10)); entry.pack(side="right",fill="x",expand=True,padx=8,pady=10)
-        tk.Label(bar,text=self.tr("search_term"),bg=C["panel"],fg=C["muted"]).pack(side="right")
-        cat=tk.StringVar(value="ALL"); cats=["ALL"]+sorted({x["category"] for x in GLOSSARY}); combo=ttk.Combobox(bar,textvariable=cat,values=cats,state="readonly",width=24,justify="right"); combo.pack(side="left",padx=8,pady=8)
-        family_var=tk.StringVar(value="ALL"); family_combo=ttk.Combobox(bar,textvariable=family_var,values=["ALL","SMC","ICT","CANDLE"],state="readonly",width=14,justify="center"); family_combo.pack(side="left",padx=8,pady=8)
-        body=tk.PanedWindow(parent,orient="horizontal",bg=C["bg"],sashwidth=8); body.pack(fill="both",expand=True,padx=8,pady=(0,8))
-        left=tk.Frame(body,bg=C["panel"]); right_shell=tk.Frame(body,bg=C["panel"]); body.add(left,minsize=360); body.add(right_shell,minsize=760)
-        tree=ttk.Treeview(left,columns=("term","category"),show="headings",selectmode="browse"); tree.heading("term",text="Term"); tree.heading("category",text="Category"); tree.column("term",width=260); tree.column("category",width=120); tree.pack(fill="both",expand=True,padx=8,pady=8)
-        canvas=tk.Canvas(right_shell,bg=C["panel"],highlightthickness=0); scr=ttk.Scrollbar(right_shell,orient="vertical",command=canvas.yview); canvas.pack(side="left",fill="both",expand=True); scr.pack(side="right",fill="y"); canvas.configure(yscrollcommand=scr.set)
-        right=tk.Frame(canvas,bg=C["panel"]); rid=canvas.create_window((0,0),window=right,anchor="nw"); right.bind("<Configure>",lambda _e: canvas.configure(scrollregion=canvas.bbox("all"))); canvas.bind("<Configure>",lambda e: canvas.itemconfigure(rid,width=e.width))
-        visual_holder=tk.Frame(right,bg=C["panel"]); visual_holder.pack(fill="x",padx=8,pady=(8,4))
-        tk.Label(visual_holder,text=self.tr("select_term_to_preview"),bg=C["panel"],fg=C["muted"],font=("Segoe UI",9),pady=16).pack(fill="x")
-        title=tk.Label(right,text="",bg=C["panel"],fg=C["gold"],font=("Segoe UI",17,"bold"),justify="right",anchor="e"); title.pack(fill="x",padx=18,pady=(8,5))
-        meaning=tk.Label(right,text="",bg=C["soft"],fg=C["text"],font=("Segoe UI",13),wraplength=860,justify="right",anchor="e"); meaning.pack(fill="x",padx=18,pady=7)
-        usage=tk.Label(right,text="",bg=C["panel"],fg=C["muted"],font=("Segoe UI",12),wraplength=860,justify="right",anchor="e"); usage.pack(fill="x",padx=18,pady=7)
-        def refresh(*_):
-            term=q.get().strip().lower(); selected_cat=cat.get(); selected_family=family_var.get()
-            for x in tree.get_children(): tree.delete(x)
-            matched=[]
-            for i,item in enumerate(GLOSSARY):
-                blob=" ".join([item["term"],item["fa"],item["en"],item["category"],item["meaning_fa"],item["meaning_en"],item["usage_fa"],item["usage_en"]]).lower()
-                if term and term not in blob: continue
-                if selected_cat!="ALL" and item["category"]!=selected_cat: continue
-                kind=glossary_visual_key(item["term"],item["category"],item["meaning_en"])
-                family="ICT" if kind.startswith("ict_") or kind in {"unicorn","smt"} else ("CANDLE" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "SMC")
-                if selected_family!="ALL" and family!=selected_family: continue
-                matched.append(i); tree.insert("", "end",iid=str(i),values=(item["term"],item["category"]))
-            if matched and (term or selected_cat != "ALL" or selected_family != "ALL"):
-                tree.selection_set(str(matched[0]))
-                render()
-        def render(_=None):
-            sel=tree.selection()
-            if not sel: return
-            item=GLOSSARY[int(sel[0])]
-            kind=glossary_visual_key(item["term"],item["category"],item["meaning_en"])
-            for w in visual_holder.winfo_children(): w.destroy()
-            family="ict" if kind.startswith("ict_") or kind in {"unicorn","smt"} else ("candles" if kind in {"candlestick","bullish_engulfing","bearish_engulfing","doji","hammer","shooting_star","morning_star","evening_star","tweezer_top","tweezer_bottom","three_white_soldiers","three_black_crows","marubozu","spinning_top","long_legged_doji"} else "smc")
-            self._academy_visual(visual_holder,kind,item["en"],item["meaning_en"],family=family)
-            title.config(text=item["term"]+"  |  "+(item["fa"] if self.language=="fa" else item["en"]))
-            meaning.config(text=self.tr("definition")+"\n"+(item["meaning_fa"] if self.language=="fa" else item["meaning_en"]))
-            usage.config(text=self.tr("usage")+"\n"+(item["usage_fa"] if self.language=="fa" else item["usage_en"]))
-            canvas.configure(scrollregion=canvas.bbox("all"))
-        tree.bind("<<TreeviewSelect>>",render); tree.bind("<ButtonRelease-1>",lambda _e:right.after_idle(render)); entry.bind("<KeyRelease>",refresh); combo.bind("<<ComboboxSelected>>",refresh); family_combo.bind("<<ComboboxSelected>>",refresh); refresh()
-        tk.Label(parent,text=f"{len(GLOSSARY)} terms",bg=C["bg"],fg=C["muted"],font=("Segoe UI",8)).pack(anchor="e",padx=10,pady=(0,6))
-    def open_path(self,path):
-        path=Path(path); path.mkdir(parents=True,exist_ok=True)
-        try:
-            if sys.platform.startswith("win"): os.startfile(str(path))
-            elif sys.platform=="darwin": os.system(f'open "{path}"')
-            else: os.system(f'xdg-open "{path}"')
-        except OSError as exc:
-            messagebox.showerror(self.ui_text("خطا"),str(exc),parent=self)
-
-def tempfile_path():
-    path = ROOT / "cache"
-    path.mkdir(parents=True, exist_ok=True)
-    return path / "trader_planner_pro_3d_logo.png"
-
-if __name__ == "__main__":
-    save_db()
-    App().mainloop()
