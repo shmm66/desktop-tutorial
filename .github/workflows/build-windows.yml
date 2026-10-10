@@ -116,7 +116,7 @@ jobs:
             if ($stdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
               throw 'Tk UI smoke test did not provide a reliable success marker.'
             }
-            Write-Warning 'Process exit code was unavailable; all 12 page renders reported success.'
+            Write-Warning 'Process exit code was unavailable; all 11 page renders reported success.'
           } elseif ([int]$exitCode -ne 0) {
             throw "Tk UI section smoke test failed with exit code $exitCode"
           }
@@ -137,7 +137,7 @@ jobs:
       - name: Build EXE
         shell: powershell
         run: >-
-          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import glass_theme --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
+          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --icon assets/trader_planner_logo.ico --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import glass_theme --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
 
       - name: Verify EXE
         shell: powershell
@@ -243,7 +243,7 @@ jobs:
             # Accept only an explicit all-pages success marker and clean stderr.
             if ($uiStdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or
                 $uiStderr -match 'Traceback|Exception|Error:') {
-              throw 'Installed EXE UI test returned no exit code and did not produce a clean 12-page success report.'
+              throw 'Installed EXE UI test returned no exit code and did not produce a clean 11-page success report.'
             }
             Write-Warning 'GUI process exit code unavailable; verified success marker and clean stderr.'
           } elseif ([int]$uiExitCode -ne 0) {
@@ -282,7 +282,7 @@ jobs:
 
             Verified gates:
             - Dependency installation, Python syntax check and pytest
-            - Tk UI smoke test across 12 primary application sections
+            - Tk UI smoke test across 11 primary application sections
             - Windows EXE creation and EXE self-test
             - Inno Setup compiler and installer output verification
             - Silent install, installed EXE self-test and UI section smoke test, and uninstall
