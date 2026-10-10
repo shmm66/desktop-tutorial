@@ -2690,6 +2690,120 @@ class App(tk.Tk):
         tk.Label(self.content, text=footnote, bg=C["bg"], fg=C["muted"],
                  font=("Segoe UI", 8), wraplength=1200, justify="right").pack(anchor="e", pady=(0, 4))
 
+        # Local, journal-grounded coach: no network call, API key or model download.
+        coach = self.card(self.content)
+        coach.pack(fill="x", pady=(5, 10))
+        tk.Label(coach, text=tx("مربی معاملاتی محلی","Local Trading Coach"),
+                 bg=C["panel"], fg=C["accent"], font=("Segoe UI", 12, "bold")).pack(anchor="e", padx=14, pady=(10, 2))
+        tk.Label(coach, text=tx("سؤال بپرس یا یکی از تحلیل‌های آماده را انتخاب کن؛ پاسخ از داده‌های ذخیره‌شده همین پروفایل و بازار ساخته می‌شود.",
+                                "Ask a question or choose a diagnostic. Answers use this profile's saved journal data only."),
+                 bg=C["panel"], fg=C["muted"], font=("Segoe UI", 9), justify="right", wraplength=1150).pack(anchor="e", padx=14, pady=(0, 7))
+        coach_bar = tk.Frame(coach, bg=C["panel"]); coach_bar.pack(fill="x", padx=10, pady=(0, 7))
+        coach_question = tk.StringVar()
+        coach_entry = tk.Entry(coach_bar, textvariable=coach_question, bg=C["panel3"], fg=C["text"],
+                               insertbackground=C["text"], relief="flat", font=("Segoe UI", 10), justify="right")
+        coach_entry.pack(side="right", fill="x", expand=True, padx=4, ipady=7)
+        coach_response = tk.Text(coach, height=5, bg=C["panel2"], fg=C["text"], relief="flat",
+                                 wrap="word", padx=12, pady=9, font=("Segoe UI", 9))
+        coach_response.pack(fill="x", padx=12, pady=(0, 12))
+
+        def answer_coach(intent=None):
+            question = (intent or coach_question.get() or "").strip().casefold()
+            p_now = active_profile()
+            current_market = p_now.get("market", self.market)
+            current_rows = p_now.get("journals", {}).get(current_market, [])
+            r = analyse_journal(current_rows)
+            answers = []
+            n = r["count"]
+            if n == 0:
+                answers.append(tx(
+                    "هنوز معامله‌ای در ژورنال این پروفایل/بازار ثبت نشده است. ابتدا حداقل ۱۰ تا ۲۰ معامله بسته‌شده را با تاریخ، ستاپ، نتیجه و Result (R) وارد کن؛ سپس همین مربی می‌تواند الگوها را از داده واقعی استخراج کند.",
+                    "No trades are recorded for this profile/market. Log 10–20 closed trades with date, setup, outcome and Result (R); then this coach can identify patterns from actual data."
+                ))
+            else:
+                answers.append(tx(
+                    f"بررسی {n} معامله: نرخ برد {r['win_rate']:.1f}٪، خالص {r['net_r']:+.2f}R، امید ریاضی {r['expectancy_r']:+.2f}R و افت بیشینه {r['max_drawdown_r']:.2f}R.",
+                    f"Review of {n} trades: win rate {r['win_rate']:.1f}%, net {r['net_r']:+.2f}R, expectancy {r['expectancy_r']:+.2f}R, and maximum drawdown {r['max_drawdown_r']:.2f}R."
+                ))
+                if r.get("missing_r_count", 0):
+                    answers.append(tx(
+                        f"{r['missing_r_count']} معامله Result (R) ندارد؛ نتیجه‌گیری درباره سودآوری با این داده ناقص است. مقدار R را ثبت کن.",
+                        f"{r['missing_r_count']} trades have no Result (R); profitability conclusions are incomplete until those values are logged."
+                    ))
+                if any(word in question for word in ("setup", "strategy", "ستاپ", "استراتژ", "بهترین")):
+                    groups = sorted(r.get("by_setup", []), key=lambda g: (g["avg_r"], g["count"]), reverse=True)
+                    if groups:
+                        best = groups[0]
+                        answers.append(tx(
+                            f"بهترین میانگین ثبت‌شده در ستاپ «{best['name']}» است: {best['avg_r']:+.2f}R میانگین، {best['count']} معامله و نرخ برد {best['win_rate']:.1f}٪.",
+                            f"Highest recorded setup average: “{best['name']}”, {best['avg_r']:+.2f}R average across {best['count']} trades, with a {best['win_rate']:.1f}% win rate."
+                        ))
+                        if best["count"] < 10:
+                            answers.append(tx("نمونه این ستاپ هنوز کم است؛ پیش از نتیجه‌گیری، آن را با قوانین ثابت روی نمونه بزرگ‌تری دنبال کن.",
+                                              "This setup has a small sample. Keep the rules fixed and collect more trades before treating the result as reliable."))
+                    else:
+                        answers.append(tx("برای مقایسه ستاپ‌ها، نام ستاپ را هنگام ثبت معامله وارد کن.",
+                                          "Record a setup name on trades before comparing setups."))
+                elif any(word in question for word in ("loss", "losing", "باخت", "ضرر", "weakness", "ضعف")):
+                    answers.append(tx(
+                        f"تعداد باخت‌ها: {r['losses']}؛ طولانی‌ترین زنجیره باخت: {r['max_losing_streak']}.",
+                        f"Recorded losses: {r['losses']}; longest losing streak: {r['max_losing_streak']}."
+                    ))
+                    if r.get("mistakes"):
+                        mistake, count = r["mistakes"][0]
+                        answers.append(tx(f"پرتکرارترین خطای ثبت‌شده «{mistake}» بوده ({count} بار). برای ۱۰ معامله بعدی قبل از ورود این مورد را در چک‌لیست کنترل کن.",
+                                          f"Most frequent recorded mistake: “{mistake}” ({count} times). Add a pre-entry check for it during the next 10 trades."))
+                    if r["expectancy_r"] <= 0:
+                        answers.append(tx("تا مثبت شدن امید ریاضی روی نمونه جدید، حجم را افزایش نده؛ ورودهای نامعتبر را جداگانه بازبینی کن.",
+                                          "Do not increase size while expectancy is non-positive; review invalid entries separately."))
+                elif any(word in question for word in ("risk", "drawdown", "ریسک", "افت", "حجم", "stop")):
+                    answers.append(tx(
+                        "پیشنهاد اجرایی: ریسک هر معامله را ثابت نگه دار، حد ضرر را پیش از ورود ثبت کن و پس از رسیدن به سقف ضرر روزانه معامله را متوقف کن.",
+                        "Practical control: keep per-trade risk fixed, record the stop before entry, and stop trading after reaching your daily loss limit."
+                    ))
+                    if r["max_drawdown_r"] > 0:
+                        answers.append(tx(f"افت ثبت‌شده {r['max_drawdown_r']:.2f}R است؛ قبل از افزایش ریسک، دلیل افت‌ها را در توالی تاریخ معاملات پیدا کن.",
+                                          f"Recorded drawdown is {r['max_drawdown_r']:.2f}R. Identify the causes in date order before increasing risk."))
+                elif any(word in question for word in ("emotion", "psych", "احساس", "روان", "ترس", "fomo")):
+                    emotions = r.get("by_emotion", [])
+                    if emotions:
+                        weakest = min(emotions, key=lambda g: g["avg_r"])
+                        answers.append(tx(f"کمترین میانگین R مربوط به حالت «{weakest['name']}» با {weakest['avg_r']:+.2f}R است؛ پیش از معامله در این وضعیت، ورود را به تأیید دوم مشروط کن.",
+                                          f"Lowest average R is associated with “{weakest['name']}” ({weakest['avg_r']:+.2f}R). Require a second confirmation before trading in that state."))
+                    else:
+                        answers.append(tx("حالت روانی را در ژورنال ثبت کن تا بتوان تفاوت عملکرد در حالت‌های مختلف را سنجید.",
+                                          "Record emotional state in the journal to compare outcomes by state."))
+                else:
+                    if r["expectancy_r"] > 0:
+                        answers.append(tx("اقدام بعدی: قوانین ستاپ سودآور را ثابت نگه دار و روی ۲۰ معامله بعدی فقط کیفیت اجرای همان قوانین را ارزیابی کن.",
+                                          "Next action: keep your setup rules fixed and evaluate execution quality over the next 20 trades."))
+                    else:
+                        answers.append(tx("اقدام بعدی: ورود، ابطال و R هر معامله را بازبینی کن؛ تا روشن شدن دلیل امید ریاضی غیرمثبت، ریسک را افزایش نده.",
+                                          "Next action: audit entry, invalidation and R for each trade; do not increase risk until non-positive expectancy is explained."))
+                    if r.get("by_setup"):
+                        best = max(r["by_setup"], key=lambda g: (g["avg_r"], g["count"]))
+                        answers.append(tx(f"ستاپ با بالاترین میانگین فعلی: «{best['name']}» ({best['avg_r']:+.2f}R، تعداد {best['count']}).",
+                                          f"Currently highest-average setup: “{best['name']}” ({best['avg_r']:+.2f}R over {best['count']} trades."))
+            answers.append(tx("محدودیت: این مربی محلی و قانون‌محور است؛ از ژورنال گزارش می‌دهد و پیش‌بینی قیمت یا تضمین سود ارائه نمی‌کند.",
+                              "Limit: this is a local, rule-based coach. It summarizes the journal and does not predict prices or guarantee profits."))
+            coach_response.configure(state="normal")
+            coach_response.delete("1.0", "end")
+            coach_response.insert("1.0", "\n\n".join(answers))
+            coach_response.configure(state="disabled")
+
+        for intent, label in (
+            ("setup", tx("مقایسه ستاپ‌ها","Compare setups")),
+            ("loss", tx("تحلیل باخت‌ها","Review losses")),
+            ("risk", tx("ریسک و افت","Risk & drawdown")),
+            ("emotion", tx("روانشناسی","Psychology")),
+        ):
+            self.btn(coach_bar, label, lambda value=intent: answer_coach(value)).pack(side="right", padx=2)
+        self.btn(coach_bar, tx("تحلیل","Analyze"), answer_coach, True).pack(side="left", padx=4)
+        coach_response.configure(state="normal")
+        coach_response.insert("1.0", tx("برای دریافت تحلیل، یکی از دکمه‌ها را بزن یا سؤال خود را وارد کن.",
+                                         "Choose a diagnostic or type a question to analyze your journal."))
+        coach_response.configure(state="disabled")
+
     def academy(self):
         """Offline-first academy: bundled reference images, local text, and native diagram fallbacks."""
         tx = lambda fa, en: fa if self.language == "fa" else en
