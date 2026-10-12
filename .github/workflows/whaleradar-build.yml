@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Locate Whale Radar Pro source on the Windows PC
-        shell: pwsh
+        shell: powershell
         run: |
           $candidates = @(
             (Join-Path $env:LOCALAPPDATA 'WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
@@ -24,16 +24,20 @@ jobs:
           )
           $src = $candidates | Where-Object { Test-Path (Join-Path $_ 'build_windows.bat') } | Select-Object -First 1
           if (-not $src) {
-            throw 'Could not find the extracted Whale Radar Pro source. Run the helper once so it extracts the files, then rerun this workflow.'
+            throw 'Could not find extracted Whale Radar Pro source. Run the helper file once so it extracts the source ZIP.'
           }
-          "WHALERADAR_SRC=$src" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Source located at: $src"
 
       - name: Build EXE and installer using resilient package mirrors
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Continue'
-          $src = $env:WHALERADAR_SRC
+          $candidates = @(
+            (Join-Path $env:LOCALAPPDATA 'WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
+            'C:\Users\Hajix\AppData\Local\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'
+          )
+          $src = $candidates | Where-Object { Test-Path (Join-Path $_ 'build_windows.bat') } | Select-Object -First 1
+          if (-not $src) { throw 'Whale Radar Pro source folder is missing.' }
           Set-Location $src
           $env:PIP_DEFAULT_TIMEOUT = '120'
           $env:PIP_RETRIES = '10'
@@ -61,9 +65,14 @@ jobs:
           }
 
       - name: Stage files for release
-        shell: pwsh
+        shell: powershell
         run: |
-          $src = $env:WHALERADAR_SRC
+          $candidates = @(
+            (Join-Path $env:LOCALAPPDATA 'WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
+            'C:\Users\Hajix\AppData\Local\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'
+          )
+          $src = $candidates | Where-Object { Test-Path (Join-Path $_ 'build_windows.bat') } | Select-Object -First 1
+          if (-not $src) { throw 'Whale Radar Pro source folder is missing while staging release files.' }
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'Output\WhaleRadarPro-Setup.exe') (Join-Path $dest 'WhaleRadarPro-Setup.exe') -Force
@@ -71,7 +80,7 @@ jobs:
           Get-ChildItem $dest | Select-Object Name, Length
 
       - name: Publish downloadable Windows files using GitHub API
-        shell: pwsh
+        shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -98,7 +107,7 @@ jobs:
             } | ConvertTo-Json -Depth 5
             $release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -ContentType 'application/json' -Body $body
           }
-          $uploadBase = $release.upload_url -replace '\{\?name,label\}$', ''
+          $uploadBase = $release.upload_url.Split('{')[0]
           $assetMap = @(
             @{ Name = 'WhaleRadarPro-Setup.exe'; Path = (Join-Path $env:GITHUB_WORKSPACE 'release-assets\WhaleRadarPro-Setup.exe') },
             @{ Name = 'WhaleRadarPro.exe'; Path = (Join-Path $env:GITHUB_WORKSPACE 'release-assets\WhaleRadarPro.exe') }
