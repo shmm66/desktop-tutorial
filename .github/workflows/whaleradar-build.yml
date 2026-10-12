@@ -13,73 +13,115 @@ permissions:
 jobs:
   build:
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
-      - name: Locate Whale Radar Pro source on the Windows PC
+      - name: Wait for source extracted into the shared Public folder
         shell: powershell
         run: |
           $candidates = @(
-            (Join-Path $env:LOCALAPPDATA 'WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
-            'C:\Users\Hajix\AppData\Local\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'
+            (Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
+            'C:\Users\Public\Documents\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'
           )
-          $src = $candidates | Where-Object { Test-Path (Join-Path $_ 'build_windows.bat') } | Select-Object -First 1
-          if (-not $src) {
-            throw 'Could not find extracted Whale Radar Pro source. Run the helper file once so it extracts the source ZIP.'
+          $src = $null
+          for ($i = 0; $i -lt 120; $i++) {
+            foreach ($candidate in $candidates) {
+              if (Test-Path (Join-Path $candidate 'build_windows.bat') -ErrorAction SilentlyContinue) {
+                $src = $candidate
+                break
+              }
+            }
+            if ($src) { break }
+            Write-Host 'Waiting for the one-click helper to extract the source into the shared folder...'
+            Start-Sleep -Seconds 5
           }
-          Write-Host "Source located at: $src"
+          if (-not $src) { throw 'Source not found. Run WhaleRadarPro_AutoBuild_Mirrors.bat once; it extracts the source into the Public Documents folder.' }
+          $buildSrc = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
+          if (Test-Path $buildSrc) { Remove-Item $buildSrc -Recurse -Force }
+          New-Item -ItemType Directory -Path $buildSrc -Force | Out-Null
+          Copy-Item -Path (Join-Path $src '*') -Destination $buildSrc -Recurse -Force
+          Write-Host "Copied source to runner workspace: $buildSrc"
 
-      - name: Build EXE and installer using resilient package mirrors
+      - name: Install dependencies using alternative PyPI mirrors
         shell: powershell
         run: |
-          $ErrorActionPreference = 'Continue'
-          $candidates = @(
-            (Join-Path $env:LOCALAPPDATA 'WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
-            'C:\Users\Hajix\AppData\Local\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'
-          )
-          $src = $candidates | Where-Object { Test-Path (Join-Path $_ 'build_windows.bat') } | Select-Object -First 1
-          if (-not $src) { throw 'Whale Radar Pro source folder is missing.' }
-          Set-Location $src
-          $env:PIP_DEFAULT_TIMEOUT = '120'
-          $env:PIP_RETRIES = '10'
-          $env:PIP_DISABLE_PIP_VERSION_CHECK = '1'
+          $ErrorActionPreference = 'Stop'
+          $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
+          $python = 'C:\Program Files\Python314\python.exe'
+          if (-not (Test-Path $python)) {
+            $found = Get-Command python.exe -ErrorAction SilentlyContinue
+            if ($found) { $python = $found.Source } else { throw 'Python was not found on the Windows runner.' }
+          }
+          & $python --version
+          & $python -m venv (Join-Path $src '.venv')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create the virtual environment.' }
+          $venvPython = Join-Path $src '.venv\Scripts\python.exe'
           $mirrors = @(
             'https://pypi.tuna.tsinghua.edu.cn/simple',
             'https://mirrors.aliyun.com/pypi/simple/'
           )
-          $success = $false
+          $installed = $false
           foreach ($mirror in $mirrors) {
-            Write-Host "Trying package index: $mirror"
-            $env:PIP_INDEX_URL = $mirror
-            cmd /d /c "call build_windows.bat <NUL"
-            if (Test-Path (Join-Path $src 'Output\WhaleRadarPro-Setup.exe')) {
-              $success = $true
-              break
-            }
-            Write-Host "Build did not finish with this mirror; trying the next one."
+            Write-Host "Trying dependency mirror: $mirror"
+            & $venvPython -m pip --default-timeout=120 --retries=10 --index-url $mirror install --upgrade pip
+            if ($LASTEXITCODE -ne 0) { continue }
+            & $venvPython -m pip --default-timeout=120 --retries=10 --index-url $mirror install -r (Join-Path $src 'requirements.txt') pyinstaller
+            if ($LASTEXITCODE -eq 0) { $installed = $true; break }
           }
-          if (-not $success) {
-            throw 'The Windows build did not produce Output\WhaleRadarPro-Setup.exe. Check this workflow log for the first dependency/build error.'
-          }
-          if (-not (Test-Path (Join-Path $src 'dist\WhaleRadarPro.exe'))) {
-            throw 'Installer was created but the standalone EXE is missing.'
-          }
+          if (-not $installed) { throw 'Dependency downloads failed from both mirrors.' }
 
-      - name: Stage files for release
+      - name: Test and package the standalone Windows EXE
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
+          $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
+          Set-Location $src
+          $python = Join-Path $src '.venv\Scripts\python.exe'
+          & $python make_icon.py
+          if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed.' }
+          & $python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed.' }
+          $pyiArgs = @('-m','PyInstaller','--noconfirm','--clean','--windowed','--onefile','--name','WhaleRadarPro','--icon','assets\whaleradar.ico','--add-data','assets\whaleradar.ico;assets','--collect-all','keyring','--hidden-import','winotify','app.py')
+          & $python @pyiArgs
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed.' }
+          if (-not (Test-Path (Join-Path $src 'dist\WhaleRadarPro.exe'))) { throw 'The standalone EXE was not created.' }
+
+      - name: Build installer if Inno Setup is available
+        shell: powershell
+        continue-on-error: true
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $candidates = @(
-            (Join-Path $env:LOCALAPPDATA 'WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
-            'C:\Users\Hajix\AppData\Local\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'
+            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+            (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')
           )
-          $src = $candidates | Where-Object { Test-Path (Join-Path $_ 'build_windows.bat') } | Select-Object -First 1
-          if (-not $src) { throw 'Whale Radar Pro source folder is missing while staging release files.' }
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            $choco = Get-Command choco.exe -ErrorAction SilentlyContinue
+            if ($choco) {
+              & $choco.Source install innosetup --yes --no-progress
+              $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+            }
+          }
+          if ($iscc) {
+            & $iscc (Join-Path $src 'setup.iss')
+            if ($LASTEXITCODE -ne 0) { Write-Warning 'Setup compilation failed; the standalone EXE will still be released.' }
+          } else {
+            Write-Warning 'Inno Setup is unavailable on this runner; releasing the standalone EXE only.'
+          }
+
+      - name: Stage release files
+        shell: powershell
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
-          Copy-Item (Join-Path $src 'Output\WhaleRadarPro-Setup.exe') (Join-Path $dest 'WhaleRadarPro-Setup.exe') -Force
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
+          $setup = Join-Path $src 'Output\WhaleRadarPro-Setup.exe'
+          if (Test-Path $setup) { Copy-Item $setup (Join-Path $dest 'WhaleRadarPro-Setup.exe') -Force }
           Get-ChildItem $dest | Select-Object Name, Length
 
-      - name: Publish downloadable Windows files using GitHub API
+      - name: Publish EXE files to the GitHub Release
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,7 +137,6 @@ jobs:
           }
           try {
             $release = Invoke-RestMethod -Method Get -Uri "$api/releases/tags/$tag" -Headers $headers
-            Write-Host "Updating existing release $tag"
           } catch {
             $body = @{
               tag_name = $tag
@@ -108,17 +149,14 @@ jobs:
             $release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -ContentType 'application/json' -Body $body
           }
           $uploadBase = $release.upload_url.Split('{')[0]
-          $assetMap = @(
-            @{ Name = 'WhaleRadarPro-Setup.exe'; Path = (Join-Path $env:GITHUB_WORKSPACE 'release-assets\WhaleRadarPro-Setup.exe') },
-            @{ Name = 'WhaleRadarPro.exe'; Path = (Join-Path $env:GITHUB_WORKSPACE 'release-assets\WhaleRadarPro.exe') }
-          )
-          foreach ($item in $assetMap) {
-            if (-not (Test-Path $item.Path)) { throw "Missing release file: $($item.Path)" }
+          $assetDir = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
+          $assets = Get-ChildItem $assetDir -File
+          foreach ($item in $assets) {
             foreach ($old in @($release.assets | Where-Object { $_.name -eq $item.Name })) {
               Invoke-RestMethod -Method Delete -Uri "$api/releases/assets/$($old.id)" -Headers $headers | Out-Null
             }
             $uploadUrl = "$uploadBase?name=$([uri]::EscapeDataString($item.Name))"
             Write-Host "Uploading $($item.Name)"
-            Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -ContentType 'application/octet-stream' -InFile $item.Path | Out-Null
+            Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -ContentType 'application/octet-stream' -InFile $item.FullName | Out-Null
           }
           Write-Host "Release available at: $($release.html_url)"
