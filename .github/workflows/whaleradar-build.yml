@@ -1,0 +1,79 @@
+name: Build Whale Radar Pro (Windows)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/whaleradar-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 60
+    steps:
+      - name: Locate Whale Radar Pro source on the Windows PC
+        shell: pwsh
+        run: |
+          $candidates = @(
+            (Join-Path $env:LOCALAPPDATA 'WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'),
+            'C:\Users\Hajix\AppData\Local\WhaleRadarProBuild\WhaleRadarPro_BitunixOnly'
+          )
+          $src = $candidates | Where-Object { Test-Path (Join-Path $_ 'build_windows.bat') } | Select-Object -First 1
+          if (-not $src) {
+            throw 'Could not find the extracted Whale Radar Pro source. Run the helper once so it extracts the files, then rerun this workflow.'
+          }
+          "WHALERADAR_SRC=$src" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Source located at: $src"
+
+      - name: Build EXE and installer using resilient package mirrors
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $src = $env:WHALERADAR_SRC
+          Set-Location $src
+          $env:PIP_DEFAULT_TIMEOUT = '120'
+          $env:PIP_RETRIES = '10'
+          $env:PIP_DISABLE_PIP_VERSION_CHECK = '1'
+          $mirrors = @(
+            'https://pypi.tuna.tsinghua.edu.cn/simple',
+            'https://mirrors.aliyun.com/pypi/simple/'
+          )
+          $success = $false
+          foreach ($mirror in $mirrors) {
+            Write-Host "Trying package index: $mirror"
+            $env:PIP_INDEX_URL = $mirror
+            cmd /d /c "call build_windows.bat <NUL"
+            if (Test-Path (Join-Path $src 'Output\WhaleRadarPro-Setup.exe')) {
+              $success = $true
+              break
+            }
+            Write-Host "Build did not finish with this mirror; trying the next one."
+          }
+          if (-not $success) {
+            throw 'The Windows build did not produce Output\WhaleRadarPro-Setup.exe. Check the runner log for the exact dependency/build error.'
+          }
+          if (-not (Test-Path (Join-Path $src 'dist\WhaleRadarPro.exe'))) {
+            throw 'Installer was created but the standalone EXE is missing.'
+          }
+
+      - name: Publish downloadable Windows files
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: whaleradarpro-v1.0.0
+          name: Whale Radar Pro 1.0.0 - Windows
+          target_commitish: main
+          body: |
+            Whale Radar Pro 1.0.0 for Windows x64.
+            Built by the Windows runner. Use the Setup installer for normal installation.
+            Bitunix is the only configured exchange connection in this build.
+          files: |
+            ${{ env.WHALERADAR_SRC }}/Output/WhaleRadarPro-Setup.exe
+            ${{ env.WHALERADAR_SRC }}/dist/WhaleRadarPro.exe
+          fail_on_unmatched_files: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
