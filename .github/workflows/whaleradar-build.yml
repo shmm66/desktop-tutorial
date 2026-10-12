@@ -54,7 +54,7 @@ jobs:
             Write-Host "Build did not finish with this mirror; trying the next one."
           }
           if (-not $success) {
-            throw 'The Windows build did not produce Output\WhaleRadarPro-Setup.exe. Check the runner log for the exact dependency/build error.'
+            throw 'The Windows build did not produce Output\WhaleRadarPro-Setup.exe. Check this workflow log for the first dependency/build error.'
           }
           if (-not (Test-Path (Join-Path $src 'dist\WhaleRadarPro.exe'))) {
             throw 'Installer was created but the standalone EXE is missing.'
@@ -70,20 +70,46 @@ jobs:
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
           Get-ChildItem $dest | Select-Object Name, Length
 
-      - name: Publish downloadable Windows files
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: whaleradarpro-v1.0.0
-          name: Whale Radar Pro 1.0.0 - Windows
-          target_commitish: main
-          body: |
-            Whale Radar Pro 1.0.0 for Windows x64.
-            Built by the Windows runner. Use the Setup installer for normal installation.
-            Bitunix is the only configured exchange connection in this build.
-          files: |
-            release-assets/WhaleRadarPro-Setup.exe
-            release-assets/WhaleRadarPro.exe
-          fail_on_unmatched_files: true
-          make_latest: false
+      - name: Publish downloadable Windows files using GitHub API
+        shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_REPOSITORY
+          $api = "https://api.github.com/repos/$repo"
+          $tag = 'whaleradarpro-v1.0.0'
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          try {
+            $release = Invoke-RestMethod -Method Get -Uri "$api/releases/tags/$tag" -Headers $headers
+            Write-Host "Updating existing release $tag"
+          } catch {
+            $body = @{
+              tag_name = $tag
+              target_commitish = 'main'
+              name = 'Whale Radar Pro 1.0.0 - Windows'
+              body = 'Whale Radar Pro 1.0.0 for Windows x64. Bitunix is the only configured exchange connection in this build.'
+              draft = $false
+              prerelease = $false
+            } | ConvertTo-Json -Depth 5
+            $release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -ContentType 'application/json' -Body $body
+          }
+          $uploadBase = $release.upload_url -replace '\{\?name,label\}$', ''
+          $assetMap = @(
+            @{ Name = 'WhaleRadarPro-Setup.exe'; Path = (Join-Path $env:GITHUB_WORKSPACE 'release-assets\WhaleRadarPro-Setup.exe') },
+            @{ Name = 'WhaleRadarPro.exe'; Path = (Join-Path $env:GITHUB_WORKSPACE 'release-assets\WhaleRadarPro.exe') }
+          )
+          foreach ($item in $assetMap) {
+            if (-not (Test-Path $item.Path)) { throw "Missing release file: $($item.Path)" }
+            foreach ($old in @($release.assets | Where-Object { $_.name -eq $item.Name })) {
+              Invoke-RestMethod -Method Delete -Uri "$api/releases/assets/$($old.id)" -Headers $headers | Out-Null
+            }
+            $uploadUrl = "$uploadBase?name=$([uri]::EscapeDataString($item.Name))"
+            Write-Host "Uploading $($item.Name)"
+            Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -ContentType 'application/octet-stream' -InFile $item.Path | Out-Null
+          }
+          Write-Host "Release available at: $($release.html_url)"
