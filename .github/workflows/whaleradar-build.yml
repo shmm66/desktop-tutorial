@@ -20,7 +20,7 @@ jobs:
         run: |
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $src = Join-Path $root 'WhaleRadarPro_BitunixOnly'
-          $expected = '1.1.0'
+          $expected = '1.2.0'
           $found = $false
           for ($i = 0; $i -lt 720; $i++) {
             $versionFile = Join-Path $src 'BUILD_VERSION.txt'
@@ -31,7 +31,7 @@ jobs:
             if ($i % 12 -eq 0) { Write-Host "Waiting for source build version $expected in $src..." }
             Start-Sleep -Seconds 5
           }
-          if (-not $found) { throw 'Whale Radar Pro 1.1.0 source was not found. Run the version 1.1.0 one-click builder to extract the source.' }
+          if (-not $found) { throw 'Whale Radar Pro 1.2.0 source was not found. Run the version 1.2.0 one-click builder to extract the source.' }
           $buildSrc = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           if (Test-Path $buildSrc) { Remove-Item $buildSrc -Recurse -Force }
           New-Item -ItemType Directory -Path $buildSrc -Force | Out-Null
@@ -128,7 +128,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $publicRelease = Join-Path $root 'Release-v1.1.0'
+          $publicRelease = Join-Path $root 'Release-v1.2.0'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           New-Item -Path $publicRelease -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
@@ -140,7 +140,7 @@ jobs:
           }
           $repo = $env:GITHUB_REPOSITORY
           $api = "https://api.github.com/repos/$repo"
-          $tag = 'whaleradarpro-v1.1.0'
+          $tag = 'whaleradarpro-v1.2.0'
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -148,14 +148,14 @@ jobs:
           }
           try {
             $release = Invoke-RestMethod -Method Get -Uri "$api/releases/tags/$tag" -Headers $headers
-            if (-not $release.draft) { throw 'The v1.1.0 release already exists as a published immutable release. Use a new version tag.' }
+            if (-not $release.draft) { throw 'The v1.2.0 release already exists as a published immutable release. Use a new version tag.' }
             Write-Host 'Resuming the existing draft release.'
           } catch {
             if ($_.Exception.Message -like '*already exists as a published immutable release*') { throw }
             $body = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.1.0 — Windows x64'
+              name = 'Whale Radar Pro 1.2.0 — Windows x64'
               body = 'Bitunix-only trading and monitoring app. Built on the Windows runner after syntax checks and automated tests. Spot orders do not atomically install SL/TP. Public-wallet PnL statistics are not a verified win rate.'
               draft = $true
               prerelease = $false
