@@ -57,14 +57,15 @@ jobs:
           $venvPython = Join-Path $src '.venv\Scripts\python.exe'
           $mirrors = @(
             'https://pypi.tuna.tsinghua.edu.cn/simple',
-            'https://mirrors.aliyun.com/pypi/simple/'
+            'https://mirrors.aliyun.com/pypi/simple/',
+            'https://pypi.org/simple'
           )
           $installed = $false
           foreach ($mirror in $mirrors) {
             Write-Host "Trying dependency mirror: $mirror"
-            & $venvPython -m pip --default-timeout=120 --retries=10 --index-url $mirror install --upgrade pip
+            & $venvPython -m pip install --disable-pip-version-check --default-timeout=120 --retries=10 --index-url $mirror --upgrade pip
             if ($LASTEXITCODE -ne 0) { continue }
-            & $venvPython -m pip --default-timeout=120 --retries=10 --index-url $mirror install -r (Join-Path $src 'requirements.txt') pyinstaller
+            & $venvPython -m pip install --disable-pip-version-check --default-timeout=120 --retries=10 --index-url $mirror -r (Join-Path $src 'requirements.txt') pyinstaller
             if ($LASTEXITCODE -eq 0) { $installed = $true; break }
           }
           if (-not $installed) { throw 'Dependency downloads failed from both mirrors.' }
