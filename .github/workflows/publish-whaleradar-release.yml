@@ -69,7 +69,7 @@ jobs:
             $release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $payloadBytes
           }
 
-          $uploadBase = ([string]$release.upload_url).Split('{')[0]
+          $uploadBase = "https://uploads.github.com/repos/$repo/releases/$($release.id)/assets"
           $files = @($setup, $appExe, $hashFile)
           foreach ($file in $files) {
             $name = [System.IO.Path]::GetFileName($file)
