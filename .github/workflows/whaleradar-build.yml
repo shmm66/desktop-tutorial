@@ -165,7 +165,7 @@ jobs:
             # Use the vendor's normal per-user directory to avoid spaces in a custom /DIR argument.
             $install = Start-Process -FilePath $installerPath -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER') -Wait -PassThru
             if ($install.ExitCode -ne 0) { throw "Inno Setup install failed with exit code $($install.ExitCode)." }
-            $iscc = Join-Path $installDir 'ISCC.exe'
+            $iscc = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'
             if (-not (Test-Path $iscc)) {
               $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
             }
