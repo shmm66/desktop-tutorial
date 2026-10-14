@@ -53,7 +53,7 @@ jobs:
           $parts = [System.Collections.Generic.List[string]]::new()
           for ($i = 0; $i -lt 10; $i++) {
             $partPath = 'build-source-patch/v1.3.0.part{0:D2}.txt' -f $i
-            $partUrl = "https://api.github.com/repos/$repo/contents/$partPath?ref=$encodedBranch"
+            $partUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $repo, $partPath, $encodedBranch
             Write-Host "Fetching source patch part $i ($partPath)"
             try {
               $item = Invoke-RestMethod -Method Get -Uri $partUrl -Headers $headers
