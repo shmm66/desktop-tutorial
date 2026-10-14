@@ -156,7 +156,21 @@ jobs:
             if ($choco) { & $choco.Source install innosetup --yes --no-progress }
             $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           }
-          if (-not $iscc) { throw 'Inno Setup is unavailable; refusing to publish without the requested Setup installer.' }
+          if (-not $iscc) {
+            Write-Host 'Installing Inno Setup from the official signed release because winget/choco are unavailable on this runner.'
+            $installerPath = Join-Path $env:RUNNER_TEMP 'innosetup-6.7.3.exe'
+            Invoke-WebRequest -Uri 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile $installerPath
+            $installerHash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($installerHash -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') { throw 'Inno Setup installer checksum did not match the published SHA-256.' }
+            $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6'
+            $install = Start-Process -FilePath $installerPath -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',"/DIR=$installDir") -Wait -PassThru
+            if ($install.ExitCode -ne 0) { throw "Inno Setup install failed with exit code $($install.ExitCode)." }
+            $iscc = Join-Path $installDir 'ISCC.exe'
+            if (-not (Test-Path $iscc)) {
+              $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+            }
+          }
+          if (-not $iscc -or -not (Test-Path $iscc)) { throw 'Inno Setup is still unavailable; refusing to publish without the requested Setup installer.' }
           & $iscc (Join-Path $src 'setup.iss')
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed while compiling setup.iss.' }
           $setup = Join-Path $src 'Output\WhaleRadarPro-Setup.exe'
