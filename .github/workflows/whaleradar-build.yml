@@ -162,8 +162,8 @@ jobs:
             Invoke-WebRequest -Uri 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile $installerPath
             $installerHash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($installerHash -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') { throw 'Inno Setup installer checksum did not match the published SHA-256.' }
-            $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6'
-            $install = Start-Process -FilePath $installerPath -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',"/DIR=$installDir") -Wait -PassThru
+            # Use the vendor's normal per-user directory to avoid spaces in a custom /DIR argument.
+            $install = Start-Process -FilePath $installerPath -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER') -Wait -PassThru
             if ($install.ExitCode -ne 0) { throw "Inno Setup install failed with exit code $($install.ExitCode)." }
             $iscc = Join-Path $installDir 'ISCC.exe'
             if (-not (Test-Path $iscc)) {
