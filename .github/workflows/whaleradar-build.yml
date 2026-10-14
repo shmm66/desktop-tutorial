@@ -38,46 +38,43 @@ jobs:
           Get-ChildItem -LiteralPath $src -Force | Where-Object { $_.Name -notin @('.venv','build','dist','Output','__pycache__') } | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination $buildSrc -Recurse -Force
           }
-          # Normalize timezone conversion explicitly to UTC on Windows and keep the ambiguity fixture platform-independent.
+          # Normalize timestamp conversion explicitly to UTC before tests and packaging.
           $modulePath = Join-Path $buildSrc 'whaleradar\bitunix.py'
           $module = [System.IO.File]::ReadAllText($modulePath).Replace("`r`n", "`n")
-          $oldTimestamp = @'
-        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=dt.timezone.utc)
-        return int(parsed.timestamp() * 1000)
-'@
-          $oldTimestamp = $oldTimestamp.Replace("`r`n", "`n")
-          $newTimestamp = @'
-        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=dt.timezone.utc)
-        parsed = parsed.astimezone(dt.timezone.utc)
-        epoch = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
-        return int((parsed - epoch).total_seconds() * 1000)
-'@
-          $newTimestamp = $newTimestamp.Replace("`r`n", "`n")
+          $nl = "`n"
+          $oldTimestamp = @(
+            '        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))'
+            '        if parsed.tzinfo is None:'
+            '            parsed = parsed.replace(tzinfo=dt.timezone.utc)'
+            '        return int(parsed.timestamp() * 1000)'
+          ) -join $nl
+          $newTimestamp = @(
+            '        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))'
+            '        if parsed.tzinfo is None:'
+            '            parsed = parsed.replace(tzinfo=dt.timezone.utc)'
+            '        parsed = parsed.astimezone(dt.timezone.utc)'
+            '        epoch = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)'
+            '        return int((parsed - epoch).total_seconds() * 1000)'
+          ) -join $nl
           if (-not $module.Contains($oldTimestamp)) { throw 'Could not locate the timestamp parser for the UTC hardening patch.' }
           $module = $module.Replace($oldTimestamp, $newTimestamp)
-          $oldCreated = @'
-            local_dt = dt.datetime.fromisoformat(date_text)
-            if local_dt.tzinfo is None:
-                created_ms = int(local_dt.timestamp() * 1000)
-            else:
-                created_ms = int(local_dt.timestamp() * 1000)
-'@
-          $oldCreated = $oldCreated.Replace("`r`n", "`n")
-          $newCreated = @'
-            local_dt = dt.datetime.fromisoformat(date_text)
-            if local_dt.tzinfo is None:
-                created_ms = int(local_dt.timestamp() * 1000)
-            else:
-                epoch = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
-                utc_dt = local_dt.astimezone(dt.timezone.utc)
-                created_ms = int((utc_dt - epoch).total_seconds() * 1000)
-'@
-          $newCreated = $newCreated.Replace("`r`n", "`n")
-          if (-not $module.Contains($oldCreated)) { throw 'Could not locate the order-time conversion for the UTC hardening patch.' }
+          $oldCreated = @(
+            '            local_dt = dt.datetime.fromisoformat(date_text)'
+            '            if local_dt.tzinfo is None:'
+            '                created_ms = int(local_dt.timestamp() * 1000)'
+            '            else:'
+            '                created_ms = int(local_dt.timestamp() * 1000)'
+          ) -join $nl
+          $newCreated = @(
+            '            local_dt = dt.datetime.fromisoformat(date_text)'
+            '            if local_dt.tzinfo is None:'
+            '                created_ms = int(local_dt.timestamp() * 1000)'
+            '            else:'
+            '                epoch = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)'
+            '                utc_dt = local_dt.astimezone(dt.timezone.utc)'
+            '                created_ms = int((utc_dt - epoch).total_seconds() * 1000)'
+          ) -join $nl
+          if (-not $module.Contains($oldCreated)) { throw 'Could not locate order-time conversion for the UTC hardening patch.' }
           $module = $module.Replace($oldCreated, $newCreated)
           [System.IO.File]::WriteAllText($modulePath, $module, [System.Text.UTF8Encoding]::new($false))
           $testPath = Join-Path $buildSrc 'tests\test_bitunix.py'
