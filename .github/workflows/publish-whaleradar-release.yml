@@ -1,0 +1,88 @@
+name: Publish Whale Radar Pro Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-whaleradar-release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 30
+    steps:
+      - name: Publish the already-built and verified installer
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
+          $releaseDir = Join-Path $root 'Release-v1.2.1'
+          $setup = Join-Path $releaseDir 'WhaleRadarPro-Setup.exe'
+          $appExe = Join-Path $releaseDir 'WhaleRadarPro.exe'
+          if (-not (Test-Path $setup)) { throw "Built installer was not found: $setup" }
+          if (-not (Test-Path $appExe)) { throw "Standalone EXE was not found: $appExe" }
+          if ((Get-Item $setup).Length -lt 1000000) { throw 'Setup file is unexpectedly small.' }
+
+          $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          $hashFile = Join-Path $releaseDir 'WhaleRadarPro-Setup.sha256.txt'
+          [System.IO.File]::WriteAllText($hashFile, "$hash  WhaleRadarPro-Setup.exe`r`n", [System.Text.Encoding]::ASCII)
+
+          $repo = $env:GITHUB_REPOSITORY
+          $api = "https://api.github.com/repos/$repo"
+          $tag = 'whaleradarpro-v1.2.1'
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          $release = $null
+          try {
+            $release = Invoke-RestMethod -Method Get -Uri "$api/releases/tags/$tag" -Headers $headers
+          } catch {
+            $status = 0
+            if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+              $status = [int]$_.Exception.Response.StatusCode
+            }
+            if ($status -ne 404) { throw }
+          }
+
+          if ($release -and -not $release.draft) {
+            throw 'A published release with this tag already exists; refusing to overwrite its assets.'
+          }
+          if (-not $release) {
+            $payload = @{
+              tag_name = $tag
+              target_commitish = 'main'
+              name = 'Whale Radar Pro 1.2.1 - Windows x64'
+              body = 'Windows x64 installer. Bitunix is the only configured execution exchange; Hyperliquid is read-only analytics. Verify the SHA-256 file after download.'
+              draft = $true
+              prerelease = $false
+            } | ConvertTo-Json -Compress
+            $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
+            $release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $payloadBytes
+          }
+
+          $uploadBase = $release.upload_url -replace '\{.*$', ''
+          $files = @($setup, $appExe, $hashFile)
+          foreach ($file in $files) {
+            $name = [System.IO.Path]::GetFileName($file)
+            foreach ($oldAsset in @($release.assets | Where-Object { $_.name -eq $name })) {
+              Invoke-RestMethod -Method Delete -Uri "$api/releases/assets/$($oldAsset.id)" -Headers $headers | Out-Null
+            }
+            $uploadUrl = "$uploadBase?name=$([uri]::EscapeDataString($name))"
+            Write-Host "Uploading $name ($((Get-Item $file).Length) bytes)"
+            Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -ContentType 'application/octet-stream' -InFile $file | Out-Null
+          }
+
+          $publishJson = '{"draft":false}'
+          $publishBytes = [System.Text.Encoding]::UTF8.GetBytes($publishJson)
+          $published = Invoke-RestMethod -Method Patch -Uri "$api/releases/$($release.id)" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $publishBytes
+          Write-Host "Published installer: $($published.html_url)"
+          Get-ChildItem -LiteralPath $releaseDir | Select-Object Name, Length
