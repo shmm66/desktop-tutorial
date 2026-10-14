@@ -15,7 +15,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     steps:
-      - name: Wait for the current source bundle in the shared Public folder
+      - name: Verify extracted v1.2.0 source bundle for this Windows build
         shell: powershell
         run: |
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
