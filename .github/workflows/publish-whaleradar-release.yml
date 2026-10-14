@@ -76,7 +76,7 @@ jobs:
             foreach ($oldAsset in @($release.assets | Where-Object { $_.name -eq $name })) {
               Invoke-RestMethod -Method Delete -Uri "$api/releases/assets/$($oldAsset.id)" -Headers $headers | Out-Null
             }
-            $uploadUrl = "$uploadBase?name=$([uri]::EscapeDataString($name))"
+            $uploadUrl = "$($uploadBase)?name=$([uri]::EscapeDataString($name))"
             Write-Host "Uploading $name ($((Get-Item $file).Length) bytes)"
             Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -ContentType 'application/octet-stream' -InFile $file | Out-Null
           }
