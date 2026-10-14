@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro (Windows)
+name: Build Whale Radar Pro 1.3.0 (Windows)
 
 on:
   push:
@@ -15,8 +15,10 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     steps:
-      - name: Verify extracted v1.2.1 source bundle for this Windows build
+      - name: Verify baseline source and apply Whale Radar Pro 1.3.0 patch
         shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $src = Join-Path $root 'WhaleRadarPro_BitunixOnly'
@@ -31,13 +33,43 @@ jobs:
             if ($i % 12 -eq 0) { Write-Host "Waiting for source build version $expected in $src..." }
             Start-Sleep -Seconds 5
           }
-          if (-not $found) { throw 'Whale Radar Pro 1.2.1 source was not found. Run the version 1.2.1 one-click builder to extract the source.' }
+          if (-not $found) { throw 'Whale Radar Pro 1.3.0 source was not found. Run the version 1.3.0 patch deployment to extract the source.' }
           $buildSrc = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           if (Test-Path $buildSrc) { Remove-Item $buildSrc -Recurse -Force }
           New-Item -ItemType Directory -Path $buildSrc -Force | Out-Null
           Get-ChildItem -LiteralPath $src -Force | Where-Object { $_.Name -notin @('.venv','build','dist','Output','__pycache__') } | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination $buildSrc -Recurse -Force
           }
+          # Download and verify the 1.3.0 source patch from the branch payload.
+          $repo = $env:GITHUB_REPOSITORY
+          $branch = 'whaleradarpro-v130-payload'
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $parts = [System.Collections.Generic.List[string]]::new()
+          for ($i = 0; $i -lt 10; $i++) {
+            $partPath = 'build-source-patch/v1.3.0.part{0:D2}.txt' -f $i
+            $partUrl = "https://api.github.com/repos/$repo/contents/$partPath?ref=$branch"
+            $item = Invoke-RestMethod -Method Get -Uri $partUrl -Headers $headers
+            if (-not $item.content) { throw "Source patch part is empty: $partPath" }
+            $chunk = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($item.content -replace '\s','')))
+            if ($i -lt 9 -and $chunk.Length -ne 7500) { throw "Unexpected length for patch part $partPath : $($chunk.Length)" }
+            if ($i -eq 9 -and $chunk.Length -ne 7200) { throw "Unexpected length for final patch part: $($chunk.Length)" }
+            $parts.Add($chunk)
+          }
+          $patchB64 = [string]::Concat($parts.ToArray())
+          if ($patchB64.Length -ne 74700) { throw "Patch base64 length mismatch: $($patchB64.Length)" }
+          $patchBytes = [Convert]::FromBase64String($patchB64)
+          $patchPath = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.3.0_Patch.zip'
+          [System.IO.File]::WriteAllBytes($patchPath, $patchBytes)
+          $patchHash = (Get-FileHash -LiteralPath $patchPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($patchHash -ne 'edb282018964620d2f732864bd5b82a390453e468344c98caf6cb0466ac53dbd') { throw "v1.3.0 patch checksum mismatch: $patchHash" }
+          Expand-Archive -LiteralPath $patchPath -DestinationPath $buildSrc -Force
+          $newVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
+          if ($newVersion -ne '1.3.0') { throw "Unexpected patched source version: $newVersion" }
+          Write-Host "Applied verified v1.3.0 source patch ($($patchBytes.Length) bytes, SHA-256 $patchHash)."
           # Normalize timestamp conversion explicitly to UTC before tests and packaging.
           $modulePath = Join-Path $buildSrc 'whaleradar\bitunix.py'
           $module = [System.IO.File]::ReadAllText($modulePath).Replace("`r`n", "`n")
@@ -190,7 +222,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $publicRelease = Join-Path $root 'Release-v1.2.1'
+          $publicRelease = Join-Path $root 'Release-v1.3.0'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           New-Item -Path $publicRelease -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
@@ -201,7 +233,7 @@ jobs:
           Copy-Item $setup (Join-Path $publicRelease 'WhaleRadarPro-Setup.exe') -Force
           $repo = $env:GITHUB_REPOSITORY
           $api = "https://api.github.com/repos/$repo"
-          $tag = 'whaleradarpro-v1.2.1'
+          $tag = 'whaleradarpro-v1.3.0'
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -216,7 +248,7 @@ jobs:
             $body = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.2.1 — Windows x64'
+              name = 'Whale Radar Pro 1.3.0 — Windows x64'
               body = 'Bitunix-only trading and monitoring app. Built on the Windows runner after syntax checks and automated tests. Spot orders do not atomically install SL/TP. Public-wallet PnL statistics are not a verified win rate.'
               draft = $true
               prerelease = $false
