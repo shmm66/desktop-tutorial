@@ -246,33 +246,46 @@ jobs:
             Accept = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
           }
+          $setupHash = (Get-FileHash -LiteralPath (Join-Path $dest 'WhaleRadarPro-Setup.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+          $hashFile = Join-Path $dest 'WhaleRadarPro-Setup.sha256.txt'
+          [System.IO.File]::WriteAllText($hashFile, "$setupHash  WhaleRadarPro-Setup.exe`r`n", [System.Text.Encoding]::ASCII)
+          Copy-Item $hashFile (Join-Path $publicRelease 'WhaleRadarPro-Setup.sha256.txt') -Force
+
+          $release = $null
           try {
             $release = Invoke-RestMethod -Method Get -Uri "$api/releases/tags/$tag" -Headers $headers
-            if (-not $release.draft) { throw 'The v1.2.1 release already exists as a published immutable release. Use a new version tag.' }
-            Write-Host 'Resuming the existing draft release.'
           } catch {
-            if ($_.Exception.Message -like '*already exists as a published immutable release*') { throw }
-            $body = @{
+            $status = 0
+            if ($_.Exception.Response -and $_.Exception.Response.StatusCode) { $status = [int]$_.Exception.Response.StatusCode }
+            if ($status -ne 404) { throw }
+          }
+          if ($release -and -not $release.draft) {
+            throw 'The v1.3.0 release already exists as a published immutable release; use a new version tag.'
+          }
+          if (-not $release) {
+            $payload = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.3.0 — Windows x64'
-              body = 'Bitunix-only trading and monitoring app. Built on the Windows runner after syntax checks and automated tests. Spot orders do not atomically install SL/TP. Public-wallet PnL statistics are not a verified win rate.'
+              name = 'Whale Radar Pro 1.3.0 - Windows x64'
+              body = 'Modern Hyperliquid public trader leaderboard, ranked public fills, and onboarding-derived risk controls. Bitunix is the only configured execution exchange; Hyperliquid data is read-only. Public leaderboard coverage is not exhaustive of all Hyperliquid wallets.'
               draft = $true
               prerelease = $false
-            } | ConvertTo-Json -Depth 5
-            $release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -ContentType 'application/json' -Body $body
+            } | ConvertTo-Json -Compress
+            $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
+            $release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $payloadBytes
           }
-          $uploadBase = $release.upload_url -replace '\{.*$', ''
+          $uploadBase = "https://uploads.github.com/repos/$repo/releases/$($release.id)/assets"
           $assets = Get-ChildItem $dest -File
           foreach ($item in $assets) {
-            foreach ($old in @($release.assets | Where-Object { $_.name -eq $item.Name })) {
-              Invoke-RestMethod -Method Delete -Uri "$api/releases/assets/$($old.id)" -Headers $headers | Out-Null
+            $name = [System.IO.Path]::GetFileName($item.FullName)
+            foreach ($oldAsset in @($release.assets | Where-Object { $_.name -eq $name })) {
+              Invoke-RestMethod -Method Delete -Uri "$api/releases/assets/$($oldAsset.id)" -Headers $headers | Out-Null
             }
-            $uploadUrl = "$uploadBase?name=$([uri]::EscapeDataString($item.Name))"
-            Write-Host "Uploading $($item.Name) ($($item.Length) bytes)"
+            $uploadUrl = "$($uploadBase)?name=$([uri]::EscapeDataString($name))"
+            Write-Host "Uploading $name ($($item.Length) bytes)"
             Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -ContentType 'application/octet-stream' -InFile $item.FullName | Out-Null
           }
-          $publishBody = @{ draft = $false } | ConvertTo-Json
-          Invoke-RestMethod -Method Patch -Uri "$api/releases/$($release.id)" -Headers $headers -ContentType 'application/json' -Body $publishBody | Out-Null
-          Write-Host "Published verified files to $($release.html_url)"
+          $publishBytes = [System.Text.Encoding]::UTF8.GetBytes('{"draft":false}')
+          $published = Invoke-RestMethod -Method Patch -Uri "$api/releases/$($release.id)" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $publishBytes
+          Write-Host "Published verified files to $($published.html_url)"
           Get-ChildItem $publicRelease | Select-Object Name, Length
