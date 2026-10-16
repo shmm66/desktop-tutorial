@@ -1,0 +1,33 @@
+name: V8.2.0 Bootstrap Diagnostics
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  bootstrap:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Record checkout
+        shell: powershell
+        run: |
+          'checkout-ok' | Out-File bootstrap-marker.txt -Encoding utf8
+          git rev-parse HEAD | Out-File bootstrap-head.txt -Encoding utf8
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record Python setup
+        shell: powershell
+        run: |
+          python --version | Out-File bootstrap-python.txt -Encoding utf8
+          python -m pip --version | Out-File bootstrap-pip.txt -Encoding utf8
+      - name: Publish bootstrap diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-2-0-bootstrap-diagnostics
+          path: bootstrap-*.txt
+          if-no-files-found: ignore
