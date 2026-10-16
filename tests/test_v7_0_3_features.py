@@ -104,7 +104,7 @@ def test_visual_render_smoke(tmp_path, monkeypatch):
 def test_v740_visual_sources_are_original_remote_assets():
     from TraderPlannerPro_v7_0_3 import VERSION
     from academy_visuals import REMOTE_IMAGES, EDUCATION_SOURCES, image_url_for_visual
-    assert VERSION == "8.3.2"
+    assert VERSION == "10.0.0"
     for key in ("candlestick","structure","liquidity","fvg","order_block","breaker","timing","smt"):
         assert key in REMOTE_IMAGES
         assert REMOTE_IMAGES[key].startswith("https://")
@@ -225,7 +225,7 @@ def test_v760_persistent_navigation_and_embedded_ai_are_present():
     assert "self.quickbar" in source
     assert "def _render_page(self, key, token):" in source
     assert "def _replace_page_ai_waiting(self,chat,answer):" in source
-    assert "def ai(self):" in source and "ai_quick_strategy" in source
+    assert "def ai_page(self):" in source and "ai_quick_strategy" in source
 
 
 def test_v770_google_ai_and_statement_services_exist():
@@ -284,9 +284,9 @@ def test_v780_installer_and_launcher_metadata():
     from pathlib import Path
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
     launcher = Path("launcher.py").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "10.0.0"' in iss
     assert "DefaultDirName={localappdata}\\Programs\\Trader Planner Pro" in iss
-    assert "VERSION = \"8.2.0\"" in launcher
+    assert "VERSION = \"10.0.0\"" in launcher
 
 
 def test_v780_news_webview_has_fallback():
@@ -297,7 +297,7 @@ def test_v780_news_webview_has_fallback():
 
 def test_v800_ai_uses_supported_master_model():
     from ai_assistant import DEFAULT_MODEL, ROLES
-    assert DEFAULT_MODEL == "gpt-6-sol"
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
     assert "academy" in ROLES
     assert "product" in ROLES
 
@@ -344,9 +344,9 @@ def test_v800_navigation_uses_single_home_renderer():
 
 def test_v800_ai_uses_flagship_model_and_web_fallback():
     from ai_assistant import DEFAULT_MODEL, MODEL_FALLBACKS, CHATGPT_WEB_URL
-    assert DEFAULT_MODEL == "gpt-6-sol"
-    assert MODEL_FALLBACKS == ("gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna")
-    assert "gpt-5.6-terra" not in MODEL_FALLBACKS
+    assert DEFAULT_MODEL == "gpt-5.6-sol"
+    assert MODEL_FALLBACKS == ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
+    assert "gpt-5.6-terra" in MODEL_FALLBACKS
     assert CHATGPT_WEB_URL.startswith("https://")
 
 
@@ -418,9 +418,10 @@ def test_v810_real_glass_and_safe_installer():
     from pathlib import Path
     glass = Path("glass_theme.py").read_text(encoding="utf-8")
     iss = Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'wintypes.DWORD(38)' in glass
+    assert "_set_attr(dwmapi, hwnd, 38" in glass
+    assert "requested = wintypes.DWORD(3 if acrylic else 2)" in glass
     assert 'pywinstyles.apply_style(window, native_style)' in glass
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "10.0.0"' in iss
     assert 'PrivilegesRequired=lowest' in iss
 
 
@@ -429,8 +430,8 @@ def test_v820_home_is_synchronous_and_ai_is_globally_launchable():
     source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     assert "def go_home(self, _event=None):" in source
     assert "self._hard_home()" in source
-    assert 'command=self.open_ai_chat' in source
-    assert '("ai", self.tr("ai_chat"), self.open_ai_chat)' in source
+    assert 'command=self.go_ai' in source
+    assert '("ai", self.tr("ai_chat"), self.go_ai)' in source
     assert "def open_ai_chat(self):" in source
     assert "tk.Toplevel(self)" in source
 
@@ -444,9 +445,9 @@ def test_v820_market_has_no_key_fallback():
 def test_v820_installer_is_non_admin_and_versioned():
     from pathlib import Path
     iss=Path("TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'MyAppVersion "8.2.0"' in iss
+    assert 'MyAppVersion "10.0.0"' in iss
     assert "PrivilegesRequired=lowest" in iss
-    assert "OutputBaseFilename=TraderPlannerPro_Setup_v8.2.0" in iss
+    assert "OutputBaseFilename=TraderPlannerPro_Setup_v10.0.0" in iss
 
 
 def test_v820_academy_dispatch_has_exact_models():
@@ -474,11 +475,20 @@ def test_v830_academy_uses_bundled_source_images():
     assert "bundled_asset_for_visual(kind)" in source
     assert "Image.open(source_path)" in source
 
-def test_v830_native_acrylic_is_reapplied_after_map():
+def test_v830_native_acrylic_reapply_is_debounced_without_map_recursion():
     from pathlib import Path
     source=Path("glass_theme.py").read_text(encoding="utf-8")
     assert "DWMWA_SYSTEMBACKDROP_TYPE = 38" in source
-    assert 'window.bind("<Map>"' in source
+    assert 'window.bind("<Map>"' not in source
+    assert "_tpp_glass_after_id" in source
+    assert "after_cancel" in source
+    apply_body = source.split("def apply_glass(", 1)[1].split(
+        "def apply_glass_to_toplevel(", 1
+    )[0]
+    after_map_body = source.split("def apply_glass_after_map(", 1)[1]
+    assert "window.after(" not in apply_body
+    assert "window.after(50, _apply_after_map)" in after_map_body
+    assert "window.after(120, _apply_deferred)" not in source
 
 def test_v830_news_cache_first():
     from news_data import cached_news
@@ -488,9 +498,14 @@ def test_v830_news_cache_first():
 def test_v831_agents_sdk_handoffs_are_defined():
     from pathlib import Path
     source=Path("ai_assistant.py").read_text(encoding="utf-8")
-    assert "from agents import Agent, ModelSettings, Runner" in source
+    assert "def _ensure_agents_sdk()" in source
+    sdk_loader = source.split("def _ensure_agents_sdk()", 1)[1].split(
+        "def ", 1
+    )[0]
+    assert "from agents import Agent as _Agent, ModelSettings as _ModelSettings, Runner as _Runner" in sdk_loader
     assert "handoffs=list(specialists.values())" in source
     assert 'Reasoning(mode="pro", effort=REASONING_EFFORT, context="all_turns")' in source
+    assert "def _cached_ollama_status()" in source
 
 def test_v831_home_has_fallback_path():
     from pathlib import Path
@@ -500,9 +515,39 @@ def test_v831_home_has_fallback_path():
 def test_v831_academy_scrolls_long_source_cards():
     from pathlib import Path
     source=Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
-    assert source.count("canvas.configure(scrollregion=canvas.bbox("all"))") >= 3
+    assert source.count('canvas.configure(scrollregion=canvas.bbox("all"))') >= 3
 
-def test_v831_glass_alpha_is_translucent():
+def test_v831_glass_alpha_is_translucent_and_configurable():
     from pathlib import Path
     source=Path("glass_theme.py").read_text(encoding="utf-8")
-    assert 'window.wm_attributes("-alpha", 0.965)' in source
+    assert 'window.wm_attributes("-alpha"' in source
+    assert "opacity: float = 0.94" in source
+    assert "max(0.86, min(float(opacity), 0.995))" in source
+
+
+def test_v10_trading_desk_is_native_integrated():
+    from pathlib import Path
+    source = Path("TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
+    native = Path("native_trading_desk.py").read_text(encoding="utf-8")
+    app_start = source.index("class App(")
+    assert "from native_trading_desk import NativeTradingDesk" not in source[:app_start]
+    assert "def _load_native_trading_desk(self, holder):" in source
+    assert "NativeTradingDesk(holder, C" in source
+    assert "LOAD NATIVE CHART" in source
+    assert "open_chart" not in source[source.index("    def chart(self):"):source.index("\n    def _load_native_trading_desk(self, holder):")]
+    assert "FigureCanvasTkAgg" in native
+    assert "NavigationToolbar2Tk" in native
+    assert "Binance" in native
+    assert "Yahoo Finance" in native
+    assert "TradingView" not in native
+    assert "webview" not in native.lower()
+
+def test_native_trading_desk_is_desktop_native():
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[1] / "native_trading_desk.py"
+    text = p.read_text(encoding="utf-8")
+    assert "class NativeTradingDesk" in text
+    assert "FigureCanvasTkAgg" in text
+    assert "NavigationToolbar2Tk" in text
+    assert "TradingView" not in text
+    assert "webview" not in text.lower()
