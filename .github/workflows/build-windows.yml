@@ -40,8 +40,18 @@ jobs:
           python -m py_compile academy_diagrams.py
           python -m py_compile google_oauth.py
           python -m py_compile statement_report.py
-      - name: Run tests
-        run: python -m pytest -q
+      - name: Run tests with diagnostics
+        shell: powershell
+        run: |
+          python -m pytest -q 2>&1 | Tee-Object -FilePath pytest.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload pytest diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-2-0-pytest-diagnostics
+          path: pytest.log
+          if-no-files-found: ignore
 
   package:
     runs-on: windows-latest
