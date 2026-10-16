@@ -285,7 +285,12 @@ def bundled_asset_for_visual(key: str):
 
 
 def render_visual(path: Path, key: str, title: str = "", subtitle: str = "", size=(1400, 800)) -> Path:
-    """Return an exact source image path without adding labels or re-encoding it."""
+    """Return an exact source-image file for build preparation and deterministic UI tests.
+
+    The running Academy UI intentionally displays only bundled assets via
+    bundled_asset_for_visual(); downloading a missing image is restricted to
+    this explicit asset-preparation helper, not a page-render callback.
+    """
     _ = title, subtitle, size
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -293,15 +298,12 @@ def render_visual(path: Path, key: str, title: str = "", subtitle: str = "", siz
     if not url:
         raise ValueError(f"No exact educational visual is mapped for '{key}'")
     target = path.with_suffix(remote_extension(url))
-
     if target.exists() and target.stat().st_size > 5000:
         return target
-
     bundled = bundled_asset_for_visual(key)
     if bundled:
         target.write_bytes(bundled.read_bytes())
         return target
-
     request = Request(
         url,
         headers={"User-Agent": USER_AGENT, "Accept": "image/avif,image/webp,image/png,image/jpeg,*/*"},
@@ -309,8 +311,6 @@ def render_visual(path: Path, key: str, title: str = "", subtitle: str = "", siz
     with urlopen(request, timeout=20) as response:
         payload = response.read()
     if len(payload) < 5000:
-        raise ValueError(f"Remote source image is unexpectedly small for '{key}'")
+        raise ValueError(f"Source image is unexpectedly small for '{key}'")
     target.write_bytes(payload)
-    if path != target and path.exists():
-        path.unlink()
     return target
