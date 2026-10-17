@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro 1.4.2 (English, Windows)
+name: Build Whale Radar Pro 1.4.3 (English, Windows)
 
 on:
   push:
@@ -250,14 +250,14 @@ jobs:
           $setupIss = Join-Path $buildSrc 'setup.iss'
           $setupText = [System.IO.File]::ReadAllText($setupIss)
           if (-not $setupText.Contains('#define MyAppVersion "1.4.0"')) { throw 'Could not locate the v1.4.0 installer version in setup.iss.' }
-          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.2"')
-          $setupText = $setupText.Replace('Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion', 'Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion' + [Environment]::NewLine + 'Source: "docs\NETWORK_FIX_1.4.2.md"; DestDir: "{app}\docs"; Flags: ignoreversion')
+          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.3"')
+          $setupText = $setupText.Replace('Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion', 'Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion' + [Environment]::NewLine + 'Source: "docs\NETWORK_FIX_1.4.3.md"; DestDir: "{app}\docs"; Flags: ignoreversion')
           [System.IO.File]::WriteAllText($setupIss, $setupText, [System.Text.UTF8Encoding]::new($false))
 
           # Keep the visible build number in sync and make the generic error message actionable.
           $appPath = Join-Path $buildSrc 'app.py'
           $appText = [System.IO.File]::ReadAllText($appPath)
-          $appText = $appText.Replace('1.4.0', '1.4.2')
+          $appText = $appText.Replace('1.4.0', '1.4.3')
           $appText = [System.Text.RegularExpressions.Regex]::Replace(
             $appText,
             'Hyperliquid public data could not be loaded\.?',
@@ -268,16 +268,16 @@ jobs:
           $versionPath = Join-Path $buildSrc 'whaleradar\__init__.py'
           if (-not (Test-Path $versionPath)) { throw 'Package version module is missing.' }
           $versionText = [System.IO.File]::ReadAllText($versionPath)
-          $versionText = $versionText.Replace('1.4.0', '1.4.2').Replace('1.4.1', '1.4.2')
+          $versionText = $versionText.Replace('1.4.0', '1.4.3').Replace('1.4.1', '1.4.3')
           if ($versionText -notmatch '1\.4\.2') { throw 'Could not synchronize the displayed package version.' }
           [System.IO.File]::WriteAllText($versionPath, $versionText, [System.Text.UTF8Encoding]::new($false))
-          [System.IO.File]::WriteAllText((Join-Path $buildSrc 'BUILD_VERSION.txt'), "1.4.2" + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+          [System.IO.File]::WriteAllText((Join-Path $buildSrc 'BUILD_VERSION.txt'), "1.4.3" + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
 
           # Keep the network troubleshooting document filename and visible version consistent.
           $oldGuide = Join-Path $buildSrc 'docs\NETWORK_FIX_1.4.1.md'
-          $newGuide = Join-Path $buildSrc 'docs\NETWORK_FIX_1.4.2.md'
+          $newGuide = Join-Path $buildSrc 'docs\NETWORK_FIX_1.4.3.md'
           if (Test-Path $oldGuide) {
-            $guideText = [System.IO.File]::ReadAllText($oldGuide).Replace('1.4.1', '1.4.2')
+            $guideText = [System.IO.File]::ReadAllText($oldGuide).Replace('1.4.1', '1.4.3')
             [System.IO.File]::WriteAllText($newGuide, $guideText, [System.Text.UTF8Encoding]::new($false))
           } else {
             throw 'Network troubleshooting guide is missing from the patch.'
@@ -371,6 +371,44 @@ jobs:
           Write-Host "Source version: $((Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim())"
           Write-Host "Package version module: $versionPath"
           Write-Host "Copied and UTC-hardened source to $buildSrc"
+
+          # Apply the tested trade manager payload: selected-position close, Excel and PDF reports.
+          $tmBranch = 'whaleradarpro-v143-payload'
+          $tmPath = 'build-source-patch/v1.4.3-trade-manager.zip.b64'
+          $tmUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $env:GITHUB_REPOSITORY, $tmPath, [uri]::EscapeDataString($tmBranch)
+          $tmHeaders = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $tmItem = Invoke-RestMethod -Method Get -Uri $tmUrl -Headers $tmHeaders
+          if (-not $tmItem.content) { throw 'Trade manager payload is missing.' }
+          $tmB64 = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($tmItem.content -replace '\s',''))).Trim()
+          if ($tmB64.Length -ne 18168) { throw "Trade manager payload length mismatch: $($tmB64.Length)" }
+          $tmBytes = [Convert]::FromBase64String($tmB64)
+          $tmArchive = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.3_trade_manager.zip'
+          [System.IO.File]::WriteAllBytes($tmArchive, $tmBytes)
+          $tmHash = (Get-FileHash -LiteralPath $tmArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($tmHash -ne '778e1fcd6fa8f07d5a3d0a2af158eca25f231c10435f87fd5513b677941c5ada') { throw "Trade manager archive SHA-256 mismatch: $tmHash" }
+          $tmStage = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.3_trade_manager'
+          if (Test-Path $tmStage) { Remove-Item $tmStage -Recurse -Force }
+          Expand-Archive -LiteralPath $tmArchive -DestinationPath $tmStage -Force
+          $tmModuleSource = Join-Path $tmStage 'trade_manager.py'
+          $tmTestSource = Join-Path $tmStage 'test_trade_manager.py'
+          if (-not (Test-Path $tmModuleSource) -or -not (Test-Path $tmTestSource)) { throw 'Trade manager source or tests are missing from the verified payload.' }
+          Copy-Item -LiteralPath $tmModuleSource -Destination (Join-Path $buildSrc 'whaleradar\trade_manager.py') -Force
+          Copy-Item -LiteralPath $tmTestSource -Destination (Join-Path $buildSrc 'tests\test_trade_manager.py') -Force
+          $appText = [System.IO.File]::ReadAllText($appPath)
+          $managerImport = 'from whaleradar.trade_manager import install_trade_manager'
+          if (-not $appText.Contains($managerImport)) {
+            $mainMarker = 'def main():'
+            $mainAt = $appText.LastIndexOf($mainMarker, [System.StringComparison]::Ordinal)
+            if ($mainAt -lt 0) { throw 'Could not locate the safe main() integration point for Trade Manager.' }
+            $hook = $managerImport + [Environment]::NewLine + 'install_trade_manager(WhaleRadarApp)' + [Environment]::NewLine + [Environment]::NewLine
+            $appText = $appText.Insert($mainAt, $hook)
+            [System.IO.File]::WriteAllText($appPath, $appText, [System.Text.UTF8Encoding]::new($false))
+          }
+          Write-Host "Applied Trade Manager extension ($($tmBytes.Length) bytes; SHA-256 $tmHash); open-position close and report export tests will run in the normal test step."
           Write-Host '--- SOURCE MARKERS FOR TRADE MANAGEMENT / CONNECTIVITY PATCH ---'
           Select-String -Path (Join-Path $buildSrc 'app.py') -Pattern '^\s*(class |def )','showerror','showwarning','root.after','Treeview','asksaveasfilename','position','history','discovery failed','connection failed' | Select-Object -First 220 | ForEach-Object { Write-Host (('{0}: {1}' -f $_.LineNumber, $_.Line.Trim())) }
           Write-Host '--- END SOURCE MARKERS ---'
@@ -512,7 +550,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $publicRelease = Join-Path $root 'Release-v1.4.2'
+          $publicRelease = Join-Path $root 'Release-v1.4.3'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           New-Item -Path $publicRelease -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
@@ -523,7 +561,7 @@ jobs:
           Copy-Item $setup (Join-Path $publicRelease 'WhaleRadarPro-Setup.exe') -Force
           $repo = $env:GITHUB_REPOSITORY
           $api = "https://api.github.com/repos/$repo"
-          $tag = 'whaleradarpro-v1.4.2'
+          $tag = 'whaleradarpro-v1.4.3'
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -543,14 +581,14 @@ jobs:
             if ($status -ne 404) { throw }
           }
           if ($release -and -not $release.draft) {
-            throw 'The v1.4.0 release already exists as a published immutable release; use a new version tag.'
+            throw 'The v1.4.3 release already exists as a published immutable release; use a new version tag.'
           }
           if (-not $release) {
             $payload = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.4.2 - Windows x64'
-              body = 'English-only Whale Radar Pro 1.4.2. Corrects the displayed version label, prevents trader-discovery network failures from blocking startup with a modal dialog, saves detail to %APPDATA%\WhaleRadarPro\connection-diagnostics.log, and diagnoses Hyperliquid leaderboard/info plus Bitunix public endpoint reachability from the Windows build machine. Keeps the modern three-section UI and per-trade approval. Hyperliquid remains read-only; this app does not bypass regional or service restrictions. Public ranking coverage and event-based win-rate estimates are not exhaustive or guarantees of future performance.'
+              name = 'Whale Radar Pro 1.4.3 - Windows x64'
+              body = 'English-only Whale Radar Pro 1.4.3. Corrects the displayed version label, prevents trader-discovery network failures from blocking startup with a modal dialog, saves detail to %APPDATA%\WhaleRadarPro\connection-diagnostics.log, and diagnoses Hyperliquid leaderboard/info plus Bitunix public endpoint reachability from the Windows build machine. Keeps the modern three-section UI and per-trade approval. Hyperliquid remains read-only; this app does not bypass regional or service restrictions. Adds a Trade Manager utility window with live Bitunix open positions, selected-position-only market close using explicit double confirmation and reduceOnly, automatic position revalidation, exchange-reported history, Excel tables plus a win/loss pie chart, a print-ready landscape PDF, and a manual-close audit sheet. No automatic retry is sent after a close submission. Public ranking coverage and event-based win-rate estimates are not exhaustive or guarantees of future performance.'
               draft = $true
               prerelease = $false
             } | ConvertTo-Json -Compress
