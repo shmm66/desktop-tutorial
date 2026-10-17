@@ -179,11 +179,48 @@ jobs:
           $fixHash = (Get-FileHash -LiteralPath $fixArchive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($fixHash -ne '2f6d5557e81dee320255adf43e4b512e7b90eef9f2af818a8aa4ea11e3b2e7f1') { throw "v1.4.1 network fix checksum mismatch: $fixHash" }
           Expand-Archive -LiteralPath $fixArchive -DestinationPath $buildSrc -Force
-          $httpOverlayText = [System.IO.File]::ReadAllText($httpPath)
-          if ($httpOverlayText -match 'raise RuntimeError\(diagnostic\s+body_text\s*=\s*exc\.read') {
-            Write-Warning 'The v1.4.1 overlay HTTP module contains a merged malformed exception line; restoring the validated transport module.'
-            Copy-Item -LiteralPath $httpBackup -Destination $httpPath -Force
-          }
+          # Reuse the known-good HTTP transport, then add the new diagnostics helper separately.
+          Copy-Item -LiteralPath $httpBackup -Destination $httpPath -Force
+          $helperLines = @(
+            'def describe_network_error(exc, url=None, **kwargs):',
+            '    """Return actionable DNS, timeout, HTTP and access-policy diagnostics."""',
+            '    import re',
+            '    import socket',
+            '    from urllib.parse import urlsplit',
+            '    if url is None:',
+            '        url = kwargs.get("endpoint") or kwargs.get("host")',
+            '    if isinstance(exc, str) and not isinstance(url, str):',
+            '        exc, url = url, exc',
+            '    message = str(exc)',
+            '    target = ""',
+            '    try:',
+            '        target = urlsplit(str(url)).hostname or "" if url else ""',
+            '    except Exception:',
+            '        target = ""',
+            '    low = message.lower()',
+            '    match = re.search(r"HTTP\\s*(\\d{3})", message, re.IGNORECASE)',
+            '    code = int(match.group(1)) if match else getattr(exc, "code", None)',
+            '    reason = getattr(exc, "reason", None)',
+            '    if isinstance(reason, socket.gaierror) or "getaddrinfo" in low or "name resolution" in low or "nodename nor servname" in low:',
+            '        result = "DNS resolution failed. Check the endpoint hostname, DNS settings, internet access, firewall, and VPN/proxy."',
+            '    elif code in (403, 451):',
+            '        result = f"HTTP {code}: access denied by the server or regional access policy. Check API permissions, endpoint URL, and whether access from your region or VPN/proxy is allowed."',
+            '    elif code in (401, 10000):',
+            '        result = f"HTTP {code}: authentication was rejected. Verify API credentials, permissions, IP allowlist, and system clock."',
+            '    elif code in (418, 429):',
+            '        result = f"HTTP {code}: request rate limited. Wait briefly and retry; check whether another process is sending requests."',
+            '    elif isinstance(exc, TimeoutError) or isinstance(reason, TimeoutError) or "timed out" in low or "timeout" in low:',
+            '        result = "Network timeout while contacting the endpoint. Check connection stability, firewall, and VPN/proxy."',
+            '    elif isinstance(reason, ConnectionError) or "connection refused" in low or "connection reset" in low:',
+            '        result = "Connection to the endpoint failed or was reset. Check internet access, firewall, TLS inspection, VPN/proxy, and endpoint availability."',
+            '    else:',
+            '        result = "Network request failed: " + (message[:600] if message else type(exc).__name__)',
+            '    if target:',
+            '        result += " Endpoint host: " + target + "."',
+            '    return result'
+          )
+          $helperText = $helperLines -join [Environment]::NewLine
+          [System.IO.File]::AppendAllText($httpPath, [Environment]::NewLine + [Environment]::NewLine + $helperText + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
           $finalVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
           if ($finalVersion -ne '1.4.1') { throw "Unexpected final source version after network fix: $finalVersion" }
 
