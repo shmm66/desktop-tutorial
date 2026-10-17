@@ -383,13 +383,17 @@ jobs:
           $tmArchive = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.3_trade_manager.zip'
           [System.IO.File]::WriteAllBytes($tmArchive, $tmBytes)
           $tmHash = (Get-FileHash -LiteralPath $tmArchive -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($tmHash -ne '778e1fcd6fa8f07d5a3d0a2af158eca25f231c10435f87fd5513b677941c5ada') { throw "Trade Manager archive SHA-256 mismatch: $tmHash" }
+          if ($tmHash -ne '53103fe03f21d818a7eeba5883668b329e42bca392b0b99c64858701d09e233e') { throw "Trade Manager archive SHA-256 mismatch: $tmHash" }
           $tmStage = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.3_trade_manager'
           if (Test-Path $tmStage) { Remove-Item $tmStage -Recurse -Force }
           Expand-Archive -LiteralPath $tmArchive -DestinationPath $tmStage -Force
           $tmModuleSource = Join-Path $tmStage 'trade_manager.py'
           $tmTestSource = Join-Path $tmStage 'test_trade_manager.py'
           if (-not (Test-Path $tmModuleSource) -or -not (Test-Path $tmTestSource)) { throw 'Trade Manager source or tests are missing from the verified payload.' }
+          $tmModuleHash = (Get-FileHash -LiteralPath $tmModuleSource -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tmTestHash = (Get-FileHash -LiteralPath $tmTestSource -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($tmModuleHash -ne 'e15f146bfd5edd5e0add0ff637ce09a314bdbc7076a79d1eb3be54c83ccdd5cf') { throw "Trade Manager source checksum mismatch: $tmModuleHash" }
+          if ($tmTestHash -ne 'd5bfa08b0d1e4f34c6c83750b064b4383ba382fd53ef3d9cbe9cd4a8682c0c27') { throw "Trade Manager test checksum mismatch: $tmTestHash" }
           Copy-Item -LiteralPath $tmModuleSource -Destination (Join-Path $buildSrc 'whaleradar\trade_manager.py') -Force
           Copy-Item -LiteralPath $tmTestSource -Destination (Join-Path $buildSrc 'tests\test_trade_manager.py') -Force
           $appText = [System.IO.File]::ReadAllText($appPath)
