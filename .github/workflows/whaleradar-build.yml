@@ -155,6 +155,9 @@ jobs:
           if (-not (Test-Path (Join-Path $buildSrc 'whaleradar\copycalc.py'))) { throw 'The risk/leverage calculator module is missing after overlay.' }
           Write-Host "Applied verified English-only v1.4.0 overlay ($($overlayBytes.Length) bytes; SHA-256 $overlayHash)."
 
+          # Preserve the known-good HTTP client; the v1.4.1 patch's http.py has a syntax-corrupt replacement.
+          $httpBackup = Join-Path $env:RUNNER_TEMP 'http.pre-networkfix.py'
+          Copy-Item -LiteralPath (Join-Path $buildSrc 'whaleradar\http.py') -Destination $httpBackup -Force
           # Apply the verified v1.4.1 network diagnostics patch while preserving the English v1.4.0 UI.
           # Keep a validated transport module available in case a source overlay is malformed.
           $httpPath = Join-Path $buildSrc 'whaleradar\http.py'
@@ -182,6 +185,8 @@ jobs:
           $fixHash = (Get-FileHash -LiteralPath $fixArchive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($fixHash -ne '2f6d5557e81dee320255adf43e4b512e7b90eef9f2af818a8aa4ea11e3b2e7f1') { throw "v1.4.1 network fix checksum mismatch: $fixHash" }
           Expand-Archive -LiteralPath $fixArchive -DestinationPath $buildSrc -Force
+          Copy-Item -LiteralPath $httpBackup -Destination (Join-Path $buildSrc 'whaleradar\http.py') -Force
+          Write-Host 'Restored known-good HTTP client after applying the network diagnostics overlay.'
           # Preserve the tested TraderService; keep the patched Hyperliquid client so it can emit network diagnostics.
           Copy-Item -LiteralPath $tradersBackup -Destination $tradersPath -Force
           Copy-Item -LiteralPath $httpBackup -Destination $httpPath -Force
@@ -366,6 +371,9 @@ jobs:
           Write-Host "Source version: $((Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim())"
           Write-Host "Package version module: $versionPath"
           Write-Host "Copied and UTC-hardened source to $buildSrc"
+          Write-Host '--- SOURCE MARKERS FOR TRADE MANAGEMENT / CONNECTIVITY PATCH ---'
+          Select-String -Path (Join-Path $buildSrc 'app.py') -Pattern '^\s*(class |def )','showerror','showwarning','root.after','Treeview','asksaveasfilename','position','history','discovery failed','connection failed' | Select-Object -First 220 | ForEach-Object { Write-Host (('{0}: {1}' -f $_.LineNumber, $_.Line.Trim())) }
+          Write-Host '--- END SOURCE MARKERS ---'
 
       - name: Diagnose public endpoint reachability on the Windows runner
         shell: powershell
