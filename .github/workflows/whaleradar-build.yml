@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro 1.3.0 (Windows)
+name: Build Whale Radar Pro 1.4.0 (English, Windows)
 
 on:
   push:
@@ -122,6 +122,38 @@ jobs:
           $testText = $testText.Replace('"ctime": "2026-10-13T10:00:01Z"', '"ctime": 1791885601000')
           if ($testText -notmatch 'ctime": 1791885600000') { throw 'Could not harden the UTC fixture in test_bitunix.py.' }
           [System.IO.File]::WriteAllText($testPath, $testText, [System.Text.UTF8Encoding]::new($false))
+          # Apply the English-only three-section v1.4.0 overlay and verify it before packaging.
+          $repo = $env:GITHUB_REPOSITORY
+          $overlayBranch = 'whaleradarpro-v140-payload'
+          $overlayHeaders = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $overlayParts = [System.Collections.Generic.List[string]]::new()
+          for ($i = 0; $i -lt 10; $i++) {
+            $partPath = 'build-source-patch/v1.4.0.part{0:D2}.txt' -f $i
+            $partUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $repo, $partPath, [uri]::EscapeDataString($overlayBranch)
+            Write-Host "Fetching v1.4.0 overlay part $i"
+            $item = Invoke-RestMethod -Method Get -Uri $partUrl -Headers $overlayHeaders
+            if (-not $item.content) { throw "v1.4.0 overlay part is empty: $partPath" }
+            $chunk = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($item.content -replace '\s','')))
+            $expectedLength = if ($i -eq 9) { 1636 } else { 2500 }
+            if ($chunk.Length -ne $expectedLength) { throw "Unexpected v1.4.0 overlay length for $partPath : $($chunk.Length)" }
+            $overlayParts.Add($chunk)
+          }
+          $overlayB64 = [string]::Concat($overlayParts.ToArray())
+          if ($overlayB64.Length -ne 24136) { throw "v1.4.0 overlay base64 length mismatch: $($overlayB64.Length)" }
+          $overlayBytes = [Convert]::FromBase64String($overlayB64)
+          $overlayPath = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.0_Overlay.zip'
+          [System.IO.File]::WriteAllBytes($overlayPath, $overlayBytes)
+          $overlayHash = (Get-FileHash -LiteralPath $overlayPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($overlayHash -ne 'c806e896643013f1cc749e214f6b4f32ba8b04a0e822d05f5dbe0c49f5a1b8b8') { throw "v1.4.0 overlay checksum mismatch: $overlayHash" }
+          Expand-Archive -LiteralPath $overlayPath -DestinationPath $buildSrc -Force
+          $finalVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
+          if ($finalVersion -ne '1.4.0') { throw "Unexpected final source version: $finalVersion" }
+          if (-not (Test-Path (Join-Path $buildSrc 'whaleradar\copycalc.py'))) { throw 'The risk/leverage calculator module is missing after overlay.' }
+          Write-Host "Applied verified English-only v1.4.0 overlay ($($overlayBytes.Length) bytes; SHA-256 $overlayHash)."
           Write-Host "Source version: $((Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim())"
           Write-Host "Copied and UTC-hardened source to $buildSrc"
 
@@ -161,7 +193,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           Set-Location $src
           $python = Join-Path $src '.venv\Scripts\python.exe'
-          & $python -m py_compile app.py whaleradar\__init__.py whaleradar\analysis.py whaleradar\backtest.py whaleradar\bitunix.py whaleradar\evm.py whaleradar\exchanges.py whaleradar\http.py whaleradar\hyperliquid.py whaleradar\marketdata.py whaleradar\models.py whaleradar\notifications.py whaleradar\risk.py whaleradar\storage.py whaleradar\traders.py
+          & $python -m py_compile app.py whaleradar\__init__.py whaleradar\analysis.py whaleradar\backtest.py whaleradar\bitunix.py whaleradar\evm.py whaleradar\exchanges.py whaleradar\http.py whaleradar\hyperliquid.py whaleradar\marketdata.py whaleradar\models.py whaleradar\notifications.py whaleradar\risk.py whaleradar\storage.py whaleradar\traders.py whaleradar\copycalc.py
           if ($LASTEXITCODE -ne 0) { throw 'Python syntax validation failed.' }
           & $python make_icon.py
           if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed.' }
@@ -229,7 +261,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $publicRelease = Join-Path $root 'Release-v1.3.0'
+          $publicRelease = Join-Path $root 'Release-v1.4.0'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           New-Item -Path $publicRelease -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
@@ -240,7 +272,7 @@ jobs:
           Copy-Item $setup (Join-Path $publicRelease 'WhaleRadarPro-Setup.exe') -Force
           $repo = $env:GITHUB_REPOSITORY
           $api = "https://api.github.com/repos/$repo"
-          $tag = 'whaleradarpro-v1.3.0'
+          $tag = 'whaleradarpro-v1.4.0'
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -260,14 +292,14 @@ jobs:
             if ($status -ne 404) { throw }
           }
           if ($release -and -not $release.draft) {
-            throw 'The v1.3.0 release already exists as a published immutable release; use a new version tag.'
+            throw 'The v1.4.0 release already exists as a published immutable release; use a new version tag.'
           }
           if (-not $release) {
             $payload = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.3.0 - Windows x64'
-              body = 'Modern Hyperliquid public trader leaderboard, ranked public fills, and onboarding-derived risk controls. Bitunix is the only configured execution exchange; Hyperliquid data is read-only. Public leaderboard coverage is not exhaustive of all Hyperliquid wallets.'
+              name = 'Whale Radar Pro 1.4.0 - Windows x64'
+              body = 'English-only modern three-section UI: Exchange Connection; up to 10 ranked Hyperliquid traders filtered by configurable ROI and estimated win-event ratio; and user-entered margin/risk with per-trade recommended leverage sizing. New opening fills generate a desktop notification and an explicit copy-approval prompt. Bitunix is the only configured execution venue; Hyperliquid is read-only. Live orders are disabled by default and require explicit user enablement and per-trade approval. Public wallet rankings and event-based win-rate estimates are not exhaustive or a guarantee of future performance.'
               draft = $true
               prerelease = $false
             } | ConvertTo-Json -Compress
