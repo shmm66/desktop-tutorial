@@ -161,11 +161,8 @@ jobs:
           $httpBackup = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.0_http.py'
           $tradersPath = Join-Path $buildSrc 'whaleradar\traders.py'
           $tradersBackup = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.0_traders.py'
-          $hyperliquidPath = Join-Path $buildSrc 'whaleradar\hyperliquid.py'
-          $hyperliquidBackup = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.0_hyperliquid.py'
           Copy-Item -LiteralPath $httpPath -Destination $httpBackup -Force
           Copy-Item -LiteralPath $tradersPath -Destination $tradersBackup -Force
-          Copy-Item -LiteralPath $hyperliquidPath -Destination $hyperliquidBackup -Force
           $repo = $env:GITHUB_REPOSITORY
           $fixBranch = 'whaleradarpro-v141-payload'
           $fixPath = 'build-source-patch/v1.4.1-networkfix.b64'
@@ -185,10 +182,8 @@ jobs:
           $fixHash = (Get-FileHash -LiteralPath $fixArchive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($fixHash -ne '2f6d5557e81dee320255adf43e4b512e7b90eef9f2af818a8aa4ea11e3b2e7f1') { throw "v1.4.1 network fix checksum mismatch: $fixHash" }
           Expand-Archive -LiteralPath $fixArchive -DestinationPath $buildSrc -Force
-          # Preserve the proven v1.4.0 leaderboard implementation. The bundled test patch
-          # targets a different TraderService API and must not overwrite production modules.
+          # Preserve the tested TraderService; keep the patched Hyperliquid client so it can emit network diagnostics.
           Copy-Item -LiteralPath $tradersBackup -Destination $tradersPath -Force
-          Copy-Item -LiteralPath $hyperliquidBackup -Destination $hyperliquidPath -Force
           Copy-Item -LiteralPath $httpBackup -Destination $httpPath -Force
           $staleDiscoveryTest = Join-Path $buildSrc 'tests\test_trader_discovery.py'
           if (Test-Path $staleDiscoveryTest) {
