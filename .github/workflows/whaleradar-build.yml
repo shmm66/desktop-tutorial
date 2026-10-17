@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro 1.4.0 (English, Windows)
+name: Build Whale Radar Pro 1.4.1 (English, Windows)
 
 on:
   push:
@@ -154,6 +154,49 @@ jobs:
           if ($finalVersion -ne '1.4.0') { throw "Unexpected final source version: $finalVersion" }
           if (-not (Test-Path (Join-Path $buildSrc 'whaleradar\copycalc.py'))) { throw 'The risk/leverage calculator module is missing after overlay.' }
           Write-Host "Applied verified English-only v1.4.0 overlay ($($overlayBytes.Length) bytes; SHA-256 $overlayHash)."
+
+          # Apply the verified v1.4.1 network diagnostics patch while preserving the English v1.4.0 UI.
+          $repo = $env:GITHUB_REPOSITORY
+          $fixBranch = 'whaleradarpro-v141-payload'
+          $fixPath = 'build-source-patch/v1.4.1-networkfix.b64'
+          $fixUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $repo, $fixPath, [uri]::EscapeDataString($fixBranch)
+          $fixHeaders = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $fixItem = Invoke-RestMethod -Method Get -Uri $fixUrl -Headers $fixHeaders
+          if (-not $fixItem.content) { throw 'v1.4.1 network fix payload is missing.' }
+          $fixPayloadB64 = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($fixItem.content -replace '\s',''))).Trim()
+          if ($fixPayloadB64.Length -ne 14156) { throw "v1.4.1 network fix payload length mismatch: $($fixPayloadB64.Length)" }
+          $fixBytes = [Convert]::FromBase64String($fixPayloadB64)
+          $fixArchive = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.1_NetworkFix_Patch.zip'
+          [System.IO.File]::WriteAllBytes($fixArchive, $fixBytes)
+          $fixHash = (Get-FileHash -LiteralPath $fixArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($fixHash -ne 'd2fdbe5887374a8b2caac492ec2a79685d16dc9e0f2b444d0b50be0cbe42d80e') { throw "v1.4.1 network fix checksum mismatch: $fixHash" }
+          Expand-Archive -LiteralPath $fixArchive -DestinationPath $buildSrc -Force
+          $finalVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
+          if ($finalVersion -ne '1.4.1') { throw "Unexpected final source version after network fix: $finalVersion" }
+
+          # Update installer metadata without replacing the rest of the v1.4.0 UI overlay.
+          $setupIss = Join-Path $buildSrc 'setup.iss'
+          $setupText = [System.IO.File]::ReadAllText($setupIss)
+          if (-not $setupText.Contains('#define MyAppVersion "1.4.0"')) { throw 'Could not locate the v1.4.0 installer version in setup.iss.' }
+          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.1"')
+          $setupText = $setupText.Replace('Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion', 'Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion' + [Environment]::NewLine + 'Source: "docs\NETWORK_FIX_1.4.1.md"; DestDir: "{app}\docs"; Flags: ignoreversion')
+          [System.IO.File]::WriteAllText($setupIss, $setupText, [System.Text.UTF8Encoding]::new($false))
+
+          # Keep the visible build number in sync and make the generic error message actionable.
+          $appPath = Join-Path $buildSrc 'app.py'
+          $appText = [System.IO.File]::ReadAllText($appPath)
+          $appText = $appText.Replace('1.4.0', '1.4.1')
+          $appText = [System.Text.RegularExpressions.Regex]::Replace(
+            $appText,
+            'Hyperliquid public data could not be loaded\.?',
+            'Hyperliquid public data could not be loaded. Check the detailed connection log for DNS, timeout, or HTTP status; HTTP 403/451 indicates an access-policy response.'
+          )
+          [System.IO.File]::WriteAllText($appPath, $appText, [System.Text.UTF8Encoding]::new($false))
+          Write-Host "Applied verified v1.4.1 network diagnostics patch ($($fixBytes.Length) bytes; SHA-256 $fixHash)."
           Write-Host "Source version: $((Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim())"
           Write-Host "Copied and UTC-hardened source to $buildSrc"
 
@@ -261,7 +304,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $publicRelease = Join-Path $root 'Release-v1.4.0'
+          $publicRelease = Join-Path $root 'Release-v1.4.1'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           New-Item -Path $publicRelease -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
@@ -272,7 +315,7 @@ jobs:
           Copy-Item $setup (Join-Path $publicRelease 'WhaleRadarPro-Setup.exe') -Force
           $repo = $env:GITHUB_REPOSITORY
           $api = "https://api.github.com/repos/$repo"
-          $tag = 'whaleradarpro-v1.4.0'
+          $tag = 'whaleradarpro-v1.4.1'
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -298,8 +341,8 @@ jobs:
             $payload = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.4.0 - Windows x64'
-              body = 'English-only modern three-section UI: Exchange Connection; up to 10 ranked Hyperliquid traders filtered by configurable ROI and estimated win-event ratio; and user-entered margin/risk with per-trade recommended leverage sizing. New opening fills generate a desktop notification and an explicit copy-approval prompt. Bitunix is the only configured execution venue; Hyperliquid is read-only. Live orders are disabled by default and require explicit user enablement and per-trade approval. Public wallet rankings and event-based win-rate estimates are not exhaustive or a guarantee of future performance.'
+              name = 'Whale Radar Pro 1.4.1 - Windows x64'
+              body = 'English-only Whale Radar Pro 1.4.1. Keeps the modern three-section UI and per-trade approval flow. Improves diagnostics for DNS, timeout/reset, TLS, rate limiting, and HTTP access-policy failures; preserves cached leaderboard data and records detailed Hyperliquid leaderboard failures locally. Hyperliquid remains read-only; the app does not bypass regional or service restrictions. Public ranking coverage and event-based win-rate estimates are not exhaustive or guarantees of future performance.'
               draft = $true
               prerelease = $false
             } | ConvertTo-Json -Compress
