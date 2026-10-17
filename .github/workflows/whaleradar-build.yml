@@ -268,7 +268,8 @@ jobs:
           $versionPath = Join-Path $buildSrc 'whaleradar\__init__.py'
           if (-not (Test-Path $versionPath)) { throw 'Package version module is missing.' }
           $versionText = [System.IO.File]::ReadAllText($versionPath)
-          $versionText = [System.Text.RegularExpressions.Regex]::Replace($versionText, '(?m)^__version__\s*=.*
+          $versionText = [System.Text.RegularExpressions.Regex]::Replace($versionText, '(?m)^__version__\s*=.*$', '__version__ = "1.4.3"')
+          if ($versionText -notmatch '1\.4\.3') { throw 'Could not synchronize the displayed package version.' }
           [System.IO.File]::WriteAllText($versionPath, $versionText, [System.Text.UTF8Encoding]::new($false))
           [System.IO.File]::WriteAllText((Join-Path $buildSrc 'BUILD_VERSION.txt'), "1.4.3" + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
 
@@ -481,7 +482,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           Set-Location $src
           $python = Join-Path $src '.venv\Scripts\python.exe'
-          & $python -m py_compile app.py whaleradar\__init__.py whaleradar\analysis.py whaleradar\backtest.py whaleradar\bitunix.py whaleradar\evm.py whaleradar\exchanges.py whaleradar\http.py whaleradar\hyperliquid.py whaleradar\marketdata.py whaleradar\models.py whaleradar\notifications.py whaleradar\risk.py whaleradar\storage.py whaleradar\traders.py whaleradar\copycalc.py whaleradar\trade_manager.py
+          & $python -m py_compile app.py whaleradar\__init__.py whaleradar\analysis.py whaleradar\backtest.py whaleradar\bitunix.py whaleradar\evm.py whaleradar\exchanges.py whaleradar\http.py whaleradar\hyperliquid.py whaleradar\marketdata.py whaleradar\models.py whaleradar\notifications.py whaleradar\risk.py whaleradar\storage.py whaleradar\traders.py whaleradar\copycalc.py whaleradar\trade_manager.py whaleradar\trade_manager.py
           if ($LASTEXITCODE -ne 0) { throw 'Python syntax validation failed.' }
           & $python make_icon.py
           if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed.' }
@@ -609,7 +610,6 @@ jobs:
           $published = Invoke-RestMethod -Method Patch -Uri "$api/releases/$($release.id)" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $publishBytes
           Write-Host "Published verified files to $($published.html_url)"
           Get-ChildItem $publicRelease | Select-Object Name, Length
-, '__version__ = "1.4.3"')
           if ($versionText -notmatch '1\.4\.3') { throw 'Could not synchronize the displayed package version.' }
           [System.IO.File]::WriteAllText($versionPath, $versionText, [System.Text.UTF8Encoding]::new($false))
           [System.IO.File]::WriteAllText((Join-Path $buildSrc 'BUILD_VERSION.txt'), "1.4.3" + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
