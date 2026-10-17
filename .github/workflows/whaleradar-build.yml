@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro 1.4.3 (English, Windows)
+name: Build Whale Radar Pro 1.4.4 (English, Windows)
 
 on:
   push:
@@ -244,8 +244,8 @@ jobs:
           # Update installer metadata without replacing the rest of the v1.4.0 UI overlay.
           $setupIss = Join-Path $buildSrc 'setup.iss'
           $setupText = [System.IO.File]::ReadAllText($setupIss)
-          if (-not $setupText.Contains('#define MyAppVersion "1.4.4"')) { throw 'Could not locate the v1.4.0 installer version in setup.iss.' }
-          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.3"')
+          if (-not $setupText.Contains('#define MyAppVersion "1.4.0"')) { throw 'Could not locate the base installer version in setup.iss.' }
+          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.4"')
           $setupText = $setupText.Replace('Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion', 'Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion' + [Environment]::NewLine + 'Source: "docs\NETWORK_FIX_1.4.4.md"; DestDir: "{app}\docs"; Flags: ignoreversion')
           [System.IO.File]::WriteAllText($setupIss, $setupText, [System.Text.UTF8Encoding]::new($false))
 
