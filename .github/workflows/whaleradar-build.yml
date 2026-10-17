@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro 1.4.1 (English, Windows)
+name: Build Whale Radar Pro 1.4.2 (English, Windows)
 
 on:
   push:
@@ -245,23 +245,160 @@ jobs:
           $setupIss = Join-Path $buildSrc 'setup.iss'
           $setupText = [System.IO.File]::ReadAllText($setupIss)
           if (-not $setupText.Contains('#define MyAppVersion "1.4.0"')) { throw 'Could not locate the v1.4.0 installer version in setup.iss.' }
-          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.1"')
-          $setupText = $setupText.Replace('Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion', 'Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion' + [Environment]::NewLine + 'Source: "docs\NETWORK_FIX_1.4.1.md"; DestDir: "{app}\docs"; Flags: ignoreversion')
+          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.2"')
+          $setupText = $setupText.Replace('Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion', 'Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion' + [Environment]::NewLine + 'Source: "docs\NETWORK_FIX_1.4.2.md"; DestDir: "{app}\docs"; Flags: ignoreversion')
           [System.IO.File]::WriteAllText($setupIss, $setupText, [System.Text.UTF8Encoding]::new($false))
 
           # Keep the visible build number in sync and make the generic error message actionable.
           $appPath = Join-Path $buildSrc 'app.py'
           $appText = [System.IO.File]::ReadAllText($appPath)
-          $appText = $appText.Replace('1.4.0', '1.4.1')
+          $appText = $appText.Replace('1.4.0', '1.4.2')
           $appText = [System.Text.RegularExpressions.Regex]::Replace(
             $appText,
             'Hyperliquid public data could not be loaded\.?',
             'Hyperliquid public data could not be loaded. Check the detailed connection log for DNS, timeout, or HTTP status; HTTP 403/451 indicates an access-policy response.'
           )
           [System.IO.File]::WriteAllText($appPath, $appText, [System.Text.UTF8Encoding]::new($false))
-          Write-Host "Applied verified v1.4.1 network diagnostics patch ($($fixBytes.Length) bytes; SHA-256 $fixHash)."
+          # Align the package version displayed in the title bar with the actual build.
+          $versionPath = Join-Path $buildSrc 'whaleradar\__init__.py'
+          if (-not (Test-Path $versionPath)) { throw 'Package version module is missing.' }
+          $versionText = [System.IO.File]::ReadAllText($versionPath)
+          $versionText = $versionText.Replace('1.4.0', '1.4.2').Replace('1.4.1', '1.4.2')
+          if ($versionText -notmatch '1\.4\.2') { throw 'Could not synchronize the displayed package version.' }
+          [System.IO.File]::WriteAllText($versionPath, $versionText, [System.Text.UTF8Encoding]::new($false))
+          [System.IO.File]::WriteAllText((Join-Path $buildSrc 'BUILD_VERSION.txt'), "1.4.2" + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+
+          # Keep the network troubleshooting document filename and visible version consistent.
+          $oldGuide = Join-Path $buildSrc 'docs\NETWORK_FIX_1.4.1.md'
+          $newGuide = Join-Path $buildSrc 'docs\NETWORK_FIX_1.4.2.md'
+          if (Test-Path $oldGuide) {
+            $guideText = [System.IO.File]::ReadAllText($oldGuide).Replace('1.4.1', '1.4.2')
+            [System.IO.File]::WriteAllText($newGuide, $guideText, [System.Text.UTF8Encoding]::new($false))
+          } else {
+            throw 'Network troubleshooting guide is missing from the patch.'
+          }
+
+          # Rewrite only the discovery error dialog: save full details locally rather than interrupting launch.
+          $patcherText = @'
+          import ast
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          raw = path.read_bytes()
+          source = raw.decode("utf-8-sig")
+          tree = ast.parse(source)
+
+          def is_target(node):
+              if not isinstance(node, ast.Call):
+                  return False
+              fn = node.func
+              if not (isinstance(fn, ast.Attribute) and fn.attr == "showerror"):
+                  return False
+              if not (isinstance(fn.value, ast.Name) and fn.value.id == "messagebox"):
+                  return False
+              return bool(node.args and isinstance(node.args[0], ast.Constant)
+                          and node.args[0].value == "Trader discovery failed")
+
+          def line_starts(buf):
+              result = [0]
+              for i, byte in enumerate(buf):
+                  if byte == 10:
+                      result.append(i + 1)
+              return result
+
+          starts = line_starts(raw)
+          edits = []
+          for node in ast.walk(tree):
+              if is_target(node):
+                  message_expr = ast.get_source_segment(source, node.args[1]) if len(node.args) > 1 else '""'
+                  message_expr = message_expr or '""'
+                  replacement = ("_whaleradar_record_discovery_failure(str(" + message_expr + "))").encode("utf-8")
+                  start = starts[node.lineno - 1] + node.col_offset
+                  end = starts[node.end_lineno - 1] + node.end_col_offset
+                  edits.append((start, end, replacement))
+          if not edits:
+              raise SystemExit("No 'Trader discovery failed' messagebox.showerror call was found; refusing to publish an unpatched build.")
+          for start, end, replacement in sorted(edits, reverse=True):
+              raw = raw[:start] + replacement + raw[end:]
+          source = raw.decode("utf-8")
+          tree = ast.parse(source)
+          import_nodes = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+          if not import_nodes:
+              raise SystemExit("Could not find a safe insertion point for the diagnostic logger.")
+          insert_after_line = max(n.end_lineno for n in import_nodes)
+          lines = raw.splitlines(keepends=True)
+          insert_at = sum(len(line) for line in lines[:insert_after_line])
+          helper = '''\ndef _whaleradar_record_discovery_failure(message):
+    """Persist discovery/network failures without interrupting startup."""
+    try:
+        import os
+        import re
+        import time
+        from pathlib import Path
+        directory = Path(os.environ.get("APPDATA") or Path.home()) / "WhaleRadarPro"
+        directory.mkdir(parents=True, exist_ok=True)
+        clean = str(message).replace("\\r", " ").replace("\\n", " ")
+        clean = re.sub(r"(?i)(api[_ ]?key|api[_ ]?secret|secret|signature)\\s*[:=]\\s*\\S+", r"\\1=[redacted]", clean)
+        target = directory / "connection-diagnostics.log"
+        with target.open("a", encoding="utf-8") as handle:
+            handle.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trader discovery failed: {clean}\\n")
+    except Exception:
+        pass
+    return None
+
+'''
+          raw = raw[:insert_at] + helper.encode("utf-8") + raw[insert_at:]
+          ast.parse(raw.decode("utf-8"))
+          path.write_bytes(raw)
+          print(f"Suppressed {len(edits)} discovery modal(s); detailed errors go to %APPDATA%\\\\WhaleRadarPro\\\\connection-diagnostics.log")
+          '@
+          $patcherPath = Join-Path $env:RUNNER_TEMP 'patch_discovery_modal.py'
+          [System.IO.File]::WriteAllText($patcherPath, $patcherText, [System.Text.UTF8Encoding]::new($false))
+          $systemPython = 'C:\Program Files\Python314\python.exe'
+          if (-not (Test-Path $systemPython)) {
+            $systemPythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
+            if ($systemPythonCmd) { $systemPython = $systemPythonCmd.Source } else { throw 'Python required for AST-based startup fix was not found.' }
+          }
+          & $systemPython $patcherPath $appPath
+          if ($LASTEXITCODE -ne 0) { throw 'Could not patch the discovery error dialog safely.' }
+
           Write-Host "Source version: $((Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim())"
+          Write-Host "Package version module: $versionPath"
           Write-Host "Copied and UTC-hardened source to $buildSrc"
+
+      - name: Diagnose public endpoint reachability on the Windows runner
+        shell: powershell
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = 'Continue'
+          function Invoke-PublicProbe([string]$Name, [string]$Uri, [string]$Method = 'GET', [string]$Body = '') {
+            try {
+              if ($Method -eq 'POST') {
+                $response = Invoke-WebRequest -UseBasicParsing -Method POST -Uri $Uri -TimeoutSec 20 -ContentType 'application/json' -Body $Body
+              } else {
+                $response = Invoke-WebRequest -UseBasicParsing -Method GET -Uri $Uri -TimeoutSec 20
+              }
+              $status = [int]$response.StatusCode
+              $extra = ''
+              if ($Name -eq 'Hyperliquid leaderboard') {
+                try {
+                  $payload = $response.Content | ConvertFrom-Json
+                  $extra = " rows=$(@($payload.leaderboardRows).Count)"
+                } catch { $extra = ' response_json=invalid' }
+              }
+              Write-Host "NETWORK_PROBE [$Name] SUCCESS HTTP=$status$extra"
+            } catch {
+              $status = 'unknown'
+              try { if ($_.Exception.Response.StatusCode) { $status = [int]$_.Exception.Response.StatusCode } } catch {}
+              $detail = $_.Exception.Message
+              if ($_.Exception.InnerException) { $detail += ' | ' + $_.Exception.InnerException.Message }
+              Write-Host "NETWORK_PROBE [$Name] FAILED HTTP=$status DETAIL=$detail"
+            }
+          }
+          Invoke-PublicProbe 'Hyperliquid leaderboard' 'https://stats-data.hyperliquid.xyz/Mainnet/leaderboard'
+          Invoke-PublicProbe 'Hyperliquid info API' 'https://api.hyperliquid.xyz/info' 'POST' '{"type":"metaAndAssetCtxs"}'
+          Invoke-PublicProbe 'Bitunix futures public API' 'https://fapi.bitunix.com/api/v1/futures/market/tickers'
 
       - name: Install dependencies using resilient PyPI mirrors
         shell: powershell
@@ -367,7 +504,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $publicRelease = Join-Path $root 'Release-v1.4.1'
+          $publicRelease = Join-Path $root 'Release-v1.4.2'
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           New-Item -Path $publicRelease -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
@@ -378,7 +515,7 @@ jobs:
           Copy-Item $setup (Join-Path $publicRelease 'WhaleRadarPro-Setup.exe') -Force
           $repo = $env:GITHUB_REPOSITORY
           $api = "https://api.github.com/repos/$repo"
-          $tag = 'whaleradarpro-v1.4.1'
+          $tag = 'whaleradarpro-v1.4.2'
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -404,8 +541,8 @@ jobs:
             $payload = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.4.1 - Windows x64'
-              body = 'English-only Whale Radar Pro 1.4.1. Keeps the modern three-section UI and per-trade approval flow. Improves diagnostics for DNS, timeout/reset, TLS, rate limiting, and HTTP access-policy failures; preserves cached leaderboard data and records detailed Hyperliquid leaderboard failures locally. Hyperliquid remains read-only; the app does not bypass regional or service restrictions. Public ranking coverage and event-based win-rate estimates are not exhaustive or guarantees of future performance.'
+              name = 'Whale Radar Pro 1.4.2 - Windows x64'
+              body = 'English-only Whale Radar Pro 1.4.2. Corrects the displayed version label, prevents trader-discovery network failures from blocking startup with a modal dialog, saves detail to %APPDATA%\WhaleRadarPro\connection-diagnostics.log, and diagnoses Hyperliquid leaderboard/info plus Bitunix public endpoint reachability from the Windows build machine. Keeps the modern three-section UI and per-trade approval. Hyperliquid remains read-only; this app does not bypass regional or service restrictions. Public ranking coverage and event-based win-rate estimates are not exhaustive or guarantees of future performance.'
               draft = $true
               prerelease = $false
             } | ConvertTo-Json -Compress
