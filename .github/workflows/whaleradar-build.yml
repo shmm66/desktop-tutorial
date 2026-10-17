@@ -330,24 +330,24 @@ jobs:
           lines = raw.splitlines(keepends=True)
           insert_at = sum(len(line) for line in lines[:insert_after_line])
           helper = '''\ndef _whaleradar_record_discovery_failure(message):
-    """Persist discovery/network failures without interrupting startup."""
-    try:
-        import os
-        import re
-        import time
-        from pathlib import Path
-        directory = Path(os.environ.get("APPDATA") or Path.home()) / "WhaleRadarPro"
-        directory.mkdir(parents=True, exist_ok=True)
-        clean = str(message).replace("\\r", " ").replace("\\n", " ")
-        clean = re.sub(r"(?i)(api[_ ]?key|api[_ ]?secret|secret|signature)\\s*[:=]\\s*\\S+", r"\\1=[redacted]", clean)
-        target = directory / "connection-diagnostics.log"
-        with target.open("a", encoding="utf-8") as handle:
-            handle.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trader discovery failed: {clean}\\n")
-    except Exception:
-        pass
-    return None
+              """Persist discovery/network failures without interrupting startup."""
+              try:
+                  import os
+                  import re
+                  import time
+                  from pathlib import Path
+                  directory = Path(os.environ.get("APPDATA") or Path.home()) / "WhaleRadarPro"
+                  directory.mkdir(parents=True, exist_ok=True)
+                  clean = str(message).replace("\\r", " ").replace("\\n", " ")
+                  clean = re.sub(r"(?i)(api[_ ]?key|api[_ ]?secret|secret|signature)\\s*[:=]\\s*\\S+", r"\\1=[redacted]", clean)
+                  target = directory / "connection-diagnostics.log"
+                  with target.open("a", encoding="utf-8") as handle:
+                      handle.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trader discovery failed: {clean}\\n")
+              except Exception:
+                  pass
+              return None
 
-'''
+          '''
           raw = raw[:insert_at] + helper.encode("utf-8") + raw[insert_at:]
           ast.parse(raw.decode("utf-8"))
           path.write_bytes(raw)
