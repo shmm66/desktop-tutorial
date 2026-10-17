@@ -233,7 +233,7 @@ jobs:
             '        attempts = max(1, int(attempts))'
             '    except (TypeError, ValueError):'
             '        attempts = 1'
-            '    result += f" Safe read attempts: {attempts}."'
+            '    result += f" Attempts: {attempts}."'
             '    return result'
           )
           $helperText = $helperLines -join [Environment]::NewLine
