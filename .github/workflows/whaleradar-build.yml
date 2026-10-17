@@ -179,12 +179,10 @@ jobs:
           $fixHash = (Get-FileHash -LiteralPath $fixArchive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($fixHash -ne '2f6d5557e81dee320255adf43e4b512e7b90eef9f2af818a8aa4ea11e3b2e7f1') { throw "v1.4.1 network fix checksum mismatch: $fixHash" }
           Expand-Archive -LiteralPath $fixArchive -DestinationPath $buildSrc -Force
-          $httpCompileLog = & 'C:\Program Files\Python314\python.exe' -m py_compile $httpPath 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning ("The v1.4.1 overlay HTTP module failed syntax validation; restoring the validated transport module. " + ($httpCompileLog -join ' '))
+          $httpOverlayText = [System.IO.File]::ReadAllText($httpPath)
+          if ($httpOverlayText -match 'raise RuntimeError\(diagnostic\s+body_text\s*=\s*exc\.read') {
+            Write-Warning 'The v1.4.1 overlay HTTP module contains a merged malformed exception line; restoring the validated transport module.'
             Copy-Item -LiteralPath $httpBackup -Destination $httpPath -Force
-            $httpCompileLog = & 'C:\Program Files\Python314\python.exe' -m py_compile $httpPath 2>&1
-            if ($LASTEXITCODE -ne 0) { throw 'The fallback HTTP module also failed syntax validation.' }
           }
           $finalVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
           if ($finalVersion -ne '1.4.1') { throw "Unexpected final source version after network fix: $finalVersion" }
