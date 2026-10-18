@@ -264,7 +264,7 @@ jobs:
           if (-not (Test-Path $versionPath)) { throw 'Package version module is missing.' }
           $versionText = [System.IO.File]::ReadAllText($versionPath)
           $versionText = $versionText.Replace('1.4.0', '1.4.5').Replace('1.4.1', '1.4.5').Replace('1.4.3', '1.4.5').Replace('1.4.4', '1.4.5')
-          if ($versionText -notmatch '1\.4\.4') { throw 'Could not synchronize the displayed package version.' }
+          if ($versionText -notmatch '1\.4\.5') { throw 'Could not synchronize the displayed package version.' }
           [System.IO.File]::WriteAllText($versionPath, $versionText, [System.Text.UTF8Encoding]::new($false))
           [System.IO.File]::WriteAllText((Join-Path $buildSrc 'BUILD_VERSION.txt'), "1.4.5" + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
 
