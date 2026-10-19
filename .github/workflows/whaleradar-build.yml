@@ -614,6 +614,37 @@ jobs:
           Invoke-PublicProbe 'Hyperliquid info API' 'https://api.hyperliquid.xyz/info' 'POST' '{"type":"metaAndAssetCtxs"}'
           Invoke-PublicProbe 'Bitunix futures public API' 'https://fapi.bitunix.com/api/v1/futures/market/tickers'
 
+      - name: Inspect safe API UI integration points
+        shell: powershell
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
+          $appPath = Join-Path $src 'app.py'
+          if (-not (Test-Path $appPath)) { throw 'Source app.py not found for safe UI inspection.' }
+          $lines = [System.IO.File]::ReadAllLines($appPath)
+          Write-Host '--- SAFE SOURCE INSPECTION: class and method signatures ---'
+          for ($i = 0; $i -lt $lines.Length; $i++) {
+            if ($lines[$i] -match '^\s*def\s+' -or $lines[$i] -match '^class\s+') {
+              Write-Host ('SRC_METHOD|{0}|{1}' -f ($i + 1), $lines[$i].Trim())
+            }
+          }
+          Write-Host '--- SAFE SOURCE INSPECTION: credential UI anchors ---'
+          $needles = @('API key','API Key','API secret','API Secret','Save & test connection','Clear saved API keys','Connection test failed','Trader discovery failed','Bitunix API credentials')
+          for ($i = 0; $i -lt $lines.Length; $i++) {
+            foreach ($needle in $needles) {
+              if ($lines[$i].IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                $from = [Math]::Max(0, $i - 7)
+                $to = [Math]::Min($lines.Length - 1, $i + 11)
+                for ($j = $from; $j -le $to; $j++) {
+                  Write-Host ('SRC_CONTEXT|{0}|{1}' -f ($j + 1), $lines[$j])
+                }
+                Write-Host 'SRC_CONTEXT_END'
+                break
+              }
+            }
+          }
+          Write-Host '--- END SAFE SOURCE INSPECTION ---'
+
+
       - name: Install dependencies using resilient PyPI mirrors
         shell: powershell
         run: |
