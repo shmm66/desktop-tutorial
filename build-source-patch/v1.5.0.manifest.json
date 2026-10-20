@@ -1,0 +1,19 @@
+{
+  "version": "1.5.0",
+  "sha256": "58a9d8e8cdfd1adf6bc00f73e0fbb41132cdd0174a462d9b45c1b6e892cef85e",
+  "archive": "v1.5.0-source.zip",
+  "part_count": 11,
+  "parts": [
+    "v1.5.0.part00.txt",
+    "v1.5.0.part01.txt",
+    "v1.5.0.part02.txt",
+    "v1.5.0.part03.txt",
+    "v1.5.0.part04.txt",
+    "v1.5.0.part05.txt",
+    "v1.5.0.part06.txt",
+    "v1.5.0.part07.txt",
+    "v1.5.0.part08.txt",
+    "v1.5.0.part09.txt",
+    "v1.5.0.part10.txt"
+  ]
+}
