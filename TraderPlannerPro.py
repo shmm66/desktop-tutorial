@@ -57,7 +57,7 @@ class App(tk.Tk):
         for w in self.content.winfo_children(): w.destroy()
     def menu(self):
         m=tk.Toplevel(self); m.title('Menu'); m.geometry('310x610'); m.configure(bg=self.card); m.transient(self)
-        items=[('⌂  Home','home'),('📅  Daily Planner','daily'),('📋  Trading Plan','plan'),('☑  Checklist','check'),('📒  Journal','journal'),('🧮  Risk Manager','risk'),('◷  Market Sessions','sessions'),('📰  Forex Factory','ff'),('📈  Performance & Reports','reports'),('⚙  Settings','settings')]
+        items=[('⌂  Home','home'),('📅  Daily Planner','daily'),('📋  Trading Plan','plan'),('☑  Checklist','check'),('📒  Journal','journal'),('🧮  Risk Manager','risk'),('◷  Market Sessions','sessions'),('📰  Forex Factory','ff'),('📈  Performance & Reports','reports'),('📡  Radar','radar'),('⚙  Settings','settings')]
         for text,key in items: tk.Button(m,text=text,command=lambda k=key:(m.destroy(),self.show(k)),anchor='e',font=('Segoe UI',11,'bold'),bg=self.card2,fg=self.fg,activebackground='#1e4269',activeforeground='white',bd=0,padx=18,pady=12).pack(fill='x',padx=14,pady=4)
     def show(self,page):
         self.page=page; self.clear(); getattr(self,'page_'+page)()
@@ -185,9 +185,47 @@ class App(tk.Tk):
     def page_ff(self):
         self.titlebar('Forex Factory','تقویم اخبار در مرورگر باز می‌شود — اتصال مستقیم به اینترنت')
         f=self.card(self.content); tk.Label(f,text='🐂  VS  🐻',font=('Segoe UI',44,'bold'),bg=self.card,fg=self.gold).pack(pady=35); tk.Label(f,text='BULL  vs  BEAR',font=('Segoe UI',22,'bold'),bg=self.card,fg=self.fg).pack(pady=5); tk.Button(f,text='باز کردن Forex Factory Calendar',command=lambda:webbrowser.open('https://www.forexfactory.com/calendar'),bg=self.accent,fg='#071018',bd=0,padx=25,pady=12,font=('Segoe UI',12,'bold')).pack(pady=30); tk.Label(f,text='برای داده‌های اخبار، مرورگر شما از سایت رسمی استفاده می‌کند.',bg=self.card,fg=self.muted).pack()
-    def page_reports(self):
-        self.titlebar('Performance & Reports','خروجی برای آرشیو سوابق کاری — PDF شامل نمودار عملکرد و XLSX شامل داده خام')
+def page_reports(self):
+        self.titlebar('Performance & Reports','خروجی برای آرشیو سوابق کار — PDF شامل نمودار عملکرد و XLSX_INCLUDEd خام')
         f=self.card(self.content); tk.Label(f,text='گزارش جامع',font=('Segoe UI',18,'bold'),bg=self.card,fg=self.fg).pack(pady=25); tk.Label(f,text='نام معامله‌گر: '+(db['profile'].get('name') or '—'),bg=self.card,fg=self.muted).pack(pady=4); tk.Button(f,text='📄 خروجی PDF با نمودار',command=self.export_pdf,bg=self.accent,fg='#071018',bd=0,padx=25,pady=10).pack(pady=12); tk.Button(f,text='📊 خروجی Excel / CSV',command=lambda:self.export_market(self.market),bg=self.card2,fg=self.fg,bd=0,padx=25,pady=10).pack(pady=12); tk.Label(f,text='فایل PDF برای ارائه/رزومه و فایل Excel برای آرشیو و تحلیل قابل استفاده است.',bg=self.card,fg=self.muted).pack(pady=15)
+    def page_radar(self):
+        self.titlebar('Market Radar',' reaiscan رسمی بازار — سیگنال‌های معاملاتی Opportunities')
+        # instructions / status area
+        top=self.card(self.content); tk.Label(top,text='رادار بازار',bg=self.card,fg=self.fg,font=('Segoe UI',18,'bold')).pack(anchor='e',padx=18,pady=12)
+        self.radar_status=tk.Label(top,text='',bg=self.card,fg=self.muted,font=('Segoe UI',12)); self.radar_status.pack(anchor='e',padx=18,pady=4)
+        # controls
+        ctrl=self.card(self.content); tk.Label(ctrl,text='بازار',bg=self.card,fg=self.muted).pack(side='right'); box=ttk.Combobox(ctrl,values=['Forex','Crypto'],state='readonly',width=12); box.set(self.market); box.pack(side='right',padx=8); box.bind('<<ComboboxSelected>>',lambda e:self.set_market_radar(e))
+        # signals table
+        table=self.card(self.content); columns=('symbol','price','change','trend','rsi','setup','score'); self.radar_tree=ttk.Treeview(table,columns=columns,show='headings'); [self.radar_tree.heading(c,text=c) or self.radar_tree.column(c,width=100,anchor='e') for c in columns]; self.radar_tree.pack(fill='both',expand=True,pady=10)
+        # refresh button
+        btn=tk.Frame(self.content,bg=self.bg); btn.pack(fill='x'); tk.Button(btn,text='🔄 refresh radar',command=self.refresh_radar,bg=self.accent,fg='#071018',bd=0,padx=20,pady=8).pack(side='left',padx=8); tk.Button(btn,text='Export CSV',command=self.export_radar_csv,bg=self.card2,fg=self.fg,bd=0,padx=18,pady=8).pack(side='left',padx=8)
+        # initial load
+        self.refresh_radar()
+    def set_market_radar(self,m): self.market=m; db['market_mode']=m; save(); self.refresh_radar()
+    def refresh_radar(self):
+        self.radar_status.config(text='در حال scan...'); self.radar_tree.delete(*self.radar_tree.get_children())
+        from app.services.radar_service import scan_radar, RadarSignal
+        result=scan_radar('Forex' if self.market=='Forex' else 'Crypto')
+        self.radar_status.config(text=result.message)
+        if result.signals:
+            for s in result.signals:
+                trend_txt='صعودی' if s.trend=='bullish' else ('نزولی' if s.trend=='bearish' else 'تعادل')
+                rsi_txt=str(s.rsi) if s.rsi is not None else '—'
+                self.radar_tree.insert('', 'end',values=(s.symbol,s.price,rsi_txt,trend_txt,s.setup,f'{s.score:.2f}'))
+        else:
+            self.radar_tree.insert('', 'end',values=('—','—','—','—','—','—'))
+    def export_radar_csv(self):
+        import csv, filedialog
+        path=filedialog.asksaveasfilename(defaultextension='.csv',filetypes=[('CSV','*.csv')],initialfile='radar_signals.csv')
+        if not path:return
+        from app.services.radar_service import RadarSignal
+        selected=self.radar_tree.get_children()
+        rows=[['Symbol','Price','Change %','Trend','Setup','Score']]
+        for s in selected:
+            rows.append(list(self.radar_tree.item(s)['values']))
+        with open(path,'w',newline='',encoding='utf-8-sig') as f:
+            w=csv.writer(f); w.writerows(rows)
+        messagebox.showinfo('Export complete',path)
     def export_market(self,market):
         path=filedialog.asksaveasfilename(defaultextension='.xlsx',filetypes=[('Excel','*.xlsx'),('CSV','*.csv')],initialfile=f'{market}_Journal.xlsx');
         if not path:return
