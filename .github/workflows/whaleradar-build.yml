@@ -37,24 +37,39 @@ jobs:
 
           # The runner keeps the baseline source tree locally. Wait a bounded time
           # for it, then fail with an actionable message instead of building from
-          # an incomplete tree.
+          # an incomplete tree. The baseline version is pinned because the
+          # reviewed payload is written against it.
+          $expectedBaseline = '1.2.1'
           $found = $false
           for ($i = 0; $i -lt 120; $i++) {
+            $versionFile = Join-Path $baseline 'BUILD_VERSION.txt'
             if ((Test-Path (Join-Path $baseline 'build_windows.bat')) -and
                 (Test-Path (Join-Path $baseline 'whaleradar\storage.py')) -and
-                (Test-Path (Join-Path $baseline 'whaleradar\http.py'))) {
-              $found = $true
-              break
+                (Test-Path (Join-Path $baseline 'whaleradar\http.py')) -and
+                (Test-Path $versionFile)) {
+              $actual = (Get-Content $versionFile -Raw).Trim()
+              if ($actual -eq $expectedBaseline) {
+                $found = $true
+                break
+              }
+              Write-Host "Baseline source is version '$actual'; waiting for '$expectedBaseline'."
+            } else {
+              Write-Host "Baseline source is not present yet at $baseline; waiting."
             }
-            Write-Host "Baseline source is not present yet at $baseline; waiting."
             Start-Sleep -Seconds 30
           }
           if (-not $found) {
-            throw "The Whale Radar Pro baseline source was not found at '$baseline'. Restore the runner source tree and re-run the build."
+            throw "The Whale Radar Pro baseline source '$expectedBaseline' was not found at '$baseline'. Restore the runner source tree and re-run the build."
           }
 
           if (Test-Path $buildSrc) { Remove-Item -LiteralPath $buildSrc -Recurse -Force }
-          Copy-Item -LiteralPath $baseline -Destination $buildSrc -Recurse -Force
+          New-Item -ItemType Directory -Path $buildSrc -Force | Out-Null
+          # Copy the baseline contents, excluding a stale virtual environment and
+          # previous build output. A copied .venv would carry the old absolute
+          # paths and break the environment created further down.
+          Get-ChildItem -LiteralPath $baseline -Force |
+            Where-Object { $_.Name -notin @('.venv','build','dist','Output','__pycache__') } |
+            ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $buildSrc -Recurse -Force }
           Write-Host "Baseline source copied to $buildSrc"
 
           # Keep the previous transport module next to the reviewed one. The new
@@ -88,7 +103,10 @@ jobs:
           $payloadText = ''
           foreach ($part in $manifest.parts) {
             $partItem = Invoke-RestMethod -Uri "$api/contents/build-source-patch/$part`?ref=$env:PAYLOAD_BRANCH" -Headers $headers
-            $payloadText += ($partItem.content -replace '\s','')
+            # The API returns the part file base64-encoded, and the part file is
+            # itself the base64 text of one slice of the source archive. Decode
+            # the API envelope once to recover that slice.
+            $payloadText += [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($partItem.content -replace '\s','')))
           }
           $payloadBytes = [Convert]::FromBase64String($payloadText)
           $sha = [System.Security.Cryptography.SHA256]::Create()
