@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro 1.4.5 (English, Windows)
+name: Build Whale Radar Pro 1.5.0 (English, Windows)
 
 on:
   push:
@@ -10,576 +10,144 @@ on:
 permissions:
   contents: write
 
+env:
+  # The reviewed 1.5.0 source payload lives on its own branch so the build
+  # always consumes one verified archive instead of a chain of patch stages.
+  PAYLOAD_BRANCH: whaleradarpro-v150-payload
+  PAYLOAD_SHA256: 58a9d8e8cdfd1adf6bc00f73e0fbb41132cdd0174a462d9b45c1b6e892cef85e
+  SOURCE_VERSION: 1.5.0
+  RELEASE_TAG: whaleradarpro-v1.5.0
+
 jobs:
   build:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     steps:
-      - name: Verify baseline source and apply Whale Radar Pro 1.3.0 patch
+      - uses: actions/checkout@v4
+
+      - name: Prepare the reviewed Whale Radar Pro 1.5.0 source
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          $ErrorActionPreference = 'Stop'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
-          $src = Join-Path $root 'WhaleRadarPro_BitunixOnly'
-          $expected = '1.2.1'
-          $found = $false
-          for ($i = 0; $i -lt 720; $i++) {
-            $versionFile = Join-Path $src 'BUILD_VERSION.txt'
-            if ((Test-Path (Join-Path $src 'build_windows.bat')) -and (Test-Path $versionFile)) {
-              $actual = (Get-Content $versionFile -Raw).Trim()
-              if ($actual -eq $expected) { $found = $true; break }
-            }
-            if ($i % 12 -eq 0) { Write-Host "Waiting for source build version $expected in $src..." }
-            Start-Sleep -Seconds 5
-          }
-          if (-not $found) { throw 'Whale Radar Pro 1.3.0 source was not found. Run the version 1.3.0 patch deployment to extract the source.' }
+          $baseline = Join-Path $root 'WhaleRadarPro_BitunixOnly'
           $buildSrc = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
-          if (Test-Path $buildSrc) { Remove-Item $buildSrc -Recurse -Force }
-          New-Item -ItemType Directory -Path $buildSrc -Force | Out-Null
-          Get-ChildItem -LiteralPath $src -Force | Where-Object { $_.Name -notin @('.venv','build','dist','Output','__pycache__') } | ForEach-Object {
-            Copy-Item -LiteralPath $_.FullName -Destination $buildSrc -Recurse -Force
+
+          # The runner keeps the baseline source tree locally. Wait a bounded time
+          # for it, then fail with an actionable message instead of building from
+          # an incomplete tree.
+          $found = $false
+          for ($i = 0; $i -lt 120; $i++) {
+            if ((Test-Path (Join-Path $baseline 'build_windows.bat')) -and
+                (Test-Path (Join-Path $baseline 'whaleradar\storage.py')) -and
+                (Test-Path (Join-Path $baseline 'whaleradar\http.py'))) {
+              $found = $true
+              break
+            }
+            Write-Host "Baseline source is not present yet at $baseline; waiting."
+            Start-Sleep -Seconds 30
           }
-          # Download and verify the 1.3.0 source patch from the branch payload.
+          if (-not $found) {
+            throw "The Whale Radar Pro baseline source was not found at '$baseline'. Restore the runner source tree and re-run the build."
+          }
+
+          if (Test-Path $buildSrc) { Remove-Item -LiteralPath $buildSrc -Recurse -Force }
+          Copy-Item -LiteralPath $baseline -Destination $buildSrc -Recurse -Force
+          Write-Host "Baseline source copied to $buildSrc"
+
+          # Keep the previous transport module next to the reviewed one. The new
+          # whaleradar/http.py forwards any unknown attribute to it, so a helper
+          # the baseline provided stays importable after the replacement.
+          $baselineHttp = Join-Path $buildSrc 'whaleradar\http.py'
+          $legacyHttp = Join-Path $buildSrc 'whaleradar\_http_legacy.py'
+          if ((Test-Path $baselineHttp) -and -not (Test-Path $legacyHttp)) {
+            Copy-Item -LiteralPath $baselineHttp -Destination $legacyHttp -Force
+            Write-Host 'Previous transport module preserved as whaleradar\_http_legacy.py.'
+          }
+
+          # Download the reviewed source payload from the payload branch.
           $repo = $env:GITHUB_REPOSITORY
-          $branch = 'whaleradarpro-v130-payload'
-          Write-Host "Patch repository: $repo ; branch: $branch"
-          $encodedBranch = [uri]::EscapeDataString($branch)
+          $api = "https://api.github.com/repos/$repo"
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
           }
-          $parts = [System.Collections.Generic.List[string]]::new()
-          for ($i = 0; $i -lt 10; $i++) {
-            $partPath = 'build-source-patch/v1.3.0.part{0:D2}.txt' -f $i
-            $partUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $repo, $partPath, $encodedBranch
-            Write-Host "Fetching source patch part $i ($partPath)"
-            try {
-              $item = Invoke-RestMethod -Method Get -Uri $partUrl -Headers $headers
-            } catch {
-              throw "Unable to read source patch part $i from $partUrl. $($_.Exception.Message)"
+          $manifestItem = Invoke-RestMethod -Uri "$api/contents/build-source-patch/v1.5.0.manifest.json`?ref=$env:PAYLOAD_BRANCH" -Headers $headers
+          $manifestText = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($manifestItem.content -replace '\s','')))
+          $manifest = $manifestText | ConvertFrom-Json
+          if ($manifest.sha256 -ne $env:PAYLOAD_SHA256) {
+            throw "The payload manifest checksum '$($manifest.sha256)' does not match the reviewed build checksum '$($env:PAYLOAD_SHA256)'."
+          }
+          if ($manifest.version -ne $env:SOURCE_VERSION) {
+            throw "The payload manifest version '$($manifest.version)' does not match the expected source version '$($env:SOURCE_VERSION)'."
+          }
+
+          $payloadText = ''
+          foreach ($part in $manifest.parts) {
+            $partItem = Invoke-RestMethod -Uri "$api/contents/build-source-patch/$part`?ref=$env:PAYLOAD_BRANCH" -Headers $headers
+            $payloadText += ($partItem.content -replace '\s','')
+          }
+          $payloadBytes = [Convert]::FromBase64String($payloadText)
+          $sha = [System.Security.Cryptography.SHA256]::Create()
+          $hash = ([System.BitConverter]::ToString($sha.ComputeHash($payloadBytes))).Replace('-','').ToLowerInvariant()
+          $sha.Dispose()
+          if ($hash -ne $env:PAYLOAD_SHA256) {
+            throw "The source payload checksum did not match. Expected '$($env:PAYLOAD_SHA256)' but received '$hash'. Refusing to build from an unverified source."
+          }
+          Write-Host "Source payload verified: $hash"
+
+          $payloadZip = Join-Path $env:RUNNER_TEMP 'whaleradar-source.zip'
+          [System.IO.File]::WriteAllBytes($payloadZip, $payloadBytes)
+          Expand-Archive -LiteralPath $payloadZip -DestinationPath $buildSrc -Force
+          Write-Host 'Source payload expanded over the baseline tree.'
+
+          # The payload is versioned as one unit. Verify the parts instead of
+          # patching them, so the build can never ship a mixed version.
+          $version = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
+          if ($version -ne $env:SOURCE_VERSION) {
+            throw "Unexpected source version in the payload: '$version'."
+          }
+          $versionChecks = @{
+            'whaleradar\__init__.py' = ('__version__ = "' + $version + '"')
+            'setup.iss'             = ('#define MyAppVersion "' + $version + '"')
+          }
+          foreach ($entry in $versionChecks.GetEnumerator()) {
+            $path = Join-Path $buildSrc $entry.Key
+            if (-not (Test-Path $path)) { throw "Versioned file is missing: $($entry.Key)." }
+            $text = [System.IO.File]::ReadAllText($path)
+            if (-not $text.Contains($entry.Value)) {
+              throw "Version mismatch in $($entry.Key): expected '$($entry.Value)'."
             }
-            if (-not $item.content) { throw "Source patch part is empty: $partPath" }
-            $chunk = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($item.content -replace '\s','')))
-            if ($i -lt 9 -and $chunk.Length -ne 7500) { throw "Unexpected length for patch part $partPath : $($chunk.Length)" }
-            if ($i -eq 9 -and $chunk.Length -ne 7200) { throw "Unexpected length for final patch part: $($chunk.Length)" }
-            $parts.Add($chunk)
           }
-          $patchB64 = [string]::Concat($parts.ToArray())
-          if ($patchB64.Length -ne 74700) { throw "Patch base64 length mismatch: $($patchB64.Length)" }
-          $patchBytes = [Convert]::FromBase64String($patchB64)
-          $patchPath = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.3.0_Patch.zip'
-          [System.IO.File]::WriteAllBytes($patchPath, $patchBytes)
-          $patchHash = (Get-FileHash -LiteralPath $patchPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($patchHash -ne 'edb282018964620d2f732864bd5b82a390453e468344c98caf6cb0466ac53dbd') { throw "v1.3.0 patch checksum mismatch: $patchHash" }
-          Expand-Archive -LiteralPath $patchPath -DestinationPath $buildSrc -Force
-          $newVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
-          if ($newVersion -ne '1.3.0') { throw "Unexpected patched source version: $newVersion" }
-          Write-Host "Applied verified v1.3.0 source patch ($($patchBytes.Length) bytes, SHA-256 $patchHash)."
-          # Normalize timestamp conversion explicitly to UTC before tests and packaging.
-          $modulePath = Join-Path $buildSrc 'whaleradar\bitunix.py'
-          $module = [System.IO.File]::ReadAllText($modulePath).Replace("`r`n", "`n")
-          $nl = "`n"
-          $oldTimestamp = @(
-            '        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))'
-            '        if parsed.tzinfo is None:'
-            '            parsed = parsed.replace(tzinfo=dt.timezone.utc)'
-            '        return int(parsed.timestamp() * 1000)'
-          ) -join $nl
-          $newTimestamp = @(
-            '        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))'
-            '        if parsed.tzinfo is None:'
-            '            parsed = parsed.replace(tzinfo=dt.timezone.utc)'
-            '        parsed = parsed.astimezone(dt.timezone.utc)'
-            '        epoch = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)'
-            '        return int((parsed - epoch).total_seconds() * 1000)'
-          ) -join $nl
-          if (-not $module.Contains($oldTimestamp)) { throw 'Could not locate the timestamp parser for the UTC hardening patch.' }
-          $module = $module.Replace($oldTimestamp, $newTimestamp)
-          $oldCreated = @(
-            '            local_dt = dt.datetime.fromisoformat(date_text)'
-            '            if local_dt.tzinfo is None:'
-            '                created_ms = int(local_dt.timestamp() * 1000)'
-            '            else:'
-            '                created_ms = int(local_dt.timestamp() * 1000)'
-          ) -join $nl
-          $newCreated = @(
-            '            local_dt = dt.datetime.fromisoformat(date_text)'
-            '            if local_dt.tzinfo is None:'
-            '                created_ms = int(local_dt.timestamp() * 1000)'
-            '            else:'
-            '                epoch = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)'
-            '                utc_dt = local_dt.astimezone(dt.timezone.utc)'
-            '                created_ms = int((utc_dt - epoch).total_seconds() * 1000)'
-          ) -join $nl
-          if (-not $module.Contains($oldCreated)) { throw 'Could not locate order-time conversion for the UTC hardening patch.' }
-          $module = $module.Replace($oldCreated, $newCreated)
-          [System.IO.File]::WriteAllText($modulePath, $module, [System.Text.UTF8Encoding]::new($false))
-          $testPath = Join-Path $buildSrc 'tests\test_bitunix.py'
-          $testText = [System.IO.File]::ReadAllText($testPath)
-          $testText = $testText.Replace('"ctime": "2026-10-13T10:00:00Z"', '"ctime": 1791885600000')
-          $testText = $testText.Replace('"ctime": "2026-10-13T10:00:01Z"', '"ctime": 1791885601000')
-          if ($testText -notmatch 'ctime": 1791885600000') { throw 'Could not harden the UTC fixture in test_bitunix.py.' }
-          [System.IO.File]::WriteAllText($testPath, $testText, [System.Text.UTF8Encoding]::new($false))
-          # Apply the English-only three-section v1.4.0 overlay and verify it before packaging.
-          $repo = $env:GITHUB_REPOSITORY
-          $overlayBranch = 'whaleradarpro-v140-payload'
-          $overlayHeaders = @{
-            Authorization = "Bearer $env:GITHUB_TOKEN"
-            Accept = 'application/vnd.github+json'
-            'X-GitHub-Api-Version' = '2022-11-28'
-          }
-          $overlayParts = [System.Collections.Generic.List[string]]::new()
-          for ($i = 0; $i -lt 10; $i++) {
-            $partPath = 'build-source-patch/v1.4.0.part{0:D2}.txt' -f $i
-            $partUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $repo, $partPath, [uri]::EscapeDataString($overlayBranch)
-            Write-Host "Fetching v1.4.0 overlay part $i"
-            $item = Invoke-RestMethod -Method Get -Uri $partUrl -Headers $overlayHeaders
-            if (-not $item.content) { throw "v1.4.0 overlay part is empty: $partPath" }
-            $chunk = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($item.content -replace '\s','')))
-            $expectedLength = if ($i -eq 9) { 1636 } else { 2500 }
-            if ($chunk.Length -ne $expectedLength) { throw "Unexpected v1.4.0 overlay length for $partPath : $($chunk.Length)" }
-            $overlayParts.Add($chunk)
-          }
-          $overlayB64 = [string]::Concat($overlayParts.ToArray())
-          if ($overlayB64.Length -ne 24136) { throw "v1.4.0 overlay base64 length mismatch: $($overlayB64.Length)" }
-          $overlayBytes = [Convert]::FromBase64String($overlayB64)
-          $overlayPath = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.0_Overlay.zip'
-          [System.IO.File]::WriteAllBytes($overlayPath, $overlayBytes)
-          $overlayHash = (Get-FileHash -LiteralPath $overlayPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($overlayHash -ne 'c806e896643013f1cc749e214f6b4f32ba8b04a0e822d05f5dbe0c49f5a1b8b8') { throw "v1.4.0 overlay checksum mismatch: $overlayHash" }
-          Expand-Archive -LiteralPath $overlayPath -DestinationPath $buildSrc -Force
-          $finalVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
-          if ($finalVersion -ne '1.4.0') { throw "Unexpected final source version: $finalVersion" }
-          if (-not (Test-Path (Join-Path $buildSrc 'whaleradar\copycalc.py'))) { throw 'The risk/leverage calculator module is missing after overlay.' }
-          Write-Host "Applied verified English-only v1.4.0 overlay ($($overlayBytes.Length) bytes; SHA-256 $overlayHash)."
+          Write-Host "Source version verified consistently: $version"
 
-          # Apply the verified v1.4.1 network diagnostics patch while preserving the English v1.4.0 UI.
-          # Keep a validated transport module available in case a source overlay is malformed.
-          $httpPath = Join-Path $buildSrc 'whaleradar\http.py'
-          $httpBackup = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.0_http.py'
-          $tradersPath = Join-Path $buildSrc 'whaleradar\traders.py'
-          $tradersBackup = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.0_traders.py'
-          Copy-Item -LiteralPath $httpPath -Destination $httpBackup -Force
-          Copy-Item -LiteralPath $tradersPath -Destination $tradersBackup -Force
-          $repo = $env:GITHUB_REPOSITORY
-          $fixBranch = 'whaleradarpro-v141-payload'
-          $fixPath = 'build-source-patch/v1.4.1-networkfix.b64'
-          $fixUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $repo, $fixPath, [uri]::EscapeDataString($fixBranch)
-          $fixHeaders = @{
-            Authorization = "Bearer $env:GITHUB_TOKEN"
-            Accept = 'application/vnd.github+json'
-            'X-GitHub-Api-Version' = '2022-11-28'
-          }
-          $fixItem = Invoke-RestMethod -Method Get -Uri $fixUrl -Headers $fixHeaders
-          if (-not $fixItem.content) { throw 'v1.4.1 network fix payload is missing.' }
-          $fixPayloadB64 = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($fixItem.content -replace '\s',''))).Trim()
-          if ($fixPayloadB64.Length -ne 14156) { throw "v1.4.1 network fix payload length mismatch: $($fixPayloadB64.Length)" }
-          $fixBytes = [Convert]::FromBase64String($fixPayloadB64)
-          $fixArchive = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.1_NetworkFix_Patch.zip'
-          [System.IO.File]::WriteAllBytes($fixArchive, $fixBytes)
-          $fixHash = (Get-FileHash -LiteralPath $fixArchive -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($fixHash -ne '2f6d5557e81dee320255adf43e4b512e7b90eef9f2af818a8aa4ea11e3b2e7f1') { throw "v1.4.1 network fix checksum mismatch: $fixHash" }
-          Expand-Archive -LiteralPath $fixArchive -DestinationPath $buildSrc -Force
-          # Preserve the tested TraderService; keep the patched Hyperliquid client so it can emit network diagnostics.
-          Copy-Item -LiteralPath $tradersBackup -Destination $tradersPath -Force
-          Copy-Item -LiteralPath $httpBackup -Destination $httpPath -Force
-          $staleDiscoveryTest = Join-Path $buildSrc 'tests\test_trader_discovery.py'
-          if (Test-Path $staleDiscoveryTest) {
-            Remove-Item -LiteralPath $staleDiscoveryTest -Force
-            Write-Host 'Removed mismatched discovery test module; the v1.4.0 production trader code and its original leaderboard tests are preserved.'
-          }
-          $helperLines = @(
-            'def describe_network_error(url, exc=None, attempts=1):'
-            '    """Return actionable network diagnostics for an endpoint and exception."""'
-            '    import re'
-            '    import socket'
-            '    from urllib.parse import urlsplit'
-            '    if exc is None:'
-            '        exc, url = url, None'
-            '    message = str(exc)'
-            '    target = ""'
-            '    try:'
-            '        target = urlsplit(str(url)).hostname or "" if url else ""'
-            '    except Exception:'
-            '        target = ""'
-            '    low = message.lower()'
-            '    match = re.search(r"HTTP\s*(\d{3})", message, re.IGNORECASE)'
-            '    code = int(match.group(1)) if match else getattr(exc, "code", None)'
-            '    reason = getattr(exc, "reason", None)'
-            '    if isinstance(reason, socket.gaierror) or "getaddrinfo" in low or "name resolution" in low or "nodename nor servname" in low:'
-            '        result = "DNS lookup failed"'
-            '        if target:'
-            '            result += " for " + target'
-            '        result += ". Check the endpoint hostname, DNS settings, internet access, firewall, and VPN/proxy."'
-            '    elif code == 451:'
-            '        result = "HTTP 451 regional restriction: this app will not attempt to bypass regional restrictions. Check availability from your region and the endpoint access policy."',
-            '    elif code == 403:'
-            '        result = "HTTP 403: access denied by the server or network policy. Check endpoint access, regional policy, permissions, and VPN/proxy."'
-            '    elif code == 401:'
-            '        result = "HTTP 401: authentication was rejected. Verify API credentials, permissions, IP allowlist, and system clock."'
-            '    elif code in (418, 429):'
-            '        result = f"HTTP {code}: request rate limited. Wait briefly and retry; check whether another process is sending requests."'
-            '    elif isinstance(exc, TimeoutError) or isinstance(reason, TimeoutError) or "timed out" in low or "timeout" in low:'
-            '        result = "Network timeout while contacting the endpoint. Check connection stability, firewall, and VPN/proxy."'
-            '    elif isinstance(reason, ConnectionError) or "connection refused" in low or "connection reset" in low:'
-            '        result = "Connection to the endpoint failed or was reset. Check internet access, firewall, TLS inspection, VPN/proxy, and endpoint availability."'
-            '    else:'
-            '        result = "Network request failed: " + (message[:600] if message else type(exc).__name__)'
-            '    if target and target.lower() not in result.lower():'
-            '        result += " Endpoint host: " + target + "."'
-            '    try:'
-            '        attempts = max(1, int(attempts))'
-            '    except (TypeError, ValueError):'
-            '        attempts = 1'
-            '    result += f" Attempts: {attempts}."'
-            '    return result'
+          # The reviewed payload must provide every module and test the build
+          # depends on. A missing file must fail the build, not the application.
+          $required = @(
+            'app.py', 'setup.iss', 'requirements.txt', 'BUILD_VERSION.txt',
+            'README_EN.md', 'START_HERE_EN.txt', 'CHANGELOG.md',
+            'docs\NETWORK_FIX_1.5.0.md',
+            'whaleradar\__init__.py', 'whaleradar\http.py', 'whaleradar\hyperliquid.py',
+            'whaleradar\traders.py', 'whaleradar\copycalc.py', 'whaleradar\risk_profile.py',
+            'whaleradar\rtl.py', 'whaleradar\trade_manager.py',
+            'tests\test_import_smoke.py', 'tests\test_trader_discovery.py',
+            'tests\test_http_safety.py', 'tests\test_trade_manager_startup_binding.py',
+            'tests\test_rtl.py', 'tests\test_copycalc.py', 'tests\test_risk_profile.py',
+            'tests\test_network_diagnostics.py', 'tests\test_trade_manager.py'
           )
-          $helperText = $helperLines -join [Environment]::NewLine
-          [System.IO.File]::AppendAllText($httpPath, [Environment]::NewLine + [Environment]::NewLine + $helperText + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
-          $finalVersion = (Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim()
-          if ($finalVersion -ne '1.4.1') { throw "Unexpected final source version after network fix: $finalVersion" }
-
-          # Update installer metadata without replacing the rest of the v1.4.0 UI overlay.
-          $setupIss = Join-Path $buildSrc 'setup.iss'
-          $setupText = [System.IO.File]::ReadAllText($setupIss)
-          if (-not $setupText.Contains('#define MyAppVersion "1.4.0"')) { throw 'Could not locate the base installer version in setup.iss.' }
-          $setupText = $setupText.Replace('#define MyAppVersion "1.4.0"', '#define MyAppVersion "1.4.5"')
-          $setupText = $setupText.Replace('Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion', 'Source: "README_FA.md"; DestDir: "{app}"; Flags: ignoreversion' + [Environment]::NewLine + 'Source: "docs\NETWORK_FIX_1.4.5.md"; DestDir: "{app}\docs"; Flags: ignoreversion')
-          [System.IO.File]::WriteAllText($setupIss, $setupText, [System.Text.UTF8Encoding]::new($false))
-
-          # Keep the visible build number in sync and make the generic error message actionable.
-          $appPath = Join-Path $buildSrc 'app.py'
-          $appText = [System.IO.File]::ReadAllText($appPath)
-          $appText = $appText.Replace('1.4.0', '1.4.5')
-          $appText = [System.Text.RegularExpressions.Regex]::Replace(
-            $appText,
-            'Hyperliquid public data could not be loaded\.?',
-            'Hyperliquid public data could not be loaded. Check the detailed connection log for DNS, timeout, or HTTP status; HTTP 403/451 indicates an access-policy response.'
-          )
-          [System.IO.File]::WriteAllText($appPath, $appText, [System.Text.UTF8Encoding]::new($false))
-          # Align the package version displayed in the title bar with the actual build.
-          $versionPath = Join-Path $buildSrc 'whaleradar\__init__.py'
-          if (-not (Test-Path $versionPath)) { throw 'Package version module is missing.' }
-          $versionText = [System.IO.File]::ReadAllText($versionPath)
-          $versionText = $versionText.Replace('1.4.0', '1.4.5').Replace('1.4.1', '1.4.5').Replace('1.4.3', '1.4.5').Replace('1.4.4', '1.4.5')
-          if ($versionText -notmatch '1\.4\.5') { throw 'Could not synchronize the displayed package version.' }
-          [System.IO.File]::WriteAllText($versionPath, $versionText, [System.Text.UTF8Encoding]::new($false))
-          [System.IO.File]::WriteAllText((Join-Path $buildSrc 'BUILD_VERSION.txt'), "1.4.5" + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
-
-          # Keep the network troubleshooting document filename and visible version consistent.
-          $oldGuide = Join-Path $buildSrc 'docs\NETWORK_FIX_1.4.1.md'
-          $newGuide = Join-Path $buildSrc 'docs\NETWORK_FIX_1.4.5.md'
-          if (Test-Path $oldGuide) {
-            $guideText = [System.IO.File]::ReadAllText($oldGuide).Replace('1.4.1', '1.4.5').Replace('1.4.3', '1.4.5')
-            [System.IO.File]::WriteAllText($newGuide, $guideText, [System.Text.UTF8Encoding]::new($false))
-          } else {
-            throw 'Network troubleshooting guide is missing from the patch.'
+          foreach ($relative in $required) {
+            if (-not (Test-Path (Join-Path $buildSrc $relative))) {
+              throw "The source payload is incomplete: '$relative' is missing."
+            }
           }
 
-          # Rewrite only the discovery error dialog: save full details locally rather than interrupting launch.
-          $patcherText = @'
-          import ast
-          import pathlib
-          import sys
-
-          path = pathlib.Path(sys.argv[1])
-          raw = path.read_bytes()
-          source = raw.decode("utf-8-sig")
-          tree = ast.parse(source)
-
-          def is_target(node):
-              if not isinstance(node, ast.Call):
-                  return False
-              fn = node.func
-              if not (isinstance(fn, ast.Attribute) and fn.attr == "showerror"):
-                  return False
-              if not (isinstance(fn.value, ast.Name) and fn.value.id == "messagebox"):
-                  return False
-              return bool(node.args and isinstance(node.args[0], ast.Constant)
-                          and node.args[0].value == "Trader discovery failed")
-
-          def line_starts(buf):
-              result = [0]
-              for i, byte in enumerate(buf):
-                  if byte == 10:
-                      result.append(i + 1)
-              return result
-
-          starts = line_starts(raw)
-          parents = {}
-          for parent in ast.walk(tree):
-              for child in ast.iter_child_nodes(parent):
-                  parents[child] = parent
-
-          def cause_name_for(node):
-              current = node
-              while current in parents:
-                  current = parents[current]
-                  if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                      params = [
-                          arg.arg
-                          for arg in (current.args.posonlyargs + current.args.args + current.args.kwonlyargs)
-                          if arg.arg not in ("self", "cls")
-                      ]
-                      if params:
-                          return params[-1]
-              return None
-
-          edits = []
-          for node in ast.walk(tree):
-              if is_target(node):
-                  message_expr = ast.get_source_segment(source, node.args[1]) if len(node.args) > 1 else '""'
-                  message_expr = message_expr or '""'
-                  cause_name = cause_name_for(node)
-                  if cause_name:
-                      enriched_expr = "str(" + message_expr + ") + ' | Underlying exception: ' + repr(" + cause_name + ")"
-                  else:
-                      enriched_expr = "str(" + message_expr + ")"
-                  replacement = ("_whaleradar_record_discovery_failure(" + enriched_expr + ")").encode("utf-8")
-                  start = starts[node.lineno - 1] + node.col_offset
-                  end = starts[node.end_lineno - 1] + node.end_col_offset
-                  edits.append((start, end, replacement))
-          if not edits:
-              raise SystemExit("No 'Trader discovery failed' messagebox.showerror call was found; refusing to publish an unpatched build.")
-          for start, end, replacement in sorted(edits, reverse=True):
-              raw = raw[:start] + replacement + raw[end:]
-          source = raw.decode("utf-8")
-          tree = ast.parse(source)
-          import_nodes = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
-          if not import_nodes:
-              raise SystemExit("Could not find a safe insertion point for the diagnostic logger.")
-          insert_after_line = max(n.end_lineno for n in import_nodes)
-          lines = raw.splitlines(keepends=True)
-          insert_at = sum(len(line) for line in lines[:insert_after_line])
-          helper = '''\ndef _whaleradar_record_discovery_failure(message):
-              """Persist discovery/network failures without interrupting startup."""
-              try:
-                  import os
-                  import re
-                  import time
-                  from pathlib import Path
-                  directory = Path(os.environ.get("APPDATA") or Path.home()) / "WhaleRadarPro"
-                  directory.mkdir(parents=True, exist_ok=True)
-                  clean = str(message).replace("\\r", " ").replace("\\n", " ")
-                  clean = re.sub(r"(?i)(api[_ ]?key|api[_ ]?secret|secret|signature)\\s*[:=]\\s*\\S+", r"\\1=[redacted]", clean)
-                  target = directory / "connection-diagnostics.log"
-                  with target.open("a", encoding="utf-8") as handle:
-                      handle.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trader discovery failed: {clean}\\n")
-              except Exception:
-                  pass
-              return None
-
-          '''
-          raw = raw[:insert_at] + helper.encode("utf-8") + raw[insert_at:]
-          ast.parse(raw.decode("utf-8"))
-          path.write_bytes(raw)
-          print(f"Suppressed {len(edits)} discovery modal(s); detailed errors go to %APPDATA%\\\\WhaleRadarPro\\\\connection-diagnostics.log")
-          '@
-          $patcherPath = Join-Path $env:RUNNER_TEMP 'patch_discovery_modal.py'
-          [System.IO.File]::WriteAllText($patcherPath, $patcherText, [System.Text.UTF8Encoding]::new($false))
-          $systemPython = 'C:\Program Files\Python314\python.exe'
-          if (-not (Test-Path $systemPython)) {
-            $systemPythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
-            if ($systemPythonCmd) { $systemPython = $systemPythonCmd.Source } else { throw 'Python required for AST-based startup fix was not found.' }
-          }
-          & $systemPython $patcherPath $appPath
-          if ($LASTEXITCODE -ne 0) { throw 'Could not patch the discovery error dialog safely.' }
-
-          Write-Host "Source version: $((Get-Content (Join-Path $buildSrc 'BUILD_VERSION.txt') -Raw).Trim())"
-          Write-Host "Package version module: $versionPath"
-          Write-Host "Copied and UTC-hardened source to $buildSrc"
-          # Add Trade Manager utility: selected live-position close, Excel chart/table report, and print-ready PDF.
-          $tmBranch = 'whaleradarpro-v143-payload'
-          $tmPath = 'build-source-patch/v1.4.3-trade-manager.zip.b64'
-          $tmUrl = 'https://api.github.com/repos/{0}/contents/{1}?ref={2}' -f $env:GITHUB_REPOSITORY, $tmPath, [uri]::EscapeDataString($tmBranch)
-          $tmHeaders = @{
-            Authorization = "Bearer $env:GITHUB_TOKEN"
-            Accept = 'application/vnd.github+json'
-            'X-GitHub-Api-Version' = '2022-11-28'
-          }
-          $tmItem = Invoke-RestMethod -Method Get -Uri $tmUrl -Headers $tmHeaders
-          if (-not $tmItem.content) { throw 'Trade Manager payload is missing.' }
-          $tmB64 = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($tmItem.content -replace '\s',''))).Trim()
-          if ($tmB64.Length -ne 18168) { throw "Trade Manager payload length mismatch: $($tmB64.Length)" }
-          $tmBytes = [Convert]::FromBase64String($tmB64)
-          $tmArchive = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.3_trade_manager.zip'
-          [System.IO.File]::WriteAllBytes($tmArchive, $tmBytes)
-          $tmHash = (Get-FileHash -LiteralPath $tmArchive -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($tmHash -ne '53103fe03f21d818a7eeba5883668b329e42bca392b0b99c64858701d09e233e') { throw "Trade Manager archive SHA-256 mismatch: $tmHash" }
-          $tmStage = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_v1.4.3_trade_manager'
-          if (Test-Path $tmStage) { Remove-Item $tmStage -Recurse -Force }
-          Expand-Archive -LiteralPath $tmArchive -DestinationPath $tmStage -Force
-          $tmModuleSource = Join-Path $tmStage 'trade_manager.py'
-          $tmTestSource = Join-Path $tmStage 'test_trade_manager.py'
-          if (-not (Test-Path $tmModuleSource) -or -not (Test-Path $tmTestSource)) { throw 'Trade Manager source or tests are missing from the verified payload.' }
-          $tmModuleInfo = Get-Item -LiteralPath $tmModuleSource
-          $tmTestInfo = Get-Item -LiteralPath $tmTestSource
-          if ($tmModuleInfo.Length -lt 30000) { throw 'Trade Manager source is unexpectedly short; refusing to package it.' }
-          if ($tmTestInfo.Length -lt 4000) { throw 'Trade Manager regression tests are unexpectedly short; refusing to package it.' }
-          $moduleText = [System.IO.File]::ReadAllText($tmModuleSource)
-          foreach ($marker in @('def trade_outcomes(', 'def export_excel(', 'def export_pdf(', 'def install_trade_manager(', 'class TradeManagerWindow:', 'def close_selected(')) {
-            if (-not $moduleText.Contains($marker)) { throw "Trade Manager source marker missing: $marker" }
-          }
-          Write-Host "Trade Manager source checks passed: module=$($tmModuleInfo.Length) bytes tests=$($tmTestInfo.Length) bytes"
-          Copy-Item -LiteralPath $tmModuleSource -Destination (Join-Path $buildSrc 'whaleradar\trade_manager.py') -Force
-          Copy-Item -LiteralPath $tmTestSource -Destination (Join-Path $buildSrc 'tests\test_trade_manager.py') -Force
-          # Repair one known malformed position-row tag expression before compilation.
-          $tmInstalledPath = Join-Path $buildSrc 'whaleradar\trade_manager.py'
-          $tmInstalledText = [System.IO.File]::ReadAllText($tmInstalledPath)
-          $rowPattern = '(?m)^(\s*)self\.positions_tree\.insert\("",\s*"end",\s*iid=iid,\s*values=values,\s*tags=.*$'
-          $rowReplacement = '$1self.positions_tree.insert("", "end", iid=iid, values=values, tags=("positive" if pnl > 0 else "negative" if pnl < 0 else "neutral",))'
-          if ($tmInstalledText -notmatch $rowPattern -and $tmInstalledText -notmatch 'tags=\("positive" if pnl > 0 else "negative" if pnl < 0 else "neutral",\)') {
-            throw 'Could not locate the expected Trade Manager position-row expression to repair.'
-          }
-          $tmInstalledText = [System.Text.RegularExpressions.Regex]::Replace($tmInstalledText, $rowPattern, $rowReplacement, 1)
-          if ($tmInstalledText -notmatch 'tags=\("positive" if pnl > 0 else "negative" if pnl < 0 else "neutral",\)') {
-            throw 'Trade Manager position-row repair did not apply.'
-          }
-          [System.IO.File]::WriteAllText($tmInstalledPath, $tmInstalledText, [System.Text.UTF8Encoding]::new($false))
-          $appText = [System.IO.File]::ReadAllText($appPath)
-          $managerImport = 'from whaleradar.trade_manager import install_trade_manager'
-          if (-not $appText.Contains($managerImport)) {
-            $mainMarker = 'def main():'
-            $mainAt = $appText.LastIndexOf($mainMarker, [System.StringComparison]::Ordinal)
-            if ($mainAt -lt 0) { throw 'Could not locate the main() integration point for Trade Manager.' }
-            $hook = $managerImport + [Environment]::NewLine + 'install_trade_manager(WhaleRadarApp)' + [Environment]::NewLine + [Environment]::NewLine
-            $appText = $appText.Insert($mainAt, $hook)
-            [System.IO.File]::WriteAllText($appPath, $appText, [System.Text.UTF8Encoding]::new($false))
-          }
-          Write-Host "Verified and integrated Trade Manager payload (SHA-256 $tmHash)."
-          # Patch the startup crash in 1.4.3: make the original UI initializer resolvable even if the wrapper lost its closure.
-          $tmFixerText = @'
-          import ast
-          import pathlib
-          import sys
-
-          path = pathlib.Path(sys.argv[1])
-          source = path.read_text(encoding="utf-8-sig")
-          tree = ast.parse(source)
-
-          def function_nodes(tree, name):
-              return [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name]
-
-          def loads_name(node, name):
-              return any(isinstance(n, ast.Name) and n.id == name and isinstance(n.ctx, ast.Load) for n in ast.walk(node))
-
-          installers = function_nodes(tree, "install_trade_manager")
-          if len(installers) != 1:
-              raise SystemExit(f"Expected one install_trade_manager function, found {len(installers)}")
-          installer = installers[0]
-          install_args = installer.args.posonlyargs + installer.args.args
-          if not install_args:
-              raise SystemExit("install_trade_manager has no target class parameter")
-          class_name = install_args[0].arg
-
-          wrappers = [n for n in function_nodes(tree, "wrapped_init") if loads_name(n, "original_init")]
-          if len(wrappers) != 1:
-              raise SystemExit(f"Expected one wrapped_init referencing original_init, found {len(wrappers)}")
-          wrapper = wrappers[0]
-          wrapper_args = wrapper.args.posonlyargs + wrapper.args.args
-          if not wrapper_args:
-              raise SystemExit("wrapped_init has no instance parameter")
-          instance_name = wrapper_args[0].arg
-
-          raw = source.encode("utf-8")
-          starts = [0]
-          for i, value in enumerate(raw):
-              if value == 10:
-                  starts.append(i + 1)
-
-          def line_offset(line_number):
-              return starts[line_number - 1]
-
-          def is_docstring(stmt):
-              return isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str)
-
-          def body_insertion(fn):
-              body = list(fn.body)
-              if body and is_docstring(body[0]):
-                  body = body[1:]
-              if body:
-                  return line_offset(body[0].lineno)
-              return line_offset(fn.end_lineno)
-
-          installer_indent = " " * (installer.col_offset + 4)
-          wrapper_indent = " " * (wrapper.col_offset + 4)
-          installer_binding = (
-              installer_indent + f"if not getattr({class_name}, '_whaleradar_original_init', None):\n" +
-              installer_indent + f"    {class_name}._whaleradar_original_init = {class_name}.__init__\n"
-          ).encode("utf-8")
-          wrapper_binding = (
-              wrapper_indent + "try:\n" +
-              wrapper_indent + "    _trade_manager_original_init = original_init\n" +
-              wrapper_indent + "except NameError:\n" +
-              wrapper_indent + f"    _trade_manager_original_init = getattr(type({instance_name}), '_whaleradar_original_init', None)\n" +
-              wrapper_indent + "if _trade_manager_original_init is None:\n" +
-              wrapper_indent + "    raise RuntimeError('Trade Manager could not resolve the original application initializer.')\n"
-          ).encode("utf-8")
-
-          edits = [
-              (body_insertion(installer), body_insertion(installer), installer_binding),
-              (body_insertion(wrapper), body_insertion(wrapper), wrapper_binding),
-          ]
-          for node in ast.walk(wrapper):
-              if isinstance(node, ast.Name) and node.id == "original_init" and isinstance(node.ctx, ast.Load):
-                  start = line_offset(node.lineno) + node.col_offset
-                  end = line_offset(node.end_lineno) + node.end_col_offset
-                  edits.append((start, end, b"_trade_manager_original_init"))
-
-          # Replace source offsets from the end so earlier offsets remain valid.
-          for start, end, replacement in sorted(edits, key=lambda item: (item[0], item[1]), reverse=True):
-              raw = raw[:start] + replacement + raw[end:]
-
-          patched = raw.decode("utf-8")
-          ast.parse(patched)
-          path.write_text(patched, encoding="utf-8", newline="\n")
-
-          tests_dir = path.parents[1] / "tests"
-          tests_dir.mkdir(parents=True, exist_ok=True)
-          test_path = tests_dir / "test_trade_manager_startup_binding.py"
-          test_source = '''import ast
-          import unittest
-          from pathlib import Path
-
-          ROOT = Path(__file__).resolve().parents[1]
-          MODULE = ROOT / "whaleradar" / "trade_manager.py"
-
-          class TradeManagerStartupBindingTests(unittest.TestCase):
-              @classmethod
-              def setUpClass(cls):
-                  cls.source = MODULE.read_text(encoding="utf-8")
-                  cls.tree = ast.parse(cls.source)
-
-              def test_original_initializer_is_saved_before_wrapper(self):
-                  installer = next(n for n in ast.walk(self.tree) if isinstance(n, ast.FunctionDef) and n.name == "install_trade_manager")
-                  body_text = "\\n".join(self.source.splitlines()[installer.lineno - 1:installer.end_lineno])
-                  self.assertIn("_whaleradar_original_init", body_text)
-                  self.assertIn(".__init__", body_text)
-
-              def test_wrapper_has_a_safe_nameerror_fallback(self):
-                  wrapper = next(n for n in ast.walk(self.tree) if isinstance(n, ast.FunctionDef) and n.name == "wrapped_init")
-                  body_text = "\\n".join(self.source.splitlines()[wrapper.lineno - 1:wrapper.end_lineno])
-                  self.assertIn("except NameError", body_text)
-                  self.assertIn("_trade_manager_original_init", body_text)
-                  calls = [n for n in ast.walk(wrapper) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_trade_manager_original_init"]
-                  self.assertTrue(calls, "wrapped_init must call the safely resolved original initializer")
-
-          if __name__ == "__main__":
-              unittest.main()
-          '''
-          test_path.write_text(test_source, encoding="utf-8", newline="\n")
-          print("Patched original_init fallback and added startup-binding regression tests.")
-          '@
-          $tmFixerPath = Join-Path $env:RUNNER_TEMP 'patch_trade_manager_initializer.py'
-          [System.IO.File]::WriteAllText($tmFixerPath, $tmFixerText, [System.Text.UTF8Encoding]::new($false))
-          & $systemPython $tmFixerPath (Join-Path $buildSrc 'whaleradar\trade_manager.py')
-          if ($LASTEXITCODE -ne 0) { throw 'Trade Manager initializer binding fix failed.' }
-          $tmFixedSource = [System.IO.File]::ReadAllText((Join-Path $buildSrc 'whaleradar\trade_manager.py'))
-          if (-not $tmFixedSource.Contains('except NameError:') -or -not $tmFixedSource.Contains('_whaleradar_original_init')) {
-            throw 'Trade Manager startup fix verification failed.'
-          }
+          # Remove guides from earlier versions so only the current one ships.
+          Get-ChildItem -Path (Join-Path $buildSrc 'docs') -Filter 'NETWORK_FIX_*.md' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -ne "NETWORK_FIX_$env:SOURCE_VERSION.md" } |
+            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 
       - name: Diagnose public endpoint reachability on the Windows runner
         shell: powershell
@@ -644,7 +212,6 @@ jobs:
           }
           Write-Host '--- END SAFE SOURCE INSPECTION ---'
 
-
       - name: Install dependencies using resilient PyPI mirrors
         shell: powershell
         run: |
@@ -669,7 +236,7 @@ jobs:
             Write-Host "Trying dependency mirror: $mirror"
             & $venvPython -m pip install --disable-pip-version-check --default-timeout=120 --retries=10 --index-url $mirror --upgrade pip
             if ($LASTEXITCODE -ne 0) { continue }
-            & $venvPython -m pip install --disable-pip-version-check --default-timeout=120 --retries=10 --index-url $mirror -r (Join-Path $src 'requirements.txt') pyinstaller
+            & $venvPython -m pip install --disable-pip-version-check --default-timeout=120 --retries=10 --index-url $mirror -r (Join-Path $src 'requirements.txt') 'pyinstaller>=6,<7'
             if ($LASTEXITCODE -eq 0) { $installed = $true; break }
           }
           if (-not $installed) { throw 'Dependency downloads failed from every configured PyPI index.' }
@@ -681,10 +248,14 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           Set-Location $src
           $python = Join-Path $src '.venv\Scripts\python.exe'
-          & $python -m py_compile app.py whaleradar\__init__.py whaleradar\analysis.py whaleradar\backtest.py whaleradar\bitunix.py whaleradar\evm.py whaleradar\exchanges.py whaleradar\http.py whaleradar\hyperliquid.py whaleradar\marketdata.py whaleradar\models.py whaleradar\notifications.py whaleradar\risk.py whaleradar\storage.py whaleradar\traders.py whaleradar\copycalc.py whaleradar\trade_manager.py
+          # Every module of the package must compile, including the modules the
+          # previous build never checked.
+          & $python -m py_compile app.py whaleradar\__init__.py whaleradar\analysis.py whaleradar\backtest.py whaleradar\bitunix.py whaleradar\evm.py whaleradar\exchanges.py whaleradar\http.py whaleradar\hyperliquid.py whaleradar\marketdata.py whaleradar\models.py whaleradar\notifications.py whaleradar\risk.py whaleradar\rtl.py whaleradar\storage.py whaleradar\traders.py whaleradar\copycalc.py whaleradar\risk_profile.py whaleradar\trade_manager.py
           if ($LASTEXITCODE -ne 0) { throw 'Python syntax validation failed.' }
           & $python make_icon.py
           if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed.' }
+          # The full suite runs, including the trader-discovery test that the
+          # previous build deleted to hide a failure.
           & $python -m unittest discover -s tests -v
           if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed.' }
           $pyiArgs = @('-m','PyInstaller','--noconfirm','--clean','--windowed','--onefile','--name','WhaleRadarPro','--icon','assets\whaleradar.ico','--add-data','assets\whaleradar.ico;assets','--collect-all','keyring','--hidden-import','winotify','app.py')
@@ -723,7 +294,7 @@ jobs:
             if ($installerHash -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') { throw 'Inno Setup installer checksum did not match the published SHA-256.' }
             # Install to a predictable no-spaces directory under the Windows runner's temp root.
             $installDir = Join-Path $env:RUNNER_TEMP 'InnoSetup'
-            if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue }
+            if (Test-Path $installDir) { Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue }
             $install = Start-Process -FilePath $installerPath -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',"/DIR=$installDir") -Wait -PassThru
             if ($install.ExitCode -ne 0) { throw "Inno Setup install failed with exit code $($install.ExitCode)." }
             $iscc = Join-Path $installDir 'ISCC.exe'
@@ -734,8 +305,8 @@ jobs:
           if (-not $iscc -or -not (Test-Path $iscc)) { throw 'Inno Setup is still unavailable; refusing to publish without the requested Setup installer.' }
           & $iscc (Join-Path $src 'setup.iss')
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed while compiling setup.iss.' }
-          $setup = Join-Path $src 'Output\WhaleRadarPro-Setup.exe'
-          if (-not (Test-Path $setup)) { throw 'WhaleRadarPro-Setup.exe was not created.' }
+          $setup = Join-Path $src "Output\WhaleRadarPro-Setup-$env:SOURCE_VERSION.exe"
+          if (-not (Test-Path $setup)) { throw "WhaleRadarPro-Setup-$env:SOURCE_VERSION.exe was not created." }
           $setupInfo = Get-Item $setup
           if ($setupInfo.Length -lt 1000000) { throw 'Setup installer is unexpectedly small; refusing to publish it.' }
           Write-Host "Verified Setup installer: $($setupInfo.Length) bytes"
@@ -749,18 +320,18 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'WhaleRadarPro_BitunixOnly'
           $root = Join-Path $env:PUBLIC 'Documents\WhaleRadarProBuild'
           $dest = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $publicRelease = Join-Path $root 'Release-v1.4.5'
+          $publicRelease = Join-Path $root "Release-v$env:SOURCE_VERSION"
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
           New-Item -Path $publicRelease -ItemType Directory -Force | Out-Null
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $dest 'WhaleRadarPro.exe') -Force
           Copy-Item (Join-Path $src 'dist\WhaleRadarPro.exe') (Join-Path $publicRelease 'WhaleRadarPro.exe') -Force
-          $setup = Join-Path $src 'Output\WhaleRadarPro-Setup.exe'
+          $setup = Join-Path $src "Output\WhaleRadarPro-Setup-$env:SOURCE_VERSION.exe"
           if (-not (Test-Path $setup)) { throw 'Verified Setup installer is missing; refusing to publish EXE-only output.' }
           Copy-Item $setup (Join-Path $dest 'WhaleRadarPro-Setup.exe') -Force
           Copy-Item $setup (Join-Path $publicRelease 'WhaleRadarPro-Setup.exe') -Force
           $repo = $env:GITHUB_REPOSITORY
           $api = "https://api.github.com/repos/$repo"
-          $tag = 'whaleradarpro-v1.4.5'
+          $tag = $env:RELEASE_TAG
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -780,14 +351,14 @@ jobs:
             if ($status -ne 404) { throw }
           }
           if ($release -and -not $release.draft) {
-            throw 'The v1.4.5 release already exists as a published immutable release; use a new version tag.'
+            throw "The $env:SOURCE_VERSION release already exists as a published immutable release; use a new version tag."
           }
           if (-not $release) {
             $payload = @{
               tag_name = $tag
               target_commitish = 'main'
-              name = 'Whale Radar Pro 1.4.5 - Windows x64'
-              body = 'English-only Whale Radar Pro 1.4.5. Corrects the 1.4.3 startup crash where the Trade Manager wrapper could not resolve original_init; adds a startup-binding regression test. Corrects the displayed version label, prevents trader-discovery network failures from blocking startup with a modal dialog, saves detail to %APPDATA%\WhaleRadarPro\connection-diagnostics.log, and diagnoses Hyperliquid leaderboard/info plus Bitunix public endpoint reachability from the Windows build machine. Keeps the modern three-section UI and per-trade approval. Hyperliquid remains read-only; this app does not bypass regional or service restrictions. Adds a Trade Manager utility window for live Bitunix positions, double-confirmed selected-position close with position revalidation and reduceOnly, Excel tables plus a win/loss pie chart, print-ready landscape PDF, and a manual-close audit sheet. No automatic retry follows a close submission. Public ranking coverage and event-based win-rate estimates are not exhaustive or guarantees of future performance.'
+              name = "Whale Radar Pro $env:SOURCE_VERSION - Windows x64"
+              body = "English-only Whale Radar Pro $env:SOURCE_VERSION. Fixes the Successful Traders screen, where the trader service was missing the discover method the screen calls, so the ranking could not be refreshed. A trading order is now submitted with one client ID that is stored in the local history, and an order that the exchange accepted but that could not be recorded locally is reported explicitly instead of looking like a failed copy. A trading POST is attempted exactly once; timeouts, resets and HTTP 408/425/5xx raise an explicit ambiguous-submission error. Credential-shaped values are redacted from every error message and diagnostic entry, response bodies are size-capped, and the leaderboard cache no longer blocks the user interface. Copy sizing uses exact decimal arithmetic and refuses a protective level at or below zero. An optional account equity derives automatic leverage, daily loss and open risk guardrails. The previous transport module and the Trade Manager position renderer contained syntax errors that the build used to repair silently at package time; both are fixed in the source. The full test suite now runs, including the trader-discovery test the previous build deleted. Hyperliquid remains read-only, every copy trade still requires individual approval, and this app does not bypass regional or service restrictions."
               draft = $true
               prerelease = $false
             } | ConvertTo-Json -Compress
