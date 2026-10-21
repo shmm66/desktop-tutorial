@@ -2,10 +2,11 @@
 
 A clean, isolated Windows desktop rebuild focused on three areas: exchange connection profiles, a ranked watchlist of up to 10 Hyperliquid traders, and per-trade margin/risk sizing. Alerts are informational; copying a trade always requires explicit user confirmation.
 
-## Scope and safety
-- Hyperliquid public leaderboard scanning is best-effort and must show data freshness/errors honestly.
-- Bitunix API profile management supports create, edit, select, delete, and paste. Private API connectivity must be validated against current Bitunix signing documentation before enabling trading.
-- No automatic order is sent by this initial build. Trade-copy actions are confirmation-only placeholders until exchange-specific execution tests pass.
+## Current implementation status
+- Hyperliquid: public leaderboard retrieval is implemented as best-effort. Missing ROI, win rate, and trade-count fields remain **Unknown** rather than being fabricated as zero. Unknown ROI or win rate excludes a trader from the performance-filtered list.
+- Bitunix: API profile management supports create, edit, select, delete, and paste. Private API connectivity is deliberately disabled until the current official signing requirements are verified.
+- Live trade-event notifications and order copying are not implemented in this build. The review action is an explicit placeholder; no order is sent.
+- The current UI uses a dark theme. A light-theme toggle is not yet implemented.
 - API secrets must not be committed to source control. The app uses Windows Credential Manager through `keyring` when available.
 
 ## Run from source
