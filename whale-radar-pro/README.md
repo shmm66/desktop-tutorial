@@ -34,3 +34,5 @@ GitHub Actions workflow `Windows Build` builds a standalone `WhaleRadarPro.exe` 
 
 ## Risk note
 Leverage calculations are sizing estimates, not a guarantee of liquidation distance or exchange order validity. Verify tick size, lot size, fees, funding, and exchange margin rules before trading.
+
+Build workflow policy: all GitHub Actions are pinned to full commit SHAs to satisfy repository security settings.
