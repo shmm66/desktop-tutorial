@@ -1,44 +1,50 @@
-# Whale Radar Pro
+# Whale Radar Pro 2.2.0
 
-An English-only Windows desktop app with three primary sections: exchange connection profiles, a ranked watchlist of up to 10 Hyperliquid traders, and margin/risk sizing. The current interface uses a dark theme.
+An English-only Windows desktop app for screening Hyperliquid traders and optionally copying new wallet fills to Bitunix USDT-margined futures. The UI has three main sections: Bitunix connection, trader screening, and saved auto-copy capital/risk controls.
 
-## Current implementation status
-- **Hyperliquid screening:** reads the public leaderboard, then requests recent fill history for at most 15 higher-return wallets with a small concurrency cap. Missing leaderboard win rates are estimated from non-zero realized `closedPnl` values on close/liquidation fills over the last 7 days. This is a **closed-fill win-rate proxy**, not a true position-level win rate: partial exits may count as multiple fills. The UI labels it accordingly and shows the proxy sample size. API failures or no closed fills leave the metric Unknown rather than fabricating zero.
-- **Public wallet alerts:** select a row and click **Watch selected wallet**. The app polls that public wallet's recent fills every 20 seconds and prompts for review when new fills appear. Monitoring is opt-in and read-only. The first poll establishes a baseline to avoid alerting on old fills already visible at startup.
-- **Copy orders:** not implemented. The alert explicitly states that no order can be submitted by this build. This is not yet a complete copy-trading product.
-- **Bitunix profiles:** create/edit, select, paste, and delete are supported. Secrets are stored through Windows Credential Manager (`keyring`) when available. The connection test signs a read-only request to the pending-positions endpoint using the official double-SHA256 signing procedure and runs in a background thread. It never places, edits, or cancels orders. See the [official signature guide](https://www.bitunix.com/api-docs/futures/common/sign.html) and [read-only endpoint](https://www.bitunix.com/api-docs/futures/position/get_pending_positions.html).
-- **Risk sizing:** estimates notional and leverage from margin, risk amount and entry-to-stop distance. It excludes fees, slippage, funding, lot/tick sizes, exchange leverage caps and liquidation constraints.
-- **Themes:** dark theme only; light-theme toggle is not yet implemented.
+## Automatic copy-trading status
+
+Automatic Bitunix order submission is implemented in radar/copytrade.py and wired into the main UI. It is **disabled by default**. The user must explicitly enable it in the one-time setup dialog before auto-copy starts. After enablement, fresh fills from the selected public Hyperliquid wallet are handled automatically without asking for each trade. Stopping the monitor stops future signal handling; it does not automatically close existing positions, and exchange-side stop orders remain in place.
+
+Before the first live copy session, select/save a Bitunix API profile and select a Hyperliquid trader. Click **Start auto-copy**, set the authorized futures capital, percentage of that capital allocated per trade, cumulative loss limit, and maximum leverage, then explicitly confirm live trading. These settings persist locally and can be changed through **Edit copy settings**. The worker reloads changed settings while monitoring.
+
+## Capital and isolated-risk controls
+
+- **Authorized capital** caps the sum of bot-tracked allocated margin. Example: with $20 authorized capital and 20% margin per trade, an order is planned for up to $4 margin, subject to available Futures USDT, venue minimums and contract precision.
+- **Per-trade margin** is limited to the user-configured percentage of authorized capital. The app does not transfer funds, add margin after entry, or deliberately use the rest of the wallet as cross collateral.
+- **Isolated margin is mandatory.** For a symbol, the app refuses to change margin/leverage or open a copied position when an existing Bitunix position or pending order is detected. It requests ISOLATION, verifies the exchange response, then verifies leverage before sending an order. If an opened position is unexpectedly reported as non-isolated, the app requests an emergency close and reports an error.
+- **Per-trade stop target** is designed so a move from entry to the exchange-side market stop equals approximately 50% of the position's actual allocated initial margin. Example: $4 margin implies about $2 planned stop-loss risk, before fees and execution effects. Stop placement uses the Bitunix order endpoint's attached market stop.
+- **Aggregate stop-risk budget** limits combined planned stop risk across bot-tracked open positions to the remaining cumulative loss budget. As prior losses accumulate, or other open positions reserve the budget, the next position is reduced or skipped.
+- **Cumulative loss circuit breaker** tracks PnL of bot-managed positions and disables new entries once the configured loss limit is reached. It attempts to close tracked positions using their Bitunix position IDs; if a close request fails, the exchange-side stop remains the fallback protection.
+- **Fail-closed behavior:** invalid/unmapped symbols, unsupported Bitunix contracts, missing market prices, insufficient margin, minimum-size violations, missing order IDs, unknown fill directions, duplicate fills, unverified isolated mode, and pre-existing positions/orders cause an order to be skipped or an error to be reported.
+- **Close events:** a source close is only copied against a tracked local position ID. It closes the local copied position rather than sending an unprotected opposite-side order. Source partial closes are not mirrored proportionally; a recognized source close closes the tracked copied position in full.
+- **Trading scope:** only assets that map to Bitunix USDT futures symbols (COINUSDT) are eligible. Other Hyperliquid symbols (including dex-specific forms or spot-only tokens) are skipped. At most one bot-tracked position per symbol is allowed to avoid unintended pyramiding or interference with manual positions.
+- **Win-rate statistics:** when leaderboard win-rate metrics are missing, the app uses a labeled seven-day closed-fill proxy. Partial exits can count as multiple fills, so it is not a verified position-level win rate.
+
+## Important risk notice
+
+The stop target and loss circuit breaker are risk controls, **not a guarantee of maximum possible loss**. Market gaps, slippage, latency, fees, funding, liquidation rules, an exchange/API outage, a rejected stop, or a sudden position closure can cause actual loss to exceed the planned value. The circuit breaker is checked periodically and cannot remove these risks. Do not enable live copy until credentials and settings have been reviewed.
+
+Use a Bitunix API key with the minimum Futures permissions required for live order creation/closing. **Never grant withdrawal permission and never share API secrets in chat.** Secrets are kept through Windows Credential Manager (keyring) when available. Connection testing uses a read-only endpoint; live copy requires a separate API key with trading permissions. No private live-order test was performed as part of the build; tests must use mocks and never submit orders to an exchange.
 
 ## Run from source
-Python 3.12+ on Windows:
 
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python app.py
-```
+Python 3.12+ on Windows. Create a virtual environment, install requirements.txt, and run python app.py.
 
 ## Tests
 
-```powershell
-python -m unittest discover -s tests -v
-```
-
-Tests mock network-dependent API calls; they do not require credentials or send live orders.
+Run python -m unittest discover -s tests -v. Tests include deterministic position-size/stop-risk checks, aggregate risk budget limits, fill identity, trader ranking and signature verification. Network-dependent order tests should be mocked; tests must not call private trading endpoints or submit real orders.
 
 ## Build
 
-The GitHub Actions workflow `Windows Build` builds `WhaleRadarPro.exe` and an Inno Setup installer, then uploads both as workflow artifacts. Pushes to the rebuild branch and manual dispatch trigger the workflow. Download the artifact from the latest successful run on the [Actions page](https://github.com/shmm66/desktop-tutorial/actions).
+The GitHub Actions workflow Windows Build runs tests, builds WhaleRadarPro.exe and a Windows Inno Setup installer, and uploads both as workflow artifacts. Pushes to the whale-radar-pro-rebuild branch or manual dispatch trigger the build. See the [Actions page](https://github.com/shmm66/desktop-tutorial/actions).
 
 ## Repository layout
-- `app.py` — compact desktop UI (three main sections)
-- `radar/` — models, risk calculations, Bitunix read-only authentication, Hyperliquid screening and wallet monitor, credential profile storage
-- `tests/` — deterministic unit tests
-- `.github/workflows/windows-build.yml` — reproducible Windows build
 
-## Security
-Never commit API secrets or send them in chat. Use a Bitunix API key with minimum read-only permissions; never enable withdrawals for this app. Risk calculations are estimates, not guarantees of liquidation distance or exchange order validity.
-
-GitHub Actions are pinned to full commit SHAs to satisfy repository security settings.
+- app.py — three-section desktop UI and automatic copy monitor.
+- radar/copytrade.py — saved user settings, Bitunix signing, isolated order flow, stop sizing, deduplication, PnL tracking and circuit breaker.
+- radar/bitunix.py — read-only connection test and signature helper.
+- radar/hyperliquid.py and radar/monitor.py — public leaderboard and wallet fill monitoring.
+- radar/credentials.py — API profile metadata and OS credential storage.
+- tests/ — deterministic offline tests.
+- .github/workflows/windows-build.yml — Windows build pipeline.
