@@ -31,7 +31,7 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Build standalone executable
-        run: pyinstaller --noconfirm --clean --windowed --onefile --name WhaleRadarPro app.py
+        run: pyinstaller --noconfirm --clean --windowed --onefile --hidden-import=keyring.backends.Windows --name WhaleRadarPro app.py
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
       - name: Build installer
