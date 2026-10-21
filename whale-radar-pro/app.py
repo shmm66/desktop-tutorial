@@ -1,14 +1,20 @@
 """Whale Radar Pro — responsive Windows desktop interface."""
 from __future__ import annotations
 
+import csv
+import html
+import os
+import tempfile
 import threading
 import tkinter as tk
-from tkinter import ttk, messagebox
+import webbrowser
+from pathlib import Path
+from tkinter import ttk, messagebox, filedialog
 
 from radar.bitunix import test_connection
 from radar.copytrade import (
     BitunixClient, CopyTradeError, check_loss_circuit_breaker, load_copy_settings,
-    load_copy_state, process_copy_fill, reset_loss_halt, save_copy_settings,
+    load_copy_state, process_copy_fill, refresh_copy_history, reset_loss_halt, save_copy_settings,
 )
 from radar.credentials import delete_profile, get_profile_secrets, list_profiles, save_profile
 from radar.hyperliquid import fetch_leaderboard
@@ -28,14 +34,20 @@ class RadarApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Whale Radar Pro")
-        self.geometry("1180x850")
-        self.minsize(900, 640)
+        self.geometry("1440x900")
+        self.minsize(1100, 700)
+        try:
+            self.state("zoomed")
+        except tk.TclError:
+            self.attributes("-zoomed", True)
         self.configure(bg=BG)
         self.traders: list[Trader] = []
         self._test_in_progress = False
         self._scan_in_progress = False
         self._monitor_stop: threading.Event | None = None
         self._watched_address: str | None = None
+        self._watched_traders: list[tuple[str, str]] = []
+        self._history_window: tk.Toplevel | None = None
         self._loading_profile = False
         self.copy_settings = load_copy_settings()
         self.copy_state = load_copy_state()
@@ -83,8 +95,9 @@ class RadarApp(tk.Tk):
 
         header = ttk.Frame(root)
         header.pack(fill="x", pady=(0, 14))
-        ttk.Label(header, text="WHALE RADAR", style="Title.TLabel").pack(side="left")
-        ttk.Label(header, text="PRO 2.2  •  HYPERLIQUID × BITUNIX",
+        ttk.Label(header, text="🐋  WHALE RADAR PRO", style="Title.TLabel").pack(side="left")
+        ttk.Button(header, text="Copy Trade History", command=self.open_copy_history).pack(side="right", padx=(10, 0))
+        ttk.Label(header, text="2.3  •  HYPERLIQUID × BITUNIX",
                    style="Muted.TLabel").pack(side="right", pady=10)
 
         # 01 — Bitunix credentials and connection test.
@@ -151,7 +164,7 @@ class RadarApp(tk.Tk):
                   wraplength=900).pack(side="left", padx=12, fill="x", expand=True)
 
         cols = ("name", "address", "return", "win", "trades")
-        self.table = ttk.Treeview(p2, columns=cols, show="headings", height=6, selectmode="browse")
+        self.table = ttk.Treeview(p2, columns=cols, show="headings", height=8, selectmode="extended")
         for col, label, width in [
             ("name", "Trader", 155), ("address", "Wallet / Address", 300),
             ("return", "Return %", 88), ("win", "Closed-fill win % · 7d proxy", 185),
@@ -161,12 +174,15 @@ class RadarApp(tk.Tk):
             self.table.column(col, width=width, anchor="w" if col in ("name", "address") else "center",
                               stretch=(col == "address"))
         self.table.pack(fill="x", expand=False)
+        ttk.Label(p2, text="Select multiple rows with Ctrl/Shift to copy several traders simultaneously (maximum 10).",
+                  style="Muted.TLabel").pack(anchor="w", pady=(5, 0))
         controls = ttk.Frame(p2)
         controls.pack(fill="x", pady=(8, 0))
         self.watch_button = ttk.Button(controls, text="Start auto-copy", command=self.start_monitor)
         self.watch_button.pack(side="left")
         self.stop_button = ttk.Button(controls, text="Stop auto-copy", command=self.stop_monitor, state="disabled")
         self.stop_button.pack(side="left", padx=8)
+        ttk.Button(controls, text="Copy Trade History", command=self.open_copy_history).pack(side="right", padx=(0, 8))
         ttk.Button(controls, text="Review selected", command=self.review_alert).pack(side="right")
         ttk.Label(p2, text="Win-rate data is a 7-day closed-fill estimate, not verified position-level win rate. Unknown stays Unknown.",
                   style="Muted.TLabel", wraplength=980).pack(anchor="w", pady=(7, 0))
@@ -369,7 +385,10 @@ class RadarApp(tk.Tk):
     def start_monitor(self) -> None:
         selected = self.table.selection()
         if not selected:
-            messagebox.showinfo("Select a trader", "Scan Hyperliquid and select one trader first.", parent=self)
+            messagebox.showinfo("Select traders", "Scan Hyperliquid and select one or more traders first.", parent=self)
+            return
+        if len(selected) > 10:
+            messagebox.showwarning("Trader limit", "You can monitor at most 10 traders at once.", parent=self)
             return
         profile = self.profile_var.get().strip()
         if not profile:
@@ -386,63 +405,71 @@ class RadarApp(tk.Tk):
         if not self.copy_settings.get("live_copy_enabled", False):
             self.status.set("Auto-copy was not enabled; no order will be sent.")
             return
-        values = self.table.item(selected[0], "values")
-        name, address = str(values[0]), str(values[1])
+        traders = []
+        for item in selected:
+            values = self.table.item(item, "values")
+            traders.append((str(values[0]), str(values[1])))
         if self._monitor_stop is not None:
             self.stop_monitor()
         stop_event = threading.Event()
         self._monitor_stop = stop_event
-        self._watched_address = address
+        self._watched_traders = traders
+        self._watched_address = traders[0][1] if len(traders) == 1 else None
         self.watch_button.configure(state="disabled", text="Auto-copy running…")
         self.stop_button.configure(state="normal")
-        self.status.set("Starting automatic copy for {0}. Existing fills will be ignored; new fills are copied.".format(name))
+        names = ", ".join(name for name, _ in traders)
+        self.status.set("Starting automatic copy for {0} trader(s). Existing fills will be ignored.".format(len(traders)))
         settings = dict(self.copy_settings)
         threading.Thread(target=self._monitor_worker,
-            args=(name, address, stop_event, key, secret, settings), daemon=True).start()
+            args=(traders, stop_event, key, secret, settings), daemon=True).start()
 
-    def _monitor_worker(self, name: str, address: str, stop_event: threading.Event,
+    def _monitor_worker(self, traders: list[tuple[str, str]], stop_event: threading.Event,
                         api_key: str, api_secret: str, settings: dict) -> None:
-        seen: set[str] = set()
+        seen_by_address: dict[str, set[str]] = {}
         try:
-            initial = fetch_recent_fills(address, lookback_seconds=600)
-            seen.update(fill_identity(fill) for fill in initial)
+            for name, address in traders:
+                initial = fetch_recent_fills(address, lookback_seconds=600)
+                seen_by_address[address] = {fill_identity(fill) for fill in initial}
             client = BitunixClient(api_key, api_secret)
+            names = ", ".join(name for name, _ in traders)
             self.after(0, lambda: self.status.set(
-                "Auto-copy active for {0}; watching fresh Hyperliquid fills every 20 seconds.".format(name)))
+                "Auto-copy active for {0} trader(s); checking every 20 seconds.".format(len(traders))))
         except Exception as exc:
             detail = str(exc)
             self.after(0, lambda detail=detail: self._monitor_error(detail))
             return
         while not stop_event.wait(20):
             try:
-                fills = fetch_recent_fills(address, lookback_seconds=120)
-                fresh = []
-                for fill in fills:
-                    identity = fill_identity(fill)
-                    if identity not in seen:
-                        seen.add(identity)
-                        fresh.append(fill)
-                if len(seen) > 2500:
-                    seen = {fill_identity(fill) for fill in fills}
-                # Reload settings from disk so edits in the settings menu apply immediately.
                 settings = load_copy_settings()
-                if fresh:
-                    fresh.sort(key=lambda fill: int(fill.get("time", 0) or 0))
-                    for fill in fresh:
-                        if stop_event.is_set():
-                            break
-                        try:
-                            state = load_copy_state()
-                            result = process_copy_fill(client, fill, address, settings, state)
-                            detail = "{0} · {1} · {2}".format(name, fill.get("coin", "?"), result)
-                        except Exception as exc:
-                            detail = "Copy skipped / guarded: {0}".format(str(exc))
-                        self.after(0, lambda detail=detail: self.status.set(detail))
+                all_fresh = []
+                for name, address in traders:
+                    fills = fetch_recent_fills(address, lookback_seconds=120)
+                    seen = seen_by_address.setdefault(address, set())
+                    for fill in fills:
+                        identity = fill_identity(fill)
+                        if identity not in seen:
+                            seen.add(identity)
+                            all_fresh.append((name, address, fill))
+                    if len(seen) > 2500:
+                        seen_by_address[address] = {fill_identity(fill) for fill in fills}
+                all_fresh.sort(key=lambda item: int(item[2].get("time", 0) or 0))
+                for name, address, fill in all_fresh:
+                    if stop_event.is_set():
+                        break
+                    try:
+                        state = load_copy_state()
+                        result = process_copy_fill(client, fill, address, settings, state)
+                        detail = "{0} · {1} · {2}".format(name, fill.get("coin", "?"), result)
+                    except Exception as exc:
+                        detail = "{0} · Copy skipped / guarded: {1}".format(name, str(exc))
+                    self.after(0, lambda detail=detail: self.status.set(detail))
                 try:
                     state = load_copy_state()
+                    refresh_copy_history(client, state)
                     loss_status = check_loss_circuit_breaker(client, settings, state)
                     if loss_status:
                         self.after(0, lambda msg=loss_status: self.status.set(msg))
+                    self.after(0, self._refresh_copy_summary)
                 except Exception as exc:
                     detail = "Risk monitor could not verify positions: {0}. No additional copy orders are sent while checks fail.".format(exc)
                     self.after(0, lambda detail=detail: self.status.set(detail))
@@ -464,9 +491,183 @@ class RadarApp(tk.Tk):
             self._monitor_stop.set()
         self._monitor_stop = None
         self._watched_address = None
+        self._watched_traders = []
         self.watch_button.configure(state="normal", text="Start auto-copy")
         self.stop_button.configure(state="disabled")
         self.status.set("Auto-copy monitor stopped. Any already-open isolated position and its exchange-side stop remain active.")
+
+    def open_copy_history(self) -> None:
+        """Show persisted per-trade milestones and offer charted printable statement exports."""
+        if self._history_window is not None and self._history_window.winfo_exists():
+            self._history_window.lift()
+            self._refresh_history_table()
+            return
+        win = tk.Toplevel(self)
+        win.title("Copy Trade History & Performance")
+        win.geometry("1250x760")
+        win.minsize(900, 600)
+        win.configure(bg=BG)
+        self._history_window = win
+        head = ttk.Frame(win, padding=14)
+        head.pack(fill="x")
+        ttk.Label(head, text="COPY TRADE HISTORY", style="Title.TLabel").pack(side="left")
+        ttk.Button(head, text="Refresh", command=self._refresh_history_table).pack(side="right", padx=4)
+        ttk.Button(head, text="Export CSV", command=self.export_history_csv).pack(side="right", padx=4)
+        ttk.Button(head, text="Print full statement", style="Accent.TButton",
+                   command=self.export_printable_statement).pack(side="right", padx=4)
+        self.history_summary = tk.StringVar(value="")
+        ttk.Label(win, textvariable=self.history_summary, style="Muted.TLabel",
+                  wraplength=1100).pack(fill="x", padx=14, pady=(0, 8))
+        cols = ("time", "trader", "symbol", "side", "margin", "lev", "status", "stop", "pnl", "detail")
+        table = ttk.Treeview(win, columns=cols, show="headings", height=14)
+        self.history_table = table
+        for col, title, width in [
+            ("time", "Time", 145), ("trader", "Trader / Wallet", 155), ("symbol", "Symbol", 90),
+            ("side", "Side", 65), ("margin", "Margin USDT", 90), ("lev", "Lev", 50),
+            ("status", "Status", 130), ("stop", "Stop", 95), ("pnl", "P&L USDT", 90), ("detail", "Details", 280)
+        ]:
+            table.heading(col, text=title)
+            table.column(col, width=width, anchor="w" if col in ("trader", "detail") else "center")
+        table.pack(fill="both", expand=True, padx=14, pady=(0, 10))
+        self.history_chart = tk.Canvas(win, height=190, bg=PANEL, highlightthickness=0)
+        self.history_chart.pack(fill="x", padx=14, pady=(0, 14))
+        win.bind("<Destroy>", lambda event: setattr(self, "_history_window", None)
+                 if event.widget is win else None)
+        self._refresh_history_table()
+
+    def _history_rows(self) -> list[dict]:
+        state = load_copy_state()
+        return sorted(state.get("copy_history", []), key=lambda row: int(row.get("created_at") or 0), reverse=True)
+
+    def _refresh_history_table(self) -> None:
+        if not hasattr(self, "history_table") or not self.history_table.winfo_exists():
+            return
+        rows = self._history_rows()
+        for item in self.history_table.get_children():
+            self.history_table.delete(item)
+        total = len(rows)
+        wins = losses = 0
+        pnl_values = []
+        for row in rows:
+            pnl = row.get("realized_pnl")
+            if pnl is not None:
+                try:
+                    pnl = float(pnl)
+                    pnl_values.append(pnl)
+                    wins += int(pnl > 0)
+                    losses += int(pnl < 0)
+                except (TypeError, ValueError):
+                    pnl = None
+            timestamp = int(row.get("created_at") or 0) / 1000
+            import datetime
+            dt = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
+            trader = str(row.get("trader") or row.get("wallet") or "")[:18]
+            self.history_table.insert("", "end", values=(
+                dt, trader, row.get("symbol", ""), row.get("side", ""),
+                "{:.2f}".format(float(row.get("margin") or 0)),
+                "{}x".format(row.get("leverage") or 0), row.get("status", ""),
+                "{:.6g}".format(float(row.get("stop_price") or 0)),
+                "" if pnl is None else "{:+.4f}".format(pnl), row.get("detail", "")))
+        net = sum(pnl_values)
+        self.history_summary.set(
+            "Trades: {0}   |   P&L recorded: {1}   |   Wins: {2}   |   Losses: {3}   |   Net realized P&L: {4:+.4f} USDT   |   Status is confirmed from saved exchange checks where available.".format(
+                total, len(pnl_values), wins, losses, net))
+        self._draw_history_chart(rows)
+
+    def _draw_history_chart(self, rows: list[dict]) -> None:
+        canvas = getattr(self, "history_chart", None)
+        if not canvas or not canvas.winfo_exists():
+            return
+        canvas.delete("all")
+        width = max(canvas.winfo_width(), 600)
+        height = max(canvas.winfo_height(), 150)
+        values = []
+        for row in reversed(rows):
+            try:
+                if row.get("realized_pnl") is not None:
+                    values.append(float(row["realized_pnl"]))
+            except (TypeError, ValueError):
+                pass
+        canvas.create_text(14, 12, text="REALIZED P&L BY CLOSED TRADE", anchor="nw", fill=TEXT,
+                           font=("Segoe UI Semibold", 10))
+        if not values:
+            canvas.create_text(width // 2, height // 2, text="No confirmed realized P&L data yet",
+                               fill="#9aabc2", font=("Segoe UI", 11))
+            return
+        running = []
+        total = 0.0
+        for value in values:
+            total += value
+            running.append(total)
+        lo, hi = min([0.0] + running), max([0.0] + running)
+        if hi - lo < 0.000001:
+            hi += 1
+        left, right, top, bottom = 45, width - 20, 38, height - 28
+        canvas.create_line(left, top, left, bottom, fill="#45566e")
+        canvas.create_line(left, bottom, right, bottom, fill="#45566e")
+        pts = []
+        for i, value in enumerate(running):
+            x = left + (right - left) * i / max(1, len(running) - 1)
+            y = bottom - (value - lo) * (bottom - top) / (hi - lo)
+            pts.extend([x, y])
+        if len(pts) >= 4:
+            canvas.create_line(*pts, fill=ACCENT, width=2, smooth=True)
+        canvas.create_text(left, top, text="{:.2f}".format(hi), anchor="sw", fill="#9aabc2")
+        canvas.create_text(left, bottom, text="{:.2f}".format(lo), anchor="nw", fill="#9aabc2")
+
+    def export_history_csv(self) -> None:
+        rows = self._history_rows()
+        path = filedialog.asksaveasfilename(parent=self, title="Export copy statement",
+            defaultextension=".csv", filetypes=[("CSV statement", "*.csv")],
+            initialfile="WhaleRadarPro-Copy-Statement.csv")
+        if not path:
+            return
+        fields = ["created_at", "trader", "wallet", "symbol", "side", "status", "detail",
+                  "order_id", "position_id", "margin", "leverage", "risk_usdt",
+                  "entry_price", "stop_price", "realized_pnl", "fees", "events"]
+        with open(path, "w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
+            writer.writeheader()
+            for row in rows:
+                record = dict(row)
+                record["events"] = str(record.get("events", []))
+                writer.writerow(record)
+        messagebox.showinfo("Export complete", "CSV statement saved to:\n" + path, parent=self)
+
+    def export_printable_statement(self) -> None:
+        rows = self._history_rows()
+        path = filedialog.asksaveasfilename(parent=self, title="Save printable statement",
+            defaultextension=".html", filetypes=[("Printable HTML statement", "*.html")],
+            initialfile="WhaleRadarPro-Copy-Statement.html")
+        if not path:
+            return
+        state = load_copy_state()
+        total = sum(float(r.get("realized_pnl") or 0) for r in rows)
+        cells = []
+        for row in rows:
+            when = __import__("datetime").datetime.fromtimestamp(
+                int(row.get("created_at") or 0) / 1000).strftime("%Y-%m-%d %H:%M")
+            cells.append("<tr>" + "".join("<td>{}</td>".format(html.escape(str(v if v is not None else ""))) for v in [
+                when, row.get("trader") or row.get("wallet"), row.get("symbol"), row.get("side"),
+                row.get("margin"), row.get("leverage"), row.get("status"), row.get("stop_price"),
+                row.get("realized_pnl"), row.get("detail")]) + "</tr>")
+        document = """<!doctype html><html><head><meta charset="utf-8"><title>Whale Radar Pro Statement</title>
+<style>body{font:12px Arial,sans-serif;color:#17212b;margin:24px}h1{color:#123b55}table{border-collapse:collapse;width:100%%}
+th,td{border:1px solid #ccd5de;padding:6px;text-align:left;overflow-wrap:anywhere}th{background:#e8eef4}
+.kpi{display:flex;gap:18px;margin:12px 0 20px}.kpi div{padding:10px;background:#f0f5f8;border-radius:5px}
+@media print{@page{size:A4 landscape;margin:10mm}button{display:none}tr{page-break-inside:avoid}}</style></head>
+<body><h1>Whale Radar Pro — Copy Trade Statement</h1><p>Generated: {} · Saved trade records: {}</p>
+<div class="kpi"><div><b>Total realized P&amp;L</b><br>{:+.4f} USDT</div><div><b>Open tracked positions</b><br>{}</div>
+<div><b>Loss stop</b><br>{}</div></div><button onclick="window.print()">Print / Save as PDF</button>
+<table><thead><tr><th>Time</th><th>Trader</th><th>Symbol</th><th>Side</th><th>Margin</th><th>Lev.</th><th>Status</th><th>Stop</th><th>P&amp;L</th><th>Details</th></tr></thead>
+<tbody>{}</tbody></table><script>window.onload=()=>setTimeout(()=>window.print(),500)</script></body></html>""".format(
+            __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M"),
+            len(rows), total, len(state.get("active_trades", {})),
+            "ACTIVE" if state.get("halted") else "Not triggered", "".join(cells))
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(document)
+        webbrowser.open(Path(path).resolve().as_uri())
+        messagebox.showinfo("Statement ready", "Printable statement opened in your browser. Use Print → Save as PDF.", parent=self)
 
     def _refresh_copy_summary(self) -> None:
         settings = self.copy_settings
