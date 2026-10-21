@@ -158,7 +158,9 @@ class IsolatedCopyRiskTests(unittest.TestCase):
     def test_profitable_active_position_releases_only_remaining_stop_budget(self):
         settings = {"authorized_capital_usdt": 20, "max_total_loss_pct": 10}
         state = {"active_trades": {"one": {"risk_usdt": 2.0}}}
+        # Realized profit may add headroom; floating profit must not, because it can disappear before a stop fills.
         self.assertAlmostEqual(calculate_risk_headroom(settings, state, 1.0), 1.0)
+        self.assertAlmostEqual(calculate_risk_headroom(settings, state, 1.0, active_unrealized_pnl=1.0), 0.0)
 
     def test_loss_halt_keeps_position_tracked_if_close_request_fails(self):
         class FakeClient:
