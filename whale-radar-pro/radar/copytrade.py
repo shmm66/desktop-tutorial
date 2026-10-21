@@ -346,7 +346,8 @@ def calculate_order_plan(margin_usdt: float, leverage: int, price: float,
     move_fraction = risk_usdt / notional
     raw_stop = px * (Decimal("1") - move_fraction if side == "LONG" else Decimal("1") + move_fraction)
     price_step = Decimal("1").scaleb(-quote_precision)
-    stop = raw_stop.quantize(price_step, rounding=ROUND_DOWN if side == "LONG" else ROUND_UP)
+    # Round toward entry so precision cannot increase the planned stop risk.
+    stop = raw_stop.quantize(price_step, rounding=ROUND_UP if side == "LONG" else ROUND_DOWN)
     if stop <= 0 or (side == "LONG" and stop >= px) or (side == "SHORT" and stop <= px):
         raise ValueError("Could not create a valid stop price.")
     return {
@@ -372,6 +373,15 @@ def _remember(state: dict[str, Any], identity: str) -> None:
     state["seen_fills"] = list(state.get("seen_fills", [])) + [identity]
 
 
+def calculate_risk_headroom(settings: dict[str, Any], state: dict[str, Any],
+                            current_pnl: float) -> float:
+    """Return remaining stop-risk budget after prior PnL and active positions' stop risks."""
+    max_loss = float(settings["authorized_capital_usdt"]) * float(settings["max_total_loss_pct"]) / 100.0
+    active_risk = sum(float(r.get("risk_usdt", 0) or 0)
+                      for r in state.get("active_trades", {}).values())
+    return max(0.0, max_loss + float(current_pnl) - active_risk)
+
+
 def tracked_pnl(client: BitunixClient, state: dict[str, Any]) -> float:
     """Conservative PnL estimate from only position IDs stored by the copy bot."""
     total = 0.0
@@ -389,7 +399,10 @@ def tracked_pnl(client: BitunixClient, state: dict[str, Any]) -> float:
             total += float(p.get("realizedPNL") or 0) + float(p.get("unrealizedPNL") or 0)
             total -= float(p.get("fee") or 0)
             total += float(p.get("funding") or 0)
+    baseline = int(state.get("started_at") or 0)
     for record in list(state.get("closed_trades", [])):
+        if int(record.get("created_at") or 0) < baseline:
+            continue
         pid = str(record.get("position_id") or "")
         if not pid or pid in pending_ids:
             continue
@@ -537,8 +550,13 @@ def process_copy_fill(client: BitunixClient, fill: dict[str, Any], wallet: str,
     capital = float(settings["authorized_capital_usdt"])
     reserved = sum(float(r.get("margin", 0) or 0) for r in state.get("active_trades", {}).values())
     remaining_capital = capital - reserved
+
+    # Keep both allocated margin and aggregate planned stop-risk within user limits.
+    pnl_now = tracked_pnl(client, state)
+    risk_budget = calculate_risk_headroom(settings, state, pnl_now)
     requested_margin = capital * float(settings["margin_per_trade_pct"]) / 100.0
-    margin = min(requested_margin, remaining_capital, available)
+    max_margin_under_risk_budget = risk_budget / RISK_PER_TRADE_MARGIN_FRACTION
+    margin = min(requested_margin, remaining_capital, available, max_margin_under_risk_budget)
     if margin <= 0:
         _remember(state, identity)
         save_copy_state(state)
