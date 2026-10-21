@@ -11,6 +11,7 @@ import sys
 import tempfile
 import threading
 import webbrowser
+from queue import Empty, Queue
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -24,10 +25,18 @@ from glass_theme import apply_glass, apply_glass_after_map, set_widget_glass
 from market_data import MarketDataService, cached_market_payload
 from calendar_utils import display_date
 from journal_agent import analyse_journal
+from academy_content import (
+    ACADEMY_FAMILY_RULES, ACADEMY_NOTE_EN, ACADEMY_NOTE_FA,
+    CANDLE_PLAYBOOK, GLOSSARY, ICT_STRATEGIES, SMART_MONEY_STRATEGIES,
+)
+from trading_coach import (
+    DEFAULT_MODEL, build_ai_context, local_response, openai_response,
+    seal_api_key, unseal_api_key,
+)
 from news_data import fetch_market_news, COINDESK_HOME, COINDESK_RSS, CRYPTO_NEWS_HOME, FOREX_FACTORY
 
 APP = "Trader Planner Pro"
-VERSION = "10.2.0"
+VERSION = "10.3.0"
 ROOT = Path.home() / "TraderPlannerPro"
 DATA = ROOT / "data.json"
 SCREENSHOTS = ROOT / "Screenshots"
@@ -553,6 +562,8 @@ class App(tk.Tk):
         self.theme_auto_job = None
         self.reminder_job = None
         self.market_timeout_job = None
+        self._coach_poll_job = None
+        self._coach_busy = False
         self.market_data_payload = cached_market_payload(self.market)
         self.ticker_offset = 0
         self.ticker_job = None
@@ -642,7 +653,7 @@ class App(tk.Tk):
         return "break"
 
     def _cancel_navigation_jobs(self):
-        for job_name in ("session_clock_job", "ticker_job", "market_timeout_job", "_nav_job"):
+        for job_name in ("session_clock_job", "ticker_job", "market_timeout_job", "_nav_job", "_coach_poll_job"):
             job = getattr(self, job_name, None)
             if job is not None:
                 try:
@@ -1047,7 +1058,7 @@ class App(tk.Tk):
         tk.Label(self.menu, text="FAST NAVIGATION • AUTO HIDE", bg=C["panel"], fg=C["muted"],
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=20, pady=(0,14))
         self.menu_buttons = {}
-        for key in ("home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings"):
+        for key in ("home","daily","weekly","plan","check","journal","academy","coach","insights","resources","news","calculators","settings"):
             cmd = lambda k=key: self.go(k)
             b = tk.Button(self.menu, text=self.tr(key), command=cmd, anchor="w",
                           bg=C["panel"], fg=C["text"], activebackground=C["soft"], activeforeground=C["accent"],
@@ -1135,7 +1146,7 @@ class App(tk.Tk):
         self.show(key)
 
     def show(self, key):
-        allowed={"home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings"}
+        allowed={"home","daily","weekly","plan","check","journal","academy","coach","insights","resources","news","calculators","settings"}
         if key not in allowed:
             key="home"
         self._cancel_menu_hide()
@@ -1153,7 +1164,7 @@ class App(tk.Tk):
         self._nav_job = None
         if token != self._nav_token or not self.winfo_exists():
             return
-        for job_name in ("session_clock_job","ticker_job"):
+        for job_name in ("session_clock_job","ticker_job","_coach_poll_job"):
             job=getattr(self, job_name, None)
             if job is not None:
                 try: self.after_cancel(job)
@@ -1381,22 +1392,22 @@ class App(tk.Tk):
             self.market_data_payload = cached
         self.heading(self.tr("dashboard"), self.tr("dashboard_sub"))
 
-        # Compact command-center snapshot: local clock, today's tasks, weekly execution and journal edge.
+        # Home prioritizes useful action and the user's dated goals, not the retired weekly planner.
         today_key = date.today().isoformat()
-        week_dates = self._week_dates(0)
-        week_keys = {d.isoformat() for d in week_dates}
         today_tasks = DB.get("tasks", {}).get(today_key, [])
-        week_total, week_done = self._week_task_stats(week_dates)
-        week_rows = [r for r in p["journals"][self.market] if str(r.get("Date", ""))[:10] in week_keys]
-        week_net_r = sum(result_num(r) for r in week_rows)
+        goals = [g for g in p.get("goals", []) if isinstance(g, dict)]
+        def goal_summary(period):
+            period_goals = [g for g in goals if g.get("period", "weekly") == period]
+            completed = sum(1 for g in period_goals if float(g.get("progress", 0) or 0) >= float(g.get("target", 1) or 1))
+            return f"{completed}/{len(period_goals)}"
         snapshot = self.card(self.content); snapshot.pack(fill="x", pady=(2,7))
         cells = tk.Frame(snapshot, bg=C["panel"]); cells.pack(fill="x", padx=10, pady=10)
         snap_specs = [
             ("LOCAL TIME", datetime.now().strftime("%H:%M:%S"), C["cyan"]),
             ("TODAY TASKS", f"{sum(1 for x in today_tasks if x.get('done'))}/{len(today_tasks)}", C["accent"]),
-            ("WEEK EXECUTION", f"{week_done}/{week_total}", C["gold"]),
-            ("WEEK NET R", f"{week_net_r:+.2f} R", C["violet"]),
-            ("JOURNAL AGENT", "LOCAL • READY", C["blue"]),
+            ("WEEKLY GOALS", goal_summary("weekly"), C["gold"]),
+            ("MONTHLY GOALS", goal_summary("monthly"), C["violet"]),
+            ("YEARLY GOALS", goal_summary("yearly"), C["blue"]),
         ]
         for title,value,color in snap_specs:
             c=tk.Frame(cells,bg=C["panel3"],highlightbackground=C["line"],highlightthickness=1)
@@ -1428,7 +1439,8 @@ class App(tk.Tk):
         self.render_market_indicators(self.market_data_payload)
         self.market_data.set_market(self.market)
         self._ensure_home_timeout(6500)
-        self.after(30, self.market_data.refresh_now)
+        # MarketDataService.start() owns the initial background refresh. Avoid
+        # issuing a second fetch from Home during startup.
 
         session_wrap = tk.Frame(self.content, bg=C["bg"]); session_wrap.pack(fill="x", pady=(1,7))
         session_head = tk.Frame(session_wrap, bg=C["bg"]); session_head.pack(fill="x")
