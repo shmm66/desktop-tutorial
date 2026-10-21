@@ -2,7 +2,7 @@ name: Build Whale Radar Pro 1.5.0 (English, Windows)
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/whale-radar-1.5.0"]
     paths:
       - '.github/workflows/whaleradar-build.yml'
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Prepare the reviewed Whale Radar Pro 1.5.0 source
         shell: powershell
@@ -374,7 +374,7 @@ jobs:
           if (-not $release) {
             $payload = @{
               tag_name = $tag
-              target_commitish = 'main'
+              target_commitish = $env:GITHUB_SHA
               name = "Whale Radar Pro $env:SOURCE_VERSION - Windows x64"
               body = "English-only Whale Radar Pro $env:SOURCE_VERSION. Fixes the Successful Traders screen, where the trader service was missing the discover method the screen calls, so the ranking could not be refreshed. A trading order is now submitted with one client ID that is stored in the local history, and an order that the exchange accepted but that could not be recorded locally is reported explicitly instead of looking like a failed copy. A trading POST is attempted exactly once; timeouts, resets and HTTP 408/425/5xx raise an explicit ambiguous-submission error. Credential-shaped values are redacted from every error message and diagnostic entry, response bodies are size-capped, and the leaderboard cache no longer blocks the user interface. Copy sizing uses exact decimal arithmetic and refuses a protective level at or below zero. An optional account equity derives automatic leverage, daily loss and open risk guardrails. The previous transport module and the Trade Manager position renderer contained syntax errors that the build used to repair silently at package time; both are fixed in the source. The full test suite now runs, including the trader-discovery test the previous build deleted. Hyperliquid remains read-only, every copy trade still requires individual approval, and this app does not bypass regional or service restrictions."
               draft = $true
