@@ -1,11 +1,11 @@
 # Whale Radar Pro
 
-A clean, isolated Windows desktop rebuild focused on three areas: exchange connection profiles, a ranked watchlist of up to 10 Hyperliquid traders, and per-trade margin/risk sizing. Alerts are informational; copying a trade always requires explicit user confirmation.
+A clean Windows desktop rebuild focused on three areas: exchange connection profiles, a ranked watchlist of up to 10 Hyperliquid traders, and per-trade margin/risk sizing. Copying is not automatic.
 
 ## Current implementation status
-- Hyperliquid: public leaderboard retrieval is implemented as best-effort. Missing ROI, win rate, and trade-count fields remain **Unknown** rather than being fabricated as zero. Unknown ROI or win rate excludes a trader from the performance-filtered list.
-- Bitunix: API profile management supports create, edit, select, delete, and paste. Private API connectivity is deliberately disabled until the current official signing requirements are verified.
-- Live trade-event notifications and order copying are not implemented in this build. The review action is an explicit placeholder; no order is sent.
+- Hyperliquid: public leaderboard retrieval is best-effort. Missing ROI, win rate, and trade-count fields remain **Unknown** rather than being fabricated as zero. Unknown ROI or win rate excludes a trader from the performance-filtered list. The public leaderboard does not guarantee that every field needed for win-rate ranking is available.
+- Bitunix: API profiles support create, edit, select, delete, and paste. The connection test now signs and sends a **read-only** request to the pending-positions endpoint using the official REST double-SHA256 procedure. It never places, edits, or cancels orders. See the [official signature guide](https://www.bitunix.com/api-docs/futures/common/sign.html) and [read-only endpoint](https://www.bitunix.com/api-docs/futures/position/get_pending_positions.html).
+- Live trader position-change monitoring and copy execution are not implemented yet. The review action is a placeholder; no order is sent.
 - The current UI uses a dark theme. A light-theme toggle is not yet implemented.
 - API secrets must not be committed to source control. The app uses Windows Credential Manager through `keyring` when available.
 
@@ -29,11 +29,11 @@ GitHub Actions workflow `Windows Build` builds a standalone `WhaleRadarPro.exe` 
 
 ## Repository layout
 - `app.py` — compact desktop UI (three main sections)
-- `radar/` — models, risk calculations, Hyperliquid public data adapter, credential profile storage
+- `radar/` — models, risk calculations, Bitunix read-only authentication, Hyperliquid public data adapter, credential profile storage
 - `tests/` — deterministic unit tests
 - `.github/workflows/windows-build.yml` — reproducible Windows build
 
 ## Risk note
-Leverage calculations are sizing estimates, not a guarantee of liquidation distance or exchange order validity. Verify tick size, lot size, fees, funding, and exchange margin rules before trading.
+Leverage calculations are sizing estimates, not a guarantee of liquidation distance or exchange order validity. Fees, slippage, funding, tick size, lot size, and venue margin rules may change the real outcome. Use API keys with the minimum required permissions and never enable withdrawals for this app.
 
 Build workflow policy: all GitHub Actions are pinned to full commit SHAs to satisfy repository security settings.
