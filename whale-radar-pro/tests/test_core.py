@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
+import requests
 
 from radar.bitunix import make_signature
 from radar.hyperliquid import closed_fill_stats, enrich_missing_win_rates
@@ -17,10 +18,7 @@ class BitunixSigningTests(unittest.TestCase):
             query_params="id1uid200",
             body='{"uid":"2899","arr":[{"id":1,"name":"maple"},{"id":2,"name":"lily"}]}',
         )
-        self.assertEqual(
-            signature,
-            "00397cd1e52c7dce3258067324363b6361fabc9178a0912b330c138db8745655",
-        )
+        self.assertEqual(signature, "00397cd1e52c7dce3258067324363b6361fabc9178a0912b330c138db8745655")
 
 
 class RiskTests(unittest.TestCase):
@@ -45,11 +43,7 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(len(rank_traders(traders, 30, 55, 10)), 0)
 
     def test_unknown_win_rate_is_not_fabricated(self):
-        traders = [
-            Trader("0xknown", "Known", 20, 60, 12),
-            Trader("0xunknown", "Unknown", 500, None, 1000),
-            Trader("0xno-return", "No return", None, 99, 10),
-        ]
+        traders = [Trader("0xknown", "Known", 20, 60, 12), Trader("0xunknown", "Unknown", 500, None, 1000), Trader("0xno-return", "No return", None, 99, 10)]
         result = rank_traders(traders, 10, 55)
         self.assertEqual([trader.address for trader in result], ["0xknown"])
 
@@ -77,13 +71,13 @@ class HyperliquidClosedFillTests(unittest.TestCase):
 
     @patch("radar.hyperliquid._fetch_closed_fill_stats")
     def test_enrichment_labels_proxy_and_preserves_unknown_on_failure(self, fetch_stats):
-        fetch_stats.side_effect = [(75.0, 4), RuntimeError("network failed")]
+        def stats_for(address, *_args):
+            if address == "0x1":
+                return 75.0, 4
+            raise requests.RequestException("network failed")
+        fetch_stats.side_effect = stats_for
         traders = [Trader("0x1", "A", 20, None, None), Trader("0x2", "B", 15, None, None)]
-        # Keep this test independent of network and wall-clock values.
-        with patch("radar.hyperliquid.datetime") as fake_datetime:
-            from datetime import datetime, timezone
-            fake_datetime.now.return_value = datetime(2026, 10, 22, tzinfo=timezone.utc)
-            result = enrich_missing_win_rates(traders, max_wallets=2)
+        result = enrich_missing_win_rates(traders, max_wallets=2)
         self.assertEqual(result[0].win_rate_pct, 75.0)
         self.assertEqual(result[0].trades, 4)
         self.assertIn("closed-fill proxy", result[0].source)
