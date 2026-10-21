@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 import requests
 
-from radar.bitunix import make_signature
+from radar.bitunix import explain_api_error, make_signature
 from radar.hyperliquid import closed_fill_stats, enrich_missing_win_rates
 from radar.models import Trader, rank_traders
 from radar.monitor import fetch_recent_fills, fill_identity
@@ -13,6 +13,17 @@ class BitunixSigningTests(unittest.TestCase):
     def test_double_sha256_signature_matches_reference_vector(self):
         signature = make_signature("123456", "20241120123045", "yourApiKey", "yourSecretKey", "id1uid200", '{"uid":"2899","arr":[{"id":1,"name":"maple"},{"id":2,"name":"lily"}]}')
         self.assertEqual(signature, "00397cd1e52c7dce3258067324363b6361fabc9178a0912b330c138db8745655")
+
+    def test_error_10004_explains_ip_whitelist_fix(self):
+        message = explain_api_error(10004, "generic rejection")
+        self.assertIn("IP address", message)
+        self.assertIn("IP whitelist", message)
+        self.assertIn("read-only", message)
+
+    def test_error_10007_is_reported_as_signature_error(self):
+        message = explain_api_error("10007")
+        self.assertIn("signature", message.casefold())
+        self.assertNotIn("whitelist", message.casefold())
 
 
 class RiskTests(unittest.TestCase):
