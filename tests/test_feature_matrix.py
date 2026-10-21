@@ -25,7 +25,7 @@ def test_primary_routes_include_offline_academy_and_trading_coach():
 
 def test_local_performance_agent_uses_saved_metrics_and_has_no_chat_controls():
     app = read("TraderPlannerPro_v7_0_3.py")
-    insights = app.split("    def insights(self):", 1)[1].split("    def resources(self):", 1)[0]
+    insights = app.split("    def insights(self):", 1)[1].split("    def coach(self):", 1)[0]
     assert '"expectancy_r"' in insights and '"max_drawdown_r"' in insights
     assert "analyse_journal(rows)" in insights
     assert "Build PDF Performance Resume" in insights
