@@ -261,8 +261,40 @@ I18N["en"].update({
  "api_key_missing":"No API key is configured; the built-in assistant or Ollama will be used.",
  "api_key_placeholder":"Enter your OpenAI API key here","api_key_security":"The key is stored in a local settings file; never paste it into chat.",
  "api_key_empty":"Enter an API key first."
+I18N["fa"].update({
+  "academy":"◉  آموزش آفلاین","academy_title":"کتابخانه آموزش آفلاین","academy_sub":"درس‌های جستجوپذیر SMC، مدل‌های ICT، کندل‌شناسی و لغتنامه؛ بدون دانلود هنگام اجرا.",
+  "academy_all":"همه موضوع‌ها","academy_smc":"چارچوب SMC","academy_ict":"مدل‌های ICT","academy_candles":"کندل‌شناسی","academy_glossary":"لغتنامه",
+  "academy_search":"جستجوی درس یا اصطلاح...","academy_definition":"تعریف","academy_usage":"کاربرد","academy_steps":"مراحل بررسی","academy_invalidation":"ابطال و مدیریت ریسک",
+  "academy_offline":"کتابخانه محلی • بدون نیاز به اینترنت","academy_empty":"موردی برای نمایش انتخاب کن.","academy_image_unavailable":"تصویر آموزشی محلی در دسترس نیست.",
+  "coach":"◈  مربی معاملاتی","coach_title":"مربی معاملاتی و تحلیل ژورنال","coach_sub":"تحلیل فوری و محلی از معاملات ثبت‌شده؛ اتصال ابری فقط با کلید API و ارسال دستی پرسش.",
+  "coach_cloud_ready":"تحلیل ابری فعال است؛ فقط پس از ارسال پرسش استفاده می‌شود.","coach_local_mode":"حالت محلی آماده است • برای تحلیل ابری اختیاری، تنظیمات را باز کن.",
+  "coach_privacy_note":"تحلیل محلی روی دستگاه انجام می‌شود. پرسش ابری، شاخص‌های ژورنال و حداکثر ۲۵ ردیف اخیر را برای مدل ارسال می‌کند؛ کلید API هرگز داخل پرسش قرار نمی‌گیرد.",
+  "coach_review":"تحلیل ژورنال","coach_risk":"مدیریت ریسک","coach_psychology":"روانشناسی","coach_goals":"اهداف من","coach_analysis":"یافته‌ها و اقدام‌های پیشنهادی",
+  "coach_question_placeholder":"سؤالت درباره ژورنال، ریسک، پلن یا اهداف را بنویس...","coach_default_question":"ژورنالم را بررسی کن و مهم‌ترین اقدام بعدی را پیشنهاد بده.",
+  "coach_send":"تحلیل کن","coach_busy":"درخواست قبلی هنوز در حال اجراست.","coach_working":"در حال بررسی داده‌های انتخاب‌شده با مدل ابری...",
+  "coach_cloud_error":"اتصال ابری موفق نشد؛ تحلیل محلی زیر را به‌عنوان جایگزین بررسی کن:","coach_local_fallback":"پاسخ محلی آماده شد؛ اتصال ابری در دسترس نبود.",
+  "cloud_ai_settings":"اتصال اختیاری مدل ابری","cloud_ai_note":"در ویندوز، کلید API با حساب کاربری ویندوز رمزگذاری می‌شود. هزینه API بر عهده دارنده کلید است. بدون کلید، تحلیل محلی رایگان فعال می‌ماند.",
+  "cloud_ai_save":"ذخیره کلید","cloud_ai_clear":"پاک‌کردن کلید","cloud_ai_configured":"کلید رمزگذاری‌شده ذخیره شده است.","cloud_ai_missing":"کلیدی ذخیره نشده است.",
+  "cloud_ai_saved_dialog":"کلید برای این کاربر ویندوز ذخیره شد؛ تا ارسال پرسش از صفحه مربی هیچ درخواست ابری انجام نمی‌شود.",
+  "cloud_ai_cleared_dialog":"کلید ذخیره‌شده پاک شد."
 });
-
+I18N["en"].update({
+  "academy":"◉  Offline Academy","academy_title":"Offline Learning Library","academy_sub":"Searchable SMC, named ICT models, candlestick lessons and glossary. No runtime downloads.",
+  "academy_all":"All topics","academy_smc":"SMC framework","academy_ict":"ICT models","academy_candles":"Candlesticks","academy_glossary":"Glossary",
+  "academy_search":"Search a lesson or term...","academy_definition":"Definition","academy_usage":"How to use","academy_steps":"Review checklist","academy_invalidation":"Invalidation & risk",
+  "academy_offline":"LOCAL LIBRARY • NO INTERNET REQUIRED","academy_empty":"Select a lesson to view it.","academy_image_unavailable":"The local educational illustration is not available.",
+  "coach":"◈  Trading Coach","coach_title":"Trading Coach & Journal Review","coach_sub":"Instant local analysis of saved trades; optional cloud analysis only after you configure a key and submit a question.",
+  "coach_cloud_ready":"Cloud analysis is configured; it runs only after you submit a question.","coach_local_mode":"Local mode ready • open Settings to configure optional cloud analysis.",
+  "coach_privacy_note":"Local analysis stays on this device. A cloud request sends your question, journal metrics and up to 25 recent trade rows; your API key is never included in the prompt.",
+  "coach_review":"Review journal","coach_risk":"Risk review","coach_psychology":"Psychology","coach_goals":"My goals","coach_analysis":"Findings & practical next steps",
+  "coach_question_placeholder":"Ask about your journal, risk, plan or goals...","coach_default_question":"Review my journal and identify the most important next action.",
+  "coach_send":"Analyze","coach_busy":"The previous request is still running.","coach_working":"Reviewing the selected data with the optional cloud model...",
+  "coach_cloud_error":"Cloud request failed; review the local analysis above as a fallback:","coach_local_fallback":"Local answer is ready; cloud service was unavailable.",
+  "cloud_ai_settings":"Optional cloud model connection","cloud_ai_note":"On Windows, the API key is encrypted with the current Windows user account. API charges are the key owner's responsibility. Without a key, local analysis remains free and available.",
+  "cloud_ai_save":"Save key","cloud_ai_clear":"Clear key","cloud_ai_configured":"An encrypted key is saved.","cloud_ai_missing":"No key is saved.",
+  "cloud_ai_saved_dialog":"The key is saved for this Windows user; no cloud request occurs until you submit a question from the Coach page.",
+  "cloud_ai_cleared_dialog":"The saved key was cleared."
+});
 
 SESSION_CLOCKS = [
     {"key":"sydney","fa":"سیدنی","en":"Sydney","tz":"Australia/Sydney","start":8,"end":17,"abbr":"SYD"},
@@ -364,6 +396,7 @@ def migrate_payload(old):
         base["tasks"] = old["tasks"]
     if isinstance(old.get("settings"), dict):
         base["settings"].update(old["settings"])
+    base["settings"].setdefault("openai_api_key_enc", "")
     base["settings"].setdefault("language", "fa")
     base["settings"].setdefault("theme", "dark")
     base["settings"].setdefault("theme_auto_start", "08:00")
@@ -2872,6 +2905,54 @@ class App(tk.Tk):
 
         self.btn(actions, tx("ذخیره تنظیمات", "Save settings"), save_settings, True).pack(side="right", padx=14, pady=12)
         self.btn(actions, self.tr("nav_home"), self.go_home).pack(side="right", padx=4, pady=12)
+
+        # Optional cloud model: local analysis works without a key or network access.
+        cloud_panel = self.card(self.content)
+        cloud_panel.pack(fill="x", pady=(8, 4))
+        cloud_header = tk.Frame(cloud_panel, bg=C["panel"])
+        cloud_header.pack(fill="x", padx=12, pady=(10, 4))
+        tk.Label(cloud_header, text=self.tr("cloud_ai_settings"), bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 12, "bold")).pack(side="right")
+        current_stored = DB.get("settings", {}).get("openai_api_key_enc") or DB.get("settings", {}).get("openai_api_key", "")
+        try:
+            current_key = unseal_api_key(current_stored)
+        except Exception:
+            current_key = ""
+        api_key_var = tk.StringVar(value=current_key)
+        api_key_entry = tk.Entry(cloud_panel, textvariable=api_key_var, show="•", bg=C["soft"], fg=C["text"],
+                                 insertbackground=C["text"], relief="flat", font=("Segoe UI", 10))
+        api_key_entry.pack(fill="x", padx=12, pady=(3, 7), ipady=7)
+        api_status = tk.Label(cloud_panel,
+                              text=self.tr("cloud_ai_configured") if current_key else self.tr("cloud_ai_missing"),
+                              bg=C["panel"], fg=C["accent"] if current_key else C["gold"],
+                              font=("Segoe UI", 9, "bold"), anchor="e")
+        api_status.pack(fill="x", padx=12, pady=(0, 3))
+        tk.Label(cloud_panel, text=self.tr("cloud_ai_note"), bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 8), wraplength=1050, justify="left").pack(fill="x", padx=12, pady=(0, 8))
+        cloud_actions = tk.Frame(cloud_panel, bg=C["panel"])
+        cloud_actions.pack(fill="x", padx=10, pady=(0, 10))
+        def save_cloud_key():
+            value = api_key_var.get().strip()
+            if not value:
+                messagebox.showwarning(self.tr("cloud_ai_settings"), self.tr("api_key_empty"), parent=self)
+                return
+            try:
+                DB.setdefault("settings", {})["openai_api_key_enc"] = seal_api_key(value)
+                DB["settings"].pop("openai_api_key", None)
+                save_db()
+                api_status.configure(text=self.tr("cloud_ai_configured"), fg=C["accent"])
+                messagebox.showinfo(self.tr("cloud_ai_settings"), self.tr("cloud_ai_saved_dialog"), parent=self)
+            except Exception as exc:
+                messagebox.showerror(self.tr("cloud_ai_settings"), str(exc), parent=self)
+        def clear_cloud_key():
+            DB.setdefault("settings", {}).pop("openai_api_key_enc", None)
+            DB["settings"].pop("openai_api_key", None)
+            save_db()
+            api_key_var.set("")
+            api_status.configure(text=self.tr("cloud_ai_missing"), fg=C["gold"])
+            messagebox.showinfo(self.tr("cloud_ai_settings"), self.tr("cloud_ai_cleared_dialog"), parent=self)
+        self.btn(cloud_actions, self.tr("cloud_ai_save"), save_cloud_key, True).pack(side="right", padx=3)
+        self.btn(cloud_actions, self.tr("cloud_ai_clear"), clear_cloud_key).pack(side="right", padx=3)
 
         # Daily reminders remain available independently of the removed chatbot.
         reminder_panel = self.card(self.content)
