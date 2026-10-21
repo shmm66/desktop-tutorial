@@ -4,7 +4,7 @@ import requests
 
 from radar.bitunix import explain_api_error, make_signature
 from radar.copytrade import (
-    calculate_order_plan, futures_symbol, interpret_fill, process_copy_fill, validate_settings,
+    calculate_order_plan, calculate_risk_headroom, futures_symbol, interpret_fill, process_copy_fill, validate_settings,
 )
 from radar.hyperliquid import closed_fill_stats, enrich_missing_win_rates
 from radar.models import Trader, rank_traders
@@ -146,6 +146,18 @@ class IsolatedCopyRiskTests(unittest.TestCase):
                 "max_total_loss_pct": 10,
                 "max_leverage": 10,
             })
+
+    def test_aggregate_stop_risk_budget_respects_existing_positions(self):
+        settings = {"authorized_capital_usdt": 20, "max_total_loss_pct": 10}
+        state = {"active_trades": {"one": {"risk_usdt": 1.5}}}
+        self.assertAlmostEqual(calculate_risk_headroom(settings, state, 0), 0.5)
+        self.assertAlmostEqual(calculate_risk_headroom(settings, {"active_trades": {}}, -1.9), 0.1)
+        self.assertAlmostEqual(calculate_risk_headroom(settings, {"active_trades": {}}, -2.0), 0.0)
+
+    def test_profitable_active_position_releases_only_remaining_stop_budget(self):
+        settings = {"authorized_capital_usdt": 20, "max_total_loss_pct": 10}
+        state = {"active_trades": {"one": {"risk_usdt": 2.0}}}
+        self.assertAlmostEqual(calculate_risk_headroom(settings, state, 1.0), 1.0)
 
     def test_halted_bot_never_places_new_orders(self):
         class ForbiddenClient:
