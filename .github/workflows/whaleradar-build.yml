@@ -167,39 +167,6 @@ jobs:
             Where-Object { $_.Name -ne "NETWORK_FIX_$env:SOURCE_VERSION.md" } |
             ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 
-      - name: Diagnose public endpoint reachability on the Windows runner
-        shell: powershell
-        continue-on-error: true
-        run: |
-          $ErrorActionPreference = 'Continue'
-          function Invoke-PublicProbe([string]$Name, [string]$Uri, [string]$Method = 'GET', [string]$Body = '') {
-            try {
-              if ($Method -eq 'POST') {
-                $response = Invoke-WebRequest -UseBasicParsing -Method POST -Uri $Uri -TimeoutSec 20 -ContentType 'application/json' -Body $Body
-              } else {
-                $response = Invoke-WebRequest -UseBasicParsing -Method GET -Uri $Uri -TimeoutSec 20
-              }
-              $status = [int]$response.StatusCode
-              $extra = ''
-              if ($Name -eq 'Hyperliquid leaderboard') {
-                try {
-                  $payload = $response.Content | ConvertFrom-Json
-                  $extra = " rows=$(@($payload.leaderboardRows).Count)"
-                } catch { $extra = ' response_json=invalid' }
-              }
-              Write-Host "NETWORK_PROBE [$Name] SUCCESS HTTP=$status$extra"
-            } catch {
-              $status = 'unknown'
-              try { if ($_.Exception.Response.StatusCode) { $status = [int]$_.Exception.Response.StatusCode } } catch {}
-              $detail = $_.Exception.Message
-              if ($_.Exception.InnerException) { $detail += ' | ' + $_.Exception.InnerException.Message }
-              Write-Host "NETWORK_PROBE [$Name] FAILED HTTP=$status DETAIL=$detail"
-            }
-          }
-          Invoke-PublicProbe 'Hyperliquid leaderboard' 'https://stats-data.hyperliquid.xyz/Mainnet/leaderboard'
-          Invoke-PublicProbe 'Hyperliquid info API' 'https://api.hyperliquid.xyz/info' 'POST' '{"type":"metaAndAssetCtxs"}'
-          Invoke-PublicProbe 'Bitunix futures public API' 'https://fapi.bitunix.com/api/v1/futures/market/tickers'
-
       - name: Inspect safe API UI integration points
         shell: powershell
         run: |
@@ -231,6 +198,7 @@ jobs:
           Write-Host '--- END SAFE SOURCE INSPECTION ---'
 
       - name: Install dependencies using resilient PyPI mirrors
+        timeout-minutes: 20
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
