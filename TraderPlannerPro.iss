@@ -1,9 +1,8 @@
 #define MyAppName "Trader Planner Pro"
-#define MyAppVersion "9.0.0"
+#define MyAppVersion "10.3.0"
 #define MyAppExeName "TraderPlannerPro.exe"
 
 [Setup]
-SetupArchitecture=x64
 AppId={{8D6D0F58-7D16-4C1B-9D0C-20A4F1B8C901}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -17,10 +16,15 @@ ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=installer
-OutputBaseFilename=TraderPlannerPro_Setup_v9.0.0
+OutputBaseFilename=TraderPlannerPro_Setup_v10.3.0
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=assets\trader_planner_logo.ico
+WizardImageFile=assets\installer_wizard.bmp
+WizardSmallImageFile=assets\installer_small.bmp
+WizardImageStretch=no
+AppComments=Native glass trading workspace with live market data, editable goals and local journal analytics
 SetupLogging=yes
 Uninstallable=yes
 CloseApplications=yes
