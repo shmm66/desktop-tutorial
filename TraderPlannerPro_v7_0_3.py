@@ -2782,6 +2782,339 @@ class App(tk.Tk):
         self.btn(resume_card, tx("ساخت رزومه عملکردی PDF", "Build PDF Performance Resume"),
                  self.export_trader_resume, True).pack(anchor="e", padx=14, pady=(0, 12))
 
+
+    def academy(self):
+        """Offline, searchable training library with bundled chart illustrations."""
+        self.heading(self.tr("academy_title"), self.tr("academy_sub"))
+        root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+        asset_dir = root / "assets" / "academy"
+
+        def choose_image(title, group):
+            key = str(title).lower()
+            if group == "Candles" or any(token in key for token in ("candlestick", "candle", "engulfing", "doji", "hammer")):
+                return "candlestick_patterns.png"
+            if any(token in key for token in ("silver bullet", "killzone", "judas", "session")):
+                return "silver_bullet.png" if "silver bullet" in key else "ict_killzone.png"
+            if any(token in key for token in ("fvg", "imbalance", "fair value gap")):
+                return "fvg.png"
+            if any(token in key for token in ("order block", "breaker", " ob ")):
+                return "order_block.png"
+            if any(token in key for token in ("liquidity", "sweep", "bsl", "ssl")):
+                return "liquidity_sweep.png"
+            if any(token in key for token in ("risk", "stop loss", "take profit", "position size", "r:r", "ote")):
+                return "risk_reward.png"
+            return "market_structure.png"
+
+        lessons = []
+        for group, source in (("SMC", SMART_MONEY_STRATEGIES), ("ICT", ICT_STRATEGIES)):
+            for index, entry in enumerate(source):
+                title_en = entry.get("name_en") or entry.get("name_fa") or "Lesson"
+                title_fa = entry.get("name_fa") or title_en
+                lessons.append({
+                    "group": group, "title_en": title_en, "title_fa": title_fa,
+                    "summary_en": entry.get("summary_en", ""), "summary_fa": entry.get("summary_fa", ""),
+                    "steps_en": entry.get("steps_en", []), "steps_fa": entry.get("steps_fa", []),
+                    "risk_en": entry.get("risk_en", ""), "risk_fa": entry.get("risk_fa", ""),
+                    "usage_en": "", "usage_fa": "",
+                    "image": choose_image(title_en, group), "order": index,
+                })
+        for index, entry in enumerate(CANDLE_PLAYBOOK):
+            title_en, title_fa, summary_fa = entry
+            lessons.append({
+                "group": "Candles", "title_en": title_en, "title_fa": title_fa,
+                "summary_en": "Identify the candle shape after close, then check location, structure and follow-through. The pattern alone is not a complete trading signal.",
+                "summary_fa": summary_fa,
+                "steps_en": ["Wait for the candle to close.", "Mark the relevant support/resistance or liquidity level.", "Confirm structure and follow-through.", "Set invalidation before entry."],
+                "steps_fa": ["بسته‌شدن کندل را صبر کن.", "سطح حمایت/مقاومت یا نقدینگی را مشخص کن.", "ساختار و ادامه حرکت را تأیید کن.", "قبل از ورود، نقطه ابطال را تعیین کن."],
+                "risk_en": "A candle pattern alone does not prove a reversal or guarantee an outcome.",
+                "risk_fa": "الگوی کندلی به‌تنهایی بازگشت را اثبات یا نتیجه را تضمین نمی‌کند.",
+                "usage_en": "Read the candle in context with location and structure.",
+                "usage_fa": "کندل را همراه با موقعیت و ساختار بازار بررسی کن.",
+                "image": "candlestick_patterns.png", "order": index,
+            })
+        for index, entry in enumerate(GLOSSARY):
+            title_en = entry.get("term") or entry.get("en") or "Glossary term"
+            title_fa = entry.get("fa") or title_en
+            lessons.append({
+                "group": "Glossary", "title_en": title_en, "title_fa": title_fa,
+                "summary_en": entry.get("meaning_en") or entry.get("en", ""),
+                "summary_fa": entry.get("meaning_fa") or entry.get("fa", ""),
+                "steps_en": [entry.get("usage_en", "")] if entry.get("usage_en") else [],
+                "steps_fa": [entry.get("usage_fa", "")] if entry.get("usage_fa") else [],
+                "risk_en": ACADEMY_NOTE_EN, "risk_fa": ACADEMY_NOTE_FA,
+                "usage_en": entry.get("usage_en", ""), "usage_fa": entry.get("usage_fa", ""),
+                "image": choose_image(title_en, "Glossary"), "order": index,
+            })
+
+        shell = tk.Frame(self.content, bg=C["bg"])
+        shell.pack(fill="both", expand=True, pady=(2, 6))
+        shell.columnconfigure(0, weight=0, minsize=300)
+        shell.columnconfigure(1, weight=1)
+        shell.rowconfigure(0, weight=1)
+        left = self.card(shell)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        right = self.card(shell)
+        right.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        tk.Label(left, text=self.tr("academy_offline"), bg=C["panel"], fg=C["accent"],
+                 font=("Segoe UI", 8, "bold")).pack(fill="x", padx=10, pady=(10, 6))
+        search_var = tk.StringVar()
+        search = tk.Entry(left, textvariable=search_var, bg=C["soft"], fg=C["text"],
+                          insertbackground=C["text"], relief="flat", font=("Segoe UI", 10))
+        search.pack(fill="x", padx=10, pady=(0, 8), ipady=8)
+        search.insert(0, self.tr("academy_search"))
+        search.bind("<FocusIn>", lambda _e: search.delete(0, tk.END) if search.get() == self.tr("academy_search") else None)
+
+        group_labels = {
+            self.tr("academy_all"): "All",
+            self.tr("academy_smc"): "SMC",
+            self.tr("academy_ict"): "ICT",
+            self.tr("academy_candles"): "Candles",
+            self.tr("academy_glossary"): "Glossary",
+        }
+        group_var = tk.StringVar(value=self.tr("academy_all"))
+        group_box = ttk.Combobox(left, textvariable=group_var, values=list(group_labels.keys()),
+                                 state="readonly", style="TCombobox")
+        group_box.pack(fill="x", padx=10, pady=(0, 8))
+        list_wrap = tk.Frame(left, bg=C["panel"])
+        list_wrap.pack(fill="both", expand=True, padx=7, pady=(0, 7))
+        list_scroll = ttk.Scrollbar(list_wrap, orient="vertical")
+        listbox = tk.Listbox(list_wrap, bg=C["panel"], fg=C["text"], selectbackground=C["accent"],
+                             selectforeground="#061019", relief="flat", highlightthickness=0,
+                             activestyle="none", font=("Segoe UI", 10), yscrollcommand=list_scroll.set)
+        list_scroll.configure(command=listbox.yview)
+        list_scroll.pack(side="right", fill="y")
+        listbox.pack(side="left", fill="both", expand=True)
+
+        detail_canvas = tk.Canvas(right, bg=C["panel"], highlightthickness=0, bd=0)
+        detail_scroll = ttk.Scrollbar(right, orient="vertical", command=detail_canvas.yview)
+        detail_canvas.configure(yscrollcommand=detail_scroll.set)
+        detail_scroll.pack(side="right", fill="y")
+        detail_canvas.pack(side="left", fill="both", expand=True, padx=6, pady=6)
+        detail_inner = tk.Frame(detail_canvas, bg=C["panel"])
+        detail_window = detail_canvas.create_window((0, 0), window=detail_inner, anchor="nw")
+        detail_inner.bind("<Configure>", lambda _e: detail_canvas.configure(scrollregion=detail_canvas.bbox("all")))
+        detail_canvas.bind("<Configure>", lambda event: detail_canvas.itemconfigure(detail_window, width=event.width))
+
+        visible_lessons = []
+        self._academy_photo = None
+
+        def text_for(item, field):
+            return str(item.get(field + ("_fa" if self.language == "fa" else "_en")) or "")
+
+        def render_detail(_event=None):
+            for widget in detail_inner.winfo_children():
+                widget.destroy()
+            selection = listbox.curselection()
+            if not selection or selection[0] >= len(visible_lessons):
+                tk.Label(detail_inner, text=self.tr("academy_empty"), bg=C["panel"], fg=C["muted"],
+                         font=("Segoe UI", 12)).pack(fill="x", padx=24, pady=48)
+                return
+            item = visible_lessons[selection[0]]
+            group_title = next((label for label, key in group_labels.items() if key == item["group"]), item["group"])
+            title = item["title_fa"] if self.language == "fa" else item["title_en"]
+            tk.Label(detail_inner, text=title, bg=C["panel"], fg=C["text"],
+                     font=("Segoe UI", 18, "bold"), wraplength=870,
+                     justify="right" if self.language == "fa" else "left").pack(fill="x", padx=16, pady=(14, 4))
+            tk.Label(detail_inner, text=f'{group_title}  •  {self.tr("academy_offline")}',
+                     bg=C["panel"], fg=C["gold"], font=("Segoe UI", 8, "bold")).pack(fill="x", padx=16, pady=(0, 10))
+            image_path = asset_dir / item["image"]
+            if not image_path.is_file():
+                try:
+                    from prepare_academy_assets import build_assets
+                    build_assets(asset_dir)
+                except Exception:
+                    pass
+            try:
+                from PIL import Image, ImageTk
+                with Image.open(image_path) as source_image:
+                    image = source_image.convert("RGB")
+                    resampling = getattr(Image, "Resampling", Image).LANCZOS
+                    image.thumbnail((860, 485), resampling)
+                    self._academy_photo = ImageTk.PhotoImage(image, master=detail_inner)
+                tk.Label(detail_inner, image=self._academy_photo, bg=C["panel"]).pack(fill="x", padx=14, pady=(0, 12))
+            except Exception:
+                tk.Label(detail_inner, text=self.tr("academy_image_unavailable"),
+                         bg=C["panel"], fg=C["danger"], font=("Segoe UI", 10)).pack(fill="x", padx=16, pady=12)
+            for label, body in (
+                (self.tr("academy_definition"), text_for(item, "summary")),
+                (self.tr("academy_usage"), text_for(item, "usage")),
+            ):
+                if body.strip():
+                    tk.Label(detail_inner, text=label, bg=C["panel"], fg=C["accent"],
+                             font=("Segoe UI", 11, "bold")).pack(fill="x", padx=16, pady=(6, 3), anchor="w")
+                    tk.Label(detail_inner, text=body, bg=C["panel"], fg=C["text"], wraplength=860,
+                             justify="right" if self.language == "fa" else "left",
+                             font=("Segoe UI", 10), anchor="w").pack(fill="x", padx=16, pady=(0, 5), anchor="w")
+            steps = item.get("steps_fa" if self.language == "fa" else "steps_en") or []
+            if steps:
+                tk.Label(detail_inner, text=self.tr("academy_steps"), bg=C["panel"], fg=C["accent"],
+                         font=("Segoe UI", 11, "bold")).pack(fill="x", padx=16, pady=(8, 3), anchor="w")
+                for index, step in enumerate(steps, 1):
+                    tk.Label(detail_inner, text=f"{index}.  {step}", bg=C["panel"], fg=C["text"],
+                             wraplength=860, justify="right" if self.language == "fa" else "left",
+                             font=("Segoe UI", 10), anchor="w").pack(fill="x", padx=20, pady=3, anchor="w")
+            risk = text_for(item, "risk")
+            if risk.strip():
+                tk.Label(detail_inner, text=self.tr("academy_invalidation"), bg=C["panel"], fg=C["gold"],
+                         font=("Segoe UI", 11, "bold")).pack(fill="x", padx=16, pady=(8, 3), anchor="w")
+                tk.Label(detail_inner, text=risk, bg=C["panel"], fg=C["muted"], wraplength=860,
+                         justify="right" if self.language == "fa" else "left",
+                         font=("Segoe UI", 9), anchor="w").pack(fill="x", padx=16, pady=(0, 16), anchor="w")
+
+        def render_list(_event=None):
+            nonlocal visible_lessons
+            query = search_var.get().strip().casefold()
+            if query == self.tr("academy_search").casefold():
+                query = ""
+            selected_group = group_labels.get(group_var.get(), "All")
+            visible_lessons = [
+                item for item in lessons
+                if (selected_group == "All" or item["group"] == selected_group)
+                and (not query or query in " ".join((
+                    item["title_en"], item["title_fa"], item["summary_en"],
+                    item["summary_fa"], item["group"]
+                )).casefold())
+            ]
+            listbox.delete(0, tk.END)
+            for item in visible_lessons:
+                title = item["title_fa"] if self.language == "fa" else item["title_en"]
+                listbox.insert(tk.END, f'{title}   ·   {item["group"]}')
+            if visible_lessons:
+                listbox.selection_set(0)
+                listbox.activate(0)
+                render_detail()
+            else:
+                render_detail()
+
+        search.bind("<KeyRelease>", render_list)
+        group_box.bind("<<ComboboxSelected>>", render_list)
+        listbox.bind("<<ListboxSelect>>", render_detail)
+        render_list()
+
+    def coach(self):
+        """Journal-grounded coach: useful offline immediately, cloud only on explicit submit."""
+        self.heading(self.tr("coach_title"), self.tr("coach_sub"))
+        profile = active_profile()
+        market = self.market
+        rows = list(profile.get("journals", {}).get(market, []))
+        goals = [g for g in profile.get("goals", []) if isinstance(g, dict)]
+        plan_fields = dict(profile.get("plan_draft", {}))
+        active_plan = next((item for item in profile.get("plans", [])
+                            if item.get("id") == profile.get("active_plan_id")), None)
+        if active_plan and isinstance(active_plan.get("fields"), dict):
+            plan_fields.update(active_plan["fields"])
+        settings = DB.setdefault("settings", {})
+        stored_key = settings.get("openai_api_key_enc") or settings.get("openai_api_key", "")
+        try:
+            api_key = unseal_api_key(stored_key)
+        except Exception:
+            api_key = ""
+
+        top = self.card(self.content); top.pack(fill="x", pady=(2, 7))
+        status_text = self.tr("coach_cloud_ready") if api_key else self.tr("coach_local_mode")
+        self.coach_status = tk.Label(top, text=status_text, bg=C["panel"], fg=C["accent"] if api_key else C["gold"],
+                                     font=("Segoe UI", 9, "bold"), anchor="w")
+        self.coach_status.pack(fill="x", padx=14, pady=(10, 4))
+        tk.Label(top, text=self.tr("coach_privacy_note"), bg=C["panel"], fg=C["muted"],
+                 font=("Segoe UI", 8), wraplength=1100, justify="left").pack(fill="x", padx=14, pady=(0, 10))
+
+        quick = tk.Frame(self.content, bg=C["bg"]); quick.pack(fill="x", pady=(0, 6))
+        prompts = [
+            (self.tr("coach_review"), "Analyze my journal and identify my most useful next action."),
+            (self.tr("coach_risk"), "Review my risk management, stop discipline and loss-control habits."),
+            (self.tr("coach_psychology"), "Help me review execution discipline and recurring mistakes."),
+            (self.tr("coach_goals"), "Review my weekly, monthly and yearly goal progress."),
+        ]
+        output_panel = self.card(self.content); output_panel.pack(fill="both", expand=True, pady=(0, 7))
+        tk.Label(output_panel, text=self.tr("coach_analysis"), bg=C["panel"], fg=C["text"],
+                 font=("Segoe UI", 12, "bold")).pack(fill="x", padx=12, pady=(10, 6))
+        response_frame = tk.Frame(output_panel, bg=C["panel"]); response_frame.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+        response_scroll = ttk.Scrollbar(response_frame, orient="vertical")
+        response_scroll.pack(side="right", fill="y")
+        output = tk.Text(response_frame, bg=C["panel3"], fg=C["text"], insertbackground=C["text"],
+                         relief="flat", wrap="word", font=("Segoe UI", 10),
+                         yscrollcommand=response_scroll.set, padx=12, pady=10, height=12)
+        response_scroll.configure(command=output.yview)
+        output.pack(side="left", fill="both", expand=True)
+        output.configure(state="disabled")
+        self.coach_output = output
+
+        entry_panel = self.card(self.content); entry_panel.pack(fill="x", pady=(0, 7))
+        question_var = tk.StringVar()
+        question_entry = tk.Entry(entry_panel, textvariable=question_var, bg=C["soft"], fg=C["text"],
+                                  insertbackground=C["text"], relief="flat", font=("Segoe UI", 11))
+        question_entry.pack(side="left", fill="x", expand=True, padx=10, pady=10, ipady=9)
+        question_entry.insert(0, self.tr("coach_question_placeholder"))
+        question_entry.bind("<FocusIn>", lambda _e: question_entry.delete(0, tk.END) if question_entry.get() == self.tr("coach_question_placeholder") else None)
+        self.coach_question = question_var
+
+        def write_output(text):
+            try:
+                output.configure(state="normal")
+                output.delete("1.0", tk.END)
+                output.insert("1.0", str(text))
+                output.configure(state="disabled")
+                output.see("1.0")
+            except tk.TclError:
+                pass
+
+        def submit(question=None):
+            query = str(question if question is not None else question_var.get()).strip()
+            if not query or query == self.tr("coach_question_placeholder"):
+                query = self.tr("coach_default_question")
+            local = local_response(query, rows, profile, goals, plan_fields, market, self.language)
+            write_output(local)
+            if not api_key:
+                self.coach_status.configure(text=self.tr("coach_local_mode"), fg=C["gold"])
+                return
+            if getattr(self, "_coach_busy", False):
+                self.coach_status.configure(text=self.tr("coach_busy"), fg=C["gold"])
+                return
+            self._coach_busy = True
+            self.coach_status.configure(text=self.tr("coach_working"), fg=C["cyan"])
+            result_queue = Queue(maxsize=1)
+
+            def worker():
+                try:
+                    context = json.loads(build_ai_context(query, rows, profile, market))
+                    context["saved_plan_fields"] = {
+                        str(k)[:100]: str(v)[:240] for k, v in plan_fields.items() if str(v or "").strip()
+                    }
+                    answer = openai_response(
+                        query, json.dumps(context, ensure_ascii=False, default=str), api_key, DEFAULT_MODEL
+                    )
+                    result_queue.put((True, answer))
+                except Exception as exc:
+                    result_queue.put((False, str(exc)[:400]))
+
+            threading.Thread(target=worker, name="TraderPlannerCloudCoach", daemon=True).start()
+
+            def poll_result():
+                self._coach_poll_job = None
+                if not self.winfo_exists() or self.cur != "coach":
+                    self._coach_busy = False
+                    return
+                try:
+                    ok, value = result_queue.get_nowait()
+                except Empty:
+                    self._coach_poll_job = self.after(150, poll_result)
+                    return
+                self._coach_busy = False
+                if ok:
+                    write_output(value)
+                    self.coach_status.configure(text=self.tr("coach_cloud_ready"), fg=C["accent"])
+                else:
+                    write_output(local + "\n\n" + self.tr("coach_cloud_error") + "\n" + value)
+                    self.coach_status.configure(text=self.tr("coach_local_fallback"), fg=C["gold"])
+            self._coach_poll_job = self.after(150, poll_result)
+
+        for label, prompt in prompts:
+            self.btn(quick, label, lambda q=prompt: submit(q), True).pack(side="left", padx=3)
+        self.btn(entry_panel, self.tr("coach_send"), submit, True).pack(side="right", padx=(0, 10), pady=10)
+        write_output(local_response(
+            self.tr("coach_default_question"), rows, profile, goals, plan_fields, market, self.language
+        ))
+
     def resources(self):
         tx = lambda fa, en: fa if self.language == "fa" else en
         self.heading(tx("لینک‌های ثبت‌نام", "Registration links"),
