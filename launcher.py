@@ -6,7 +6,7 @@ import sys
 import threading
 
 APP = "Trader Planner Pro"
-VERSION = "10.2.0"
+VERSION = "10.3.0"
 
 def show_splash(ready_event=None):
     root = tk.Tk()
@@ -131,7 +131,7 @@ def _run_ui_smoke_test():
 
     pages = (
         "home", "daily", "weekly", "plan", "check", "journal",
-        "insights", "resources", "news", "calculators", "settings",
+        "academy", "coach", "insights", "resources", "news", "calculators", "settings",
     )
     app = App()
     failures = []
@@ -216,13 +216,19 @@ def main():
             import importlib
             required = [
                 "TraderPlannerPro_v7_0_3", "market_data", "news_data",
-                "journal_agent", "glass_theme", "google_oauth", "statement_report", "trader_resume"
+                "journal_agent", "glass_theme", "google_oauth", "statement_report", "trader_resume",
+                "academy_content", "trading_coach", "prepare_academy_assets"
             ]
             for module_name in required:
                 importlib.import_module(module_name)
             base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-            required_assets = []
-            missing = [str(p) for p in required_assets if not p.exists()]
+            required_assets = [
+                base / "assets" / "academy" / "market_structure.png",
+                base / "assets" / "academy" / "liquidity_sweep.png",
+                base / "assets" / "academy" / "fvg.png",
+                base / "assets" / "academy" / "risk_reward.png",
+            ]
+            missing = [str(p) for p in required_assets if not p.is_file()]
             if missing:
                 raise RuntimeError("Missing bundled assets: " + ", ".join(missing))
             print(f"{APP} {VERSION} self-test: OK")
