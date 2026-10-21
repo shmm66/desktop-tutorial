@@ -148,17 +148,22 @@ class RadarApp(tk.Tk):
             messagebox.showerror("Profile error", str(exc), parent=self)
 
     def scan(self) -> None:
+        try:
+            low_ret, low_win = float(self.min_return.get()), float(self.min_win.get())
+        except ValueError:
+            messagebox.showerror("Invalid filters", "Return and win-rate filters must be numbers.", parent=self)
+            return
         self.status.set("Fetching public leaderboard…")
-        threading.Thread(target=self._scan_worker, daemon=True).start()
+        threading.Thread(target=self._scan_worker, args=(low_ret, low_win), daemon=True).start()
 
-    def _scan_worker(self) -> None:
+    def _scan_worker(self, low_ret: float, low_win: float) -> None:
         try:
             data = fetch_leaderboard()
-            low_ret, low_win = float(self.min_return.get()), float(self.min_win.get())
             ranked = rank_traders(data, low_ret, low_win, 10)
             self.after(0, lambda: self._show_traders(ranked, len(data)))
         except Exception as exc:
-            self.after(0, lambda: self.status.set(f"Scan failed: {exc}"))
+            detail = str(exc)
+            self.after(0, lambda detail=detail: self.status.set(f"Scan failed: {detail}"))
 
     def _show_traders(self, traders: list[Trader], total: int) -> None:
         self.traders = traders
