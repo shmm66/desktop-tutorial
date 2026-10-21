@@ -424,6 +424,8 @@ class RadarApp(tk.Tk):
                         fresh.append(fill)
                 if len(seen) > 2500:
                     seen = {fill_identity(fill) for fill in fills}
+                # Reload settings from disk so edits in the settings menu apply immediately.
+                settings = load_copy_settings()
                 if fresh:
                     fresh.sort(key=lambda fill: int(fill.get("time", 0) or 0))
                     for fill in fresh:
