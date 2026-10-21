@@ -3,6 +3,9 @@ from unittest.mock import patch
 import requests
 
 from radar.bitunix import explain_api_error, make_signature
+from radar.copytrade import (
+    calculate_order_plan, futures_symbol, interpret_fill, process_copy_fill, validate_settings,
+)
 from radar.hyperliquid import closed_fill_stats, enrich_missing_win_rates
 from radar.models import Trader, rank_traders
 from radar.monitor import fetch_recent_fills, fill_identity
@@ -99,6 +102,64 @@ class HyperliquidMonitorTests(unittest.TestCase):
     def test_fetch_recent_fills_rejects_invalid_wallet_before_network(self):
         with self.assertRaises(ValueError):
             fetch_recent_fills("not-an-address")
+
+
+
+
+class IsolatedCopyRiskTests(unittest.TestCase):
+    def test_long_stop_risks_half_of_actual_allocated_margin(self):
+        plan = calculate_order_plan(4.0, 5, 100.0, "LONG", 4, 2, 0.0001)
+        self.assertAlmostEqual(float(plan["margin"]), 4.0, places=4)
+        self.assertAlmostEqual(float(plan["risk_usdt"]), 2.0, places=4)
+        self.assertAlmostEqual(float(plan["stop_price"]), 90.0, places=2)
+        self.assertAlmostEqual(float(plan["notional"]), 20.0, places=4)
+
+    def test_short_stop_is_above_entry_with_same_risk(self):
+        plan = calculate_order_plan(4.0, 5, 100.0, "SHORT", 4, 2, 0.0001)
+        self.assertAlmostEqual(float(plan["risk_usdt"]), 2.0, places=4)
+        self.assertAlmostEqual(float(plan["stop_price"]), 110.0, places=2)
+
+    def test_rounding_never_exceeds_authorized_margin(self):
+        plan = calculate_order_plan(4.0, 5, 333.33, "LONG", 2, 2, 0.01)
+        self.assertLessEqual(float(plan["margin"]), 4.0)
+        self.assertLessEqual(float(plan["risk_usdt"]), 2.0)
+
+    def test_minimum_contract_size_rejects_small_margin(self):
+        with self.assertRaises(ValueError):
+            calculate_order_plan(0.01, 2, 1000.0, "LONG", 3, 2, 0.01)
+
+    def test_only_unambiguous_open_close_directions_are_accepted(self):
+        self.assertEqual(interpret_fill({"dir": "Open Long"}), ("OPEN", "LONG"))
+        self.assertEqual(interpret_fill({"dir": "Close Short"}), ("CLOSE", "SHORT"))
+        self.assertIsNone(interpret_fill({"dir": "Add Long"}))
+
+    def test_coin_mapping_is_simple_and_usdt_only(self):
+        self.assertEqual(futures_symbol("BTC"), "BTCUSDT")
+        with self.assertRaises(Exception):
+            futures_symbol("BTC/USDT")
+
+    def test_invalid_leverage_cap_rejected(self):
+        with self.assertRaises(ValueError):
+            validate_settings({
+                "authorized_capital_usdt": 20,
+                "margin_per_trade_pct": 20,
+                "max_total_loss_pct": 10,
+                "max_leverage": 10,
+            })
+
+    def test_halted_bot_never_places_new_orders(self):
+        class ForbiddenClient:
+            def __getattr__(self, name):
+                raise AssertionError("API must not be touched when the circuit breaker is active: " + name)
+        message = process_copy_fill(
+            ForbiddenClient(),
+            {"hash": "fill-1", "coin": "BTC", "dir": "Open Long", "px": "60000", "sz": "1"},
+            "0x" + "1" * 40,
+            {"live_copy_enabled": True},
+            {"halted": True, "halt_reason": "loss limit reached", "seen_fills": [],
+             "active_trades": {}, "closed_trades": []},
+        )
+        self.assertIn("loss limit", message)
 
 
 if __name__ == "__main__":
