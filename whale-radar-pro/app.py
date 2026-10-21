@@ -6,6 +6,10 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 from radar.bitunix import test_connection
+from radar.copytrade import (
+    BitunixClient, CopyTradeError, check_loss_circuit_breaker, load_copy_settings,
+    load_copy_state, process_copy_fill, reset_loss_halt, save_copy_settings,
+)
 from radar.credentials import delete_profile, get_profile_secrets, list_profiles, save_profile
 from radar.hyperliquid import fetch_leaderboard
 from radar.models import Trader, rank_traders
@@ -33,6 +37,8 @@ class RadarApp(tk.Tk):
         self._monitor_stop: threading.Event | None = None
         self._watched_address: str | None = None
         self._loading_profile = False
+        self.copy_settings = load_copy_settings()
+        self.copy_state = load_copy_state()
         self._style()
         self._build()
         self.refresh_profiles()
@@ -78,7 +84,7 @@ class RadarApp(tk.Tk):
         header = ttk.Frame(root)
         header.pack(fill="x", pady=(0, 14))
         ttk.Label(header, text="WHALE RADAR", style="Title.TLabel").pack(side="left")
-        ttk.Label(header, text="PRO 2.1  •  HYPERLIQUID × BITUNIX",
+        ttk.Label(header, text="PRO 2.2  •  HYPERLIQUID × BITUNIX",
                    style="Muted.TLabel").pack(side="right", pady=10)
 
         # 01 — Bitunix credentials and connection test.
@@ -123,7 +129,7 @@ class RadarApp(tk.Tk):
         self.test_button.pack(side="left", padx=(0, 10))
         ttk.Label(p1, textvariable=self.profile_status, style="Muted.TLabel",
                   wraplength=760).grid(row=4, column=0, columnspan=4, sticky="w", pady=(4, 0))
-        ttk.Label(p1, text="Keys are stored in Windows Credential Manager. Use read-only API permissions; never enable withdrawals.",
+        ttk.Label(p1, text="Keys are stored in Windows Credential Manager. Live copy needs Futures trading permission; never enable withdrawals.",
                   style="Muted.TLabel", wraplength=950).grid(row=5, column=0, columnspan=4, sticky="w", pady=(7, 0))
 
         # 02 — Hyperliquid discovery and one-wallet opt-in alerts.
@@ -157,37 +163,36 @@ class RadarApp(tk.Tk):
         self.table.pack(fill="x", expand=False)
         controls = ttk.Frame(p2)
         controls.pack(fill="x", pady=(8, 0))
-        self.watch_button = ttk.Button(controls, text="Watch selected wallet", command=self.start_monitor)
+        self.watch_button = ttk.Button(controls, text="Start auto-copy", command=self.start_monitor)
         self.watch_button.pack(side="left")
-        self.stop_button = ttk.Button(controls, text="Stop watching", command=self.stop_monitor, state="disabled")
+        self.stop_button = ttk.Button(controls, text="Stop auto-copy", command=self.stop_monitor, state="disabled")
         self.stop_button.pack(side="left", padx=8)
         ttk.Button(controls, text="Review selected", command=self.review_alert).pack(side="right")
         ttk.Label(p2, text="Win-rate data is a 7-day closed-fill estimate, not verified position-level win rate. Unknown stays Unknown.",
                   style="Muted.TLabel", wraplength=980).pack(anchor="w", pady=(7, 0))
 
-        # 03 — sizing is always present and reachable with vertical scroll.
-        p3 = ttk.LabelFrame(root, text="  03  MARGIN & RISK  ", padding=12,
+        # 03 — saved capital guardrails, editable once and reused on every trade.
+        p3 = ttk.LabelFrame(root, text="  03  AUTO-COPY CAPITAL & RISK  ", padding=12,
                             style="Section.TLabelframe")
         p3.pack(fill="x", pady=(0, 10))
-        p3.columnconfigure(7, weight=1)
-        self.margin = tk.StringVar(value="100")
-        self.risk = tk.StringVar(value="10")
-        self.stop = tk.StringVar(value="1")
-        for i, (label, var) in enumerate([
-            ("Margin (USDT)", self.margin),
-            ("Risk amount (USDT)", self.risk),
-            ("Entry-to-stop (%)", self.stop)
-        ]):
-            ttk.Label(p3, text=label).grid(row=0, column=i * 2, sticky="w", padx=(0, 6), pady=4)
-            ttk.Entry(p3, textvariable=var, width=12).grid(
-                row=0, column=i * 2 + 1, padx=(0, 18), sticky="w", pady=4)
-        ttk.Button(p3, text="Calculate leverage", style="Accent.TButton",
-                   command=self.calculate).grid(row=0, column=6, padx=6, pady=4)
-        self.sizing_result = tk.StringVar(value="Enter margin, risk and stop distance, then calculate.")
+        p3.columnconfigure(0, weight=1)
+        self.copy_summary = tk.StringVar()
+        ttk.Label(p3, textvariable=self.copy_summary, style="Muted.TLabel",
+                  wraplength=960).grid(row=0, column=0, sticky="w", pady=(0, 7))
+        action_row3 = ttk.Frame(p3)
+        action_row3.grid(row=1, column=0, sticky="w")
+        ttk.Button(action_row3, text="Edit copy settings", style="Accent.TButton",
+                   command=self.edit_copy_settings).pack(side="left")
+        ttk.Button(action_row3, text="Reset loss stop",
+                   command=self.reset_copy_loss_stop).pack(side="left", padx=8)
+        self.sizing_result = tk.StringVar(value="")
+        ttk.Button(action_row3, text="Preview risk per trade",
+                   command=self.calculate).pack(side="left")
         ttk.Label(p3, textvariable=self.sizing_result, style="Muted.TLabel",
-                  wraplength=950).grid(row=1, column=0, columnspan=8, sticky="w", pady=(8, 0))
-        ttk.Label(root, text="Public-wallet alerts require you to opt in. This version does not submit copy-trade orders.",
+                  wraplength=960).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(root, text="New fills from the selected wallet are copied automatically after the one-time setup. No per-trade confirmation is shown. The built-in stop targets 50% of each trade's allocated margin; execution gaps, fees and slippage may change the result.",
                   style="Muted.TLabel", wraplength=980).pack(anchor="w", pady=(0, 8))
+        self._refresh_copy_summary()
 
     def _update_scrollregion(self, _event=None) -> None:
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -359,12 +364,27 @@ class RadarApp(tk.Tk):
                 f"7d n={trader.trades}" if "closed-fill proxy" in trader.source else str(trader.trades))
             self.table.insert("", "end", values=(
                 trader.display_name, trader.address, fmt(trader.return_pct), fmt(trader.win_rate_pct), sample))
-        self.status.set(f"Received {total} traders; {len(traders)} match your filters. Select a row to monitor.")
+        self.status.set(f"Received {total} traders; {len(traders)} match your filters. Select one and start auto-copy.")
 
     def start_monitor(self) -> None:
         selected = self.table.selection()
         if not selected:
-            messagebox.showinfo("Select a wallet", "Scan Hyperliquid and select a trader row first.", parent=self)
+            messagebox.showinfo("Select a trader", "Scan Hyperliquid and select one trader first.", parent=self)
+            return
+        profile = self.profile_var.get().strip()
+        if not profile:
+            messagebox.showwarning("Save Bitunix profile first",
+                "Save the Bitunix API profile in section 01 before enabling copy trading.", parent=self)
+            return
+        try:
+            key, secret = get_profile_secrets(profile)
+        except Exception as exc:
+            messagebox.showerror("Bitunix profile unavailable", str(exc), parent=self)
+            return
+        if not self.copy_settings.get("live_copy_enabled", False):
+            self.edit_copy_settings(require_enable=True)
+        if not self.copy_settings.get("live_copy_enabled", False):
+            self.status.set("Auto-copy was not enabled; no order will be sent.")
             return
         values = self.table.item(selected[0], "values")
         name, address = str(values[0]), str(values[1])
@@ -373,17 +393,22 @@ class RadarApp(tk.Tk):
         stop_event = threading.Event()
         self._monitor_stop = stop_event
         self._watched_address = address
-        self.watch_button.configure(state="disabled", text="Watching…")
+        self.watch_button.configure(state="disabled", text="Auto-copy running…")
         self.stop_button.configure(state="normal")
-        self.status.set(f"Starting public-wallet monitor for {name}…")
-        threading.Thread(target=self._monitor_worker, args=(name, address, stop_event), daemon=True).start()
+        self.status.set("Starting automatic copy for {0}. Existing fills will be ignored; new fills are copied.".format(name))
+        settings = dict(self.copy_settings)
+        threading.Thread(target=self._monitor_worker,
+            args=(name, address, stop_event, key, secret, settings), daemon=True).start()
 
-    def _monitor_worker(self, name: str, address: str, stop_event: threading.Event) -> None:
+    def _monitor_worker(self, name: str, address: str, stop_event: threading.Event,
+                        api_key: str, api_secret: str, settings: dict) -> None:
         seen: set[str] = set()
         try:
             initial = fetch_recent_fills(address, lookback_seconds=600)
             seen.update(fill_identity(fill) for fill in initial)
-            self.after(0, lambda: self.status.set(f"Watching {name}; checking new public fills every 20 seconds."))
+            client = BitunixClient(api_key, api_secret)
+            self.after(0, lambda: self.status.set(
+                "Auto-copy active for {0}; watching fresh Hyperliquid fills every 20 seconds.".format(name)))
         except Exception as exc:
             detail = str(exc)
             self.after(0, lambda detail=detail: self._monitor_error(detail))
@@ -401,45 +426,164 @@ class RadarApp(tk.Tk):
                     seen = {fill_identity(fill) for fill in fills}
                 if fresh:
                     fresh.sort(key=lambda fill: int(fill.get("time", 0) or 0))
-                    self.after(0, self._on_new_fills, name, address, fresh[-3:])
+                    for fill in fresh:
+                        if stop_event.is_set():
+                            break
+                        try:
+                            state = load_copy_state()
+                            result = process_copy_fill(client, fill, address, settings, state)
+                            detail = "{0} · {1} · {2}".format(name, fill.get("coin", "?"), result)
+                        except Exception as exc:
+                            detail = "Copy skipped / guarded: {0}".format(str(exc))
+                        self.after(0, lambda detail=detail: self.status.set(detail))
+                try:
+                    state = load_copy_state()
+                    loss_status = check_loss_circuit_breaker(client, settings, state)
+                    if loss_status:
+                        self.after(0, lambda msg=loss_status: self.status.set(msg))
+                except Exception as exc:
+                    detail = "Risk monitor could not verify positions: {0}. No additional copy orders are sent while checks fail.".format(exc)
+                    self.after(0, lambda detail=detail: self.status.set(detail))
             except Exception as exc:
-                detail = str(exc)
-                self.after(0, lambda detail=detail: self.status.set(f"Monitor temporarily failed: {detail}"))
+                detail = "Hyperliquid monitor temporarily failed: {0}".format(exc)
+                self.after(0, lambda detail=detail: self.status.set(detail))
 
     def _monitor_error(self, detail: str) -> None:
         self.stop_monitor()
-        self.status.set(f"Monitor failed: {detail}")
+        self.status.set("Auto-copy could not start: {0}".format(detail))
 
     def _on_new_fills(self, name: str, address: str, fills: list[dict]) -> None:
-        for fill in fills:
-            direction = str(fill.get("dir") or "Fill")
-            coin = str(fill.get("coin") or "Unknown asset")
-            price = str(fill.get("px") or "unknown")
-            size = str(fill.get("sz") or "unknown")
-            pnl = str(fill.get("closedPnl") or "n/a")
-            prompt = (f"Trader: {name}\nWallet: {address}\nAction: {direction}\nAsset: {coin}\n"
-                      f"Price: {price}\nSize: {size}\nRealized PnL: {pnl}\n\n"
-                      "Review this fill for a possible copy? No order will be placed by this build.")
-            if messagebox.askyesno("New Hyperliquid trade fill", prompt, parent=self):
-                self.status.set(f"Fill reviewed: {name} · {coin} · {direction}. No order was sent.")
+        # Legacy-safe status callback; intentionally no per-trade confirmation prompt.
+        if fills:
+            self.status.set("{0}: {1} new fill(s) detected.".format(name, len(fills)))
 
     def stop_monitor(self) -> None:
         if self._monitor_stop is not None:
             self._monitor_stop.set()
         self._monitor_stop = None
         self._watched_address = None
-        self.watch_button.configure(state="normal", text="Watch selected wallet")
+        self.watch_button.configure(state="normal", text="Start auto-copy")
         self.stop_button.configure(state="disabled")
-        self.status.set("Wallet monitor stopped.")
+        self.status.set("Auto-copy monitor stopped. Any already-open isolated position and its exchange-side stop remain active.")
+
+    def _refresh_copy_summary(self) -> None:
+        settings = self.copy_settings
+        state = load_copy_state()
+        reserved = sum(float(r.get("margin", 0) or 0) for r in state.get("active_trades", {}).values())
+        mode = "LIVE COPY ENABLED" if settings.get("live_copy_enabled") else "LIVE COPY DISABLED"
+        halted = " · LOSS STOP ACTIVE" if state.get("halted") else ""
+        self.copy_summary.set(
+            "{0}{1}   |   Authorized capital: {2:.2f} USDT   |   Per-trade margin: {3:.1f}% ({4:.2f} USDT max)   |   Per-trade stop-risk: 50% of allocated margin   |   Max cumulative loss: {5:.1f}% ({6:.2f} USDT)   |   Leverage cap: {7}x   |   Tracked open margin: {8:.2f} USDT".format(
+                mode, halted, settings["authorized_capital_usdt"], settings["margin_per_trade_pct"],
+                settings["authorized_capital_usdt"] * settings["margin_per_trade_pct"] / 100.0,
+                settings["max_total_loss_pct"],
+                settings["authorized_capital_usdt"] * settings["max_total_loss_pct"] / 100.0,
+                settings["max_leverage"], reserved))
+
+    def edit_copy_settings(self, require_enable: bool = False) -> None:
+        current = dict(self.copy_settings)
+        win = tk.Toplevel(self)
+        win.title("Auto-copy risk settings")
+        win.configure(bg=BG)
+        win.resizable(False, False)
+        win.transient(self)
+        win.grab_set()
+        outer = ttk.Frame(win, padding=18)
+        outer.pack(fill="both", expand=True)
+        ttk.Label(outer, text="AUTO-COPY RISK SETTINGS", style="Title.TLabel").grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        ttk.Label(outer,
+            text="These values are saved locally and reused automatically. You are not asked to approve every trade.",
+            style="Muted.TLabel", wraplength=460
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 12))
+        fields = [
+            ("Authorized futures capital (USDT)", "authorized_capital_usdt", str(current["authorized_capital_usdt"])),
+            ("Margin per trade (% of authorized capital)", "margin_per_trade_pct", str(current["margin_per_trade_pct"])),
+            ("Maximum cumulative loss (% of authorized capital)", "max_total_loss_pct", str(current["max_total_loss_pct"])),
+            ("Maximum leverage (1x–5x)", "max_leverage", str(current["max_leverage"])),
+        ]
+        variables = {}
+        for row, (label, key, value) in enumerate(fields, start=2):
+            ttk.Label(outer, text=label).grid(row=row, column=0, sticky="w", padx=(0, 14), pady=5)
+            variable = tk.StringVar(value=value)
+            variables[key] = variable
+            ttk.Entry(outer, textvariable=variable, width=16).grid(row=row, column=1, sticky="e", pady=5)
+        enabled_var = tk.BooleanVar(value=bool(current.get("live_copy_enabled")))
+        ttk.Checkbutton(outer, text="Enable unattended real-money copy trades", variable=enabled_var).grid(
+            row=6, column=0, columnspan=2, sticky="w", pady=(9, 3))
+        ttk.Label(outer,
+            text="For each position, requested margin is capped by these settings and the free futures balance. "
+                 "The app switches the symbol to ISOLATED, verifies it, and attaches a market stop at a loss "
+                 "target of 50% of the actual allocated margin. Gaps, fees, funding, exchange rejection and "
+                 "liquidation can still make the realized loss differ. No funds are transferred.",
+            style="Muted.TLabel", wraplength=500
+        ).grid(row=7, column=0, columnspan=2, sticky="w", pady=(5, 12))
+
+        def save_settings() -> None:
+            try:
+                updated = save_copy_settings({
+                    "authorized_capital_usdt": float(variables["authorized_capital_usdt"].get()),
+                    "margin_per_trade_pct": float(variables["margin_per_trade_pct"].get()),
+                    "max_total_loss_pct": float(variables["max_total_loss_pct"].get()),
+                    "max_leverage": int(variables["max_leverage"].get()),
+                    "live_copy_enabled": enabled_var.get(),
+                })
+            except (ValueError, TypeError) as exc:
+                messagebox.showerror("Invalid settings", str(exc), parent=win)
+                return
+            if require_enable and not updated["live_copy_enabled"]:
+                messagebox.showwarning("Live copy is disabled",
+                    "Enable unattended copy trading to start the monitor.", parent=win)
+                return
+            if updated["live_copy_enabled"] and not current.get("live_copy_enabled"):
+                approved = messagebox.askyesno(
+                    "Confirm automatic futures trading",
+                    "This enables real-money Bitunix futures orders from newly detected Hyperliquid fills without "
+                    "asking you per trade. Orders use ISOLATED margin and saved size/loss caps, but execution and "
+                    "exchange risk mean losses are not guaranteed to stay within a precise amount. Continue?",
+                    parent=win)
+                if not approved:
+                    updated["live_copy_enabled"] = False
+                    self.copy_settings = save_copy_settings(updated)
+                    self._refresh_copy_summary()
+                    return
+            self.copy_settings = updated
+            self._refresh_copy_summary()
+            self.sizing_result.set("Settings saved. New trades use these limits; no per-trade prompt will appear.")
+            win.destroy()
+
+        buttons = ttk.Frame(outer)
+        buttons.grid(row=8, column=0, columnspan=2, sticky="e", pady=(5, 0))
+        ttk.Button(buttons, text="Cancel", command=win.destroy).pack(side="right", padx=(8, 0))
+        ttk.Button(buttons, text="Save settings", style="Accent.TButton", command=save_settings).pack(side="right")
+        win.update_idletasks()
+        win.geometry("+%d+%d" % (self.winfo_rootx() + 100, self.winfo_rooty() + 80))
+        self.wait_window(win)
+
+    def reset_copy_loss_stop(self) -> None:
+        if not messagebox.askyesno(
+            "Reset cumulative loss stop",
+            "Reset the saved cumulative-loss circuit breaker? This does not close positions and should only be used after reviewing the account.",
+            parent=self):
+            return
+        try:
+            reset_loss_halt()
+            self.copy_state = load_copy_state()
+            self._refresh_copy_summary()
+            self.sizing_result.set("Loss stop reset. Current risk settings remain unchanged.")
+        except Exception as exc:
+            messagebox.showerror("Could not reset loss stop", str(exc), parent=self)
 
     def calculate(self) -> None:
-        try:
-            result = calculate_position_size(
-                float(self.margin.get()), float(self.risk.get()), float(self.stop.get()))
-            self.sizing_result.set(
-                f"Estimated notional: {result.notional:,.2f} USDT   ·   Estimated leverage: {result.leverage:.2f}×")
-        except (ValueError, TypeError) as exc:
-            messagebox.showerror("Invalid risk inputs", str(exc), parent=self)
+        settings = self.copy_settings
+        margin = settings["authorized_capital_usdt"] * settings["margin_per_trade_pct"] / 100.0
+        risk = margin * 0.50
+        leverage = settings["max_leverage"]
+        move_pct = 50.0 / leverage
+        notional = margin * leverage
+        self.sizing_result.set(
+            "Preview only: max margin {0:.2f} USDT · planned stop-risk {1:.2f} USDT · approximate stop distance {2:.2f}% at {3}x · notional {4:.2f} USDT. Actual execution can differ.".format(
+                margin, risk, move_pct, leverage, notional))
 
     def review_alert(self) -> None:
         selected = self.table.selection()
@@ -450,7 +594,7 @@ class RadarApp(tk.Tk):
         messagebox.showinfo(
             "Trade alert review",
             f"Selected trader: {values[0]}\nWallet: {values[1]}\n\n"
-            "Use 'Watch selected wallet' for alerts on new public fills. Copy order submission is not enabled.",
+            "Use Start auto-copy to automatically submit market orders for new fills from this wallet according to the saved isolated-margin risk settings.",
             parent=self)
 
     def _on_close(self) -> None:
