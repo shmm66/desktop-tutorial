@@ -447,7 +447,23 @@ def _reconcile_active(client: BitunixClient, state: dict[str, Any]) -> None:
 
 def check_loss_circuit_breaker(client: BitunixClient, settings: dict[str, Any],
                                state: dict[str, Any]) -> str | None:
+    # Once halted, never resume new entries automatically; keep retrying closes for any
+    # still-confirmed bot position rather than dropping it from the tracking ledger.
     if state.get("halted"):
+        try:
+            _reconcile_active(client, state)
+            for record in list(state.get("active_trades", {}).values()):
+                pid = str(record.get("position_id") or "")
+                if pid:
+                    try:
+                        client.close_position(pid)
+                    except CopyTradeError:
+                        # Preserve tracking and retry on the next monitoring cycle.
+                        pass
+            save_copy_state(state)
+        except CopyTradeError:
+            # Keep the halt active when the venue cannot be queried safely.
+            pass
         return str(state.get("halt_reason") or "Copy trading is halted by the loss limit.")
     _reconcile_active(client, state)
     pnl = tracked_pnl(client, state)
@@ -458,16 +474,14 @@ def check_loss_circuit_breaker(client: BitunixClient, settings: dict[str, Any],
             "Loss limit reached: copy PnL {0:.4f} USDT, limit {1:.4f} USDT. "
             "New copy entries are disabled.".format(pnl, threshold)
         )
-        for key, record in list(state.get("active_trades", {}).items()):
+        for record in list(state.get("active_trades", {}).values()):
             pid = str(record.get("position_id") or "")
             if pid:
                 try:
                     client.close_position(pid)
                 except CopyTradeError:
-                    # The position retains its attached exchange-side stop loss.
+                    # Preserve the record and retry the close on following monitoring cycles.
                     pass
-            state.setdefault("closed_trades", []).append(record)
-            state["active_trades"].pop(key, None)
         save_copy_state(state)
         return str(state["halt_reason"])
     save_copy_state(state)
