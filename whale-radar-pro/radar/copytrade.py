@@ -20,6 +20,7 @@ import requests
 
 from .bitunix import BASE_URL, make_signature
 from .monitor import fill_identity
+from .statement import record_note, record_stage, update_trade
 
 SETTINGS_DEFAULTS: dict[str, Any] = {
     "authorized_capital_usdt": 20.0,
@@ -318,6 +319,64 @@ class BitunixClient:
         if isinstance(data, list):
             return [x for x in data if isinstance(x, dict)]
         return []
+
+    def pending_tp_sl(self, symbol: str, position_id: str) -> list[dict[str, Any]]:
+        params = {"symbol": symbol, "positionId": position_id, "limit": 100}
+        data = self._private("GET", "/api/v1/futures/tpsl/get_pending_orders", params)
+        if isinstance(data, list):
+            return [x for x in data if isinstance(x, dict)]
+        if isinstance(data, dict):
+            rows = data.get("orderList", [])
+            return [x for x in rows if isinstance(x, dict)]
+        return []
+
+    def confirm_stop_loss(self, symbol: str, position_id: str, order_id: str,
+                          expected_price: float) -> bool | None:
+        """Return True/False from exchange evidence; None means the check was unavailable."""
+        price_tolerance = max(abs(expected_price) * 1e-6, 1e-8)
+        tpsl_ok = False
+        detail_ok = False
+        lookup_failed = False
+        if position_id:
+            try:
+                for row in self.pending_tp_sl(symbol, position_id):
+                    same_position = str(row.get("positionId") or "") == position_id
+                    sl_price = _safe_float(row.get("slPrice"))
+                    if (same_position and sl_price is not None
+                            and abs(sl_price - expected_price) <= price_tolerance
+                            and str(row.get("slOrderType") or "").upper() == "MARKET"):
+                        tpsl_ok = True
+                        break
+            except CopyTradeError:
+                lookup_failed = True
+        try:
+            detail = self.order_detail(order_id) if order_id else None
+            if detail:
+                sl_price = _safe_float(detail.get("slPrice"))
+                detail_ok = (
+                    sl_price is not None
+                    and abs(sl_price - expected_price) <= price_tolerance
+                    and str(detail.get("slOrderType") or "").upper() == "MARKET"
+                    and str(detail.get("slStopType") or "").upper() in {"MARK_PRICE", "LAST_PRICE", "MARK"}
+                )
+                # An order detail record is definitive for the attached stop parameters.
+                if detail_ok:
+                    return True
+                # The detail endpoint responded but did not confirm the expected stop.
+                return tpsl_ok
+        except CopyTradeError:
+            lookup_failed = True
+        if tpsl_ok:
+            return True
+        return None if lookup_failed else False
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        parsed = float(value)
+        return parsed if parsed == parsed and abs(parsed) != float("inf") else None
+    except (TypeError, ValueError):
+        return None
+
 
 
 def _decimal_str(value: Decimal) -> str:
