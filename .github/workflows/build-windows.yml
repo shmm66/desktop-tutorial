@@ -1,6 +1,6 @@
 name: CI + Windows EXE + Installer
 # Triggered build includes regression coverage for bounded Acrylic callbacks and lazy AI startup.
-# V10.2.0: remove unused panels, live glass opacity and trader résumé
+# V10.3.0: remove unused panels, live glass opacity and trader résumé
 
 on:
   workflow_dispatch:
@@ -71,7 +71,7 @@ jobs:
       - name: Syntax check
         shell: powershell
         run: |
-          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','build_icon.py','branding_assets.py','prepare_branding.py','market_data.py','calendar_utils.py','news_data.py','journal_agent.py','glass_theme.py','google_oauth.py','statement_report.py')
+          $files = @('TraderPlannerPro_v7_0_3.py','TraderPlannerPro_v7.py','launcher.py','logo_3d.py','build_icon.py','branding_assets.py','prepare_branding.py','market_data.py','calendar_utils.py','news_data.py','journal_agent.py','academy_content.py','prepare_academy_assets.py','trading_coach.py','glass_theme.py','google_oauth.py','statement_report.py')
           foreach ($file in $files) { & $env:TP_PYTHON -m py_compile $file }
 
       - name: Run tests and preserve report
@@ -91,6 +91,18 @@ jobs:
         shell: powershell
         run: |
           if ([int]$env:TP_PYTEST_EXIT -ne 0) { throw "pytest failed with exit code $env:TP_PYTEST_EXIT; see pytest-report artifact" }
+
+      - name: Generate bundled offline Academy illustrations
+        shell: powershell
+        run: |
+          & $env:TP_PYTHON prepare_academy_assets.py
+          if ($LASTEXITCODE -ne 0) { throw "Offline Academy illustration generation failed with exit code $LASTEXITCODE" }
+          $academyFiles = @('market_structure.png','liquidity_sweep.png','order_block.png','fvg.png','ict_killzone.png','silver_bullet.png','candlestick_patterns.png','risk_reward.png')
+          foreach ($name in $academyFiles) {
+            $path = Join-Path $PWD ("assets/academy/" + $name)
+            if (-not (Test-Path $path)) { throw "Offline Academy image not created: $path" }
+            if ((Get-Item $path).Length -lt 3000) { throw "Offline Academy image is unexpectedly small: $path" }
+          }
 
       - name: Run real Tk UI section smoke test
         shell: powershell
@@ -113,10 +125,10 @@ jobs:
           if ($null -eq $exitCode) {
             # Some Windows process wrappers return an empty ExitCode even after
             # WaitForExit. Accept only the explicit success marker and no traceback.
-            if ($stdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
+            if ($stdout -notmatch 'UI smoke-test: 13 pages rendered OK' -or $stderr -match 'Traceback|Exception|Error:') {
               throw 'Tk UI smoke test did not provide a reliable success marker.'
             }
-            Write-Warning 'Process exit code was unavailable; all 11 page renders reported success.'
+            Write-Warning 'Process exit code was unavailable; all 13 page renders reported success.'
           } elseif ([int]$exitCode -ne 0) {
             throw "Tk UI section smoke test failed with exit code $exitCode"
           }
@@ -137,7 +149,7 @@ jobs:
       - name: Build EXE
         shell: powershell
         run: >-
-          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --icon assets/trader_planner_logo.ico --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import trader_resume --hidden-import statement_report --hidden-import glass_theme --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
+          & $env:TP_PYTHON -m PyInstaller --noconfirm --clean --onefile --windowed --name TraderPlannerPro --icon assets/trader_planner_logo.ico --hidden-import tkinter --hidden-import tkinter.font --hidden-import tkinter.messagebox --hidden-import tkinter.filedialog --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import json --hidden-import csv --hidden-import datetime --hidden-import pathlib --hidden-import shutil --hidden-import re --hidden-import uuid --collect-all tzdata --collect-all reportlab --hidden-import journal_agent --hidden-import academy_content --hidden-import prepare_academy_assets --hidden-import trading_coach --add-data "assets/academy;assets/academy" --hidden-import trader_resume --hidden-import statement_report --hidden-import glass_theme --hidden-import pywinstyles --hidden-import googleapiclient.discovery --hidden-import google_auth_oauthlib.flow launcher.py
 
       - name: Verify EXE
         shell: powershell
@@ -206,7 +218,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $installer = Join-Path $PWD 'installer/TraderPlannerPro_Setup_v10.2.0.exe'
+          $installer = Join-Path $PWD 'installer/TraderPlannerPro_Setup_v10.3.0.exe'
           if (-not (Test-Path $installer)) { throw "Installer not found: $installer" }
 
           $testRoot = Join-Path $env:RUNNER_TEMP 'TraderPlannerPro-CI-Test'
@@ -241,7 +253,7 @@ jobs:
           if ($null -eq $uiExitCode) {
             # Some Windows GUI-process wrappers do not expose the exit code.
             # Accept only an explicit all-pages success marker and clean stderr.
-            if ($uiStdout -notmatch 'UI smoke-test: 11 pages rendered OK' -or
+            if ($uiStdout -notmatch 'UI smoke-test: 13 pages rendered OK' -or
                 $uiStderr -match 'Traceback|Exception|Error:') {
               throw 'Installed EXE UI test returned no exit code and did not produce a clean 11-page success report.'
             }
@@ -260,7 +272,7 @@ jobs:
         shell: powershell
         run: |
           $manifest = @()
-          $manifest += "Trader Planner Pro V10.2.0"
+          $manifest += "Trader Planner Pro V10.3.0"
           $manifest += "Commit: $env:GITHUB_SHA"
           $manifest += "Ref: $env:GITHUB_REF"
           $manifest += "Run: $env:GITHUB_RUN_ID"
@@ -272,10 +284,10 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: TraderPlannerPro-V10.2.0-Windows-Verified
+          name: TraderPlannerPro-V10.3.0-Windows-Verified
           path: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v10.2.0.exe
+            installer/TraderPlannerPro_Setup_v10.3.0.exe
             build-manifest.txt
           if-no-files-found: error
           compression-level: 0
@@ -286,8 +298,8 @@ jobs:
         continue-on-error: true
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
-          tag_name: v10.2.0-build-${{ github.run_number }}
-          name: Trader Planner Pro V10.2.0 — Verified Windows Build ${{ github.run_number }}
+          tag_name: v10.3.0-build-${{ github.run_number }}
+          name: Trader Planner Pro V10.3.0 — Verified Windows Build ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           prerelease: true
           draft: true
@@ -296,9 +308,9 @@ jobs:
 
             Verified gates:
             - Dependency installation, Python syntax check and pytest
-            - Tk UI smoke test across 11 primary application sections; unused legacy routes removed
+            - Tk UI smoke test across 13 primary pages, including the offline Academy and local-first Trading Coach
             - Local résumé generation with journal-grounded metrics and PDF/PNG chart export
-            - Antialiased digital, analog and wristwatch session clocks; bounded timers; live transparency control
+            - Antialiased selectable session clocks; bounded glass callbacks; reduced duplicate market refreshes; bundled offline Academy diagrams
             - Local statistical Journal Performance Agent with performance-résumé export
             - Windows EXE creation and EXE self-test
             - Inno Setup compiler and installer output verification
@@ -307,7 +319,7 @@ jobs:
             This is a pre-release build for validation. The Journal Performance Agent analyses saved journal records locally. Live market feeds remain dependent on network and source availability.
           files: |
             dist/TraderPlannerPro.exe
-            installer/TraderPlannerPro_Setup_v10.2.0.exe
+            installer/TraderPlannerPro_Setup_v10.3.0.exe
             build-manifest.txt
           fail_on_unmatched_files: true
         env:
