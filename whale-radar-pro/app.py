@@ -464,6 +464,7 @@ class RadarApp(tk.Tk):
                     except Exception as exc:
                         detail = "{0} · Copy skipped / guarded: {1}".format(name, str(exc))
                     self.after(0, lambda detail=detail: self.status.set(detail))
+                    self.after(0, self._refresh_history_table)
                 try:
                     state = load_copy_state()
                     refresh_copy_history(client, state)
@@ -471,6 +472,7 @@ class RadarApp(tk.Tk):
                     if loss_status:
                         self.after(0, lambda msg=loss_status: self.status.set(msg))
                     self.after(0, self._refresh_copy_summary)
+                    self.after(0, self._refresh_history_table)
                 except Exception as exc:
                     detail = "Risk monitor could not verify positions: {0}. No additional copy orders are sent while checks fail.".format(exc)
                     self.after(0, lambda detail=detail: self.status.set(detail))
