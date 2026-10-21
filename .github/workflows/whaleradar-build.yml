@@ -241,23 +241,44 @@ jobs:
             if ($found) { $python = $found.Source } else { throw 'Python was not found on the Windows runner.' }
           }
           & $python --version
-          & $python -m venv (Join-Path $src '.venv')
+          # Reuse verified packages already installed on the self-hosted Windows
+          # machine and its pip cache before depending on an unstable public index.
+          # This keeps local builds useful even when outbound PyPI DNS is degraded.
+          & $python -m venv --system-site-packages (Join-Path $src '.venv')
           if ($LASTEXITCODE -ne 0) { throw 'Could not create the virtual environment.' }
           $venvPython = Join-Path $src '.venv\Scripts\python.exe'
-          $mirrors = @(
-            'https://pypi.tuna.tsinghua.edu.cn/simple',
-            'https://mirrors.aliyun.com/pypi/simple/',
-            'https://pypi.org/simple'
-          )
-          $installed = $false
-          foreach ($mirror in $mirrors) {
-            Write-Host "Trying dependency mirror: $mirror"
-            & $venvPython -m pip install --disable-pip-version-check --default-timeout=120 --retries=10 --index-url $mirror --upgrade pip
-            if ($LASTEXITCODE -ne 0) { continue }
-            & $venvPython -m pip install --disable-pip-version-check --default-timeout=120 --retries=10 --index-url $mirror -r (Join-Path $src 'requirements.txt') 'pyinstaller>=6,<7'
-            if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+          $env:PIP_DISABLE_PIP_VERSION_CHECK = '1'
+          $env:PIP_DEFAULT_TIMEOUT = '25'
+          $env:PIP_RETRIES = '2'
+
+          # python-bidi 0.6+ may compile a Rust extension for this interpreter.
+          # The application uses the stable Python API, so keep the pure-Python
+          # implementation and avoid requiring Rust/MSVC link.exe on the runner.
+          $offlineOk = $false
+          Write-Host 'Trying the existing system packages and local pip cache first.'
+          & $venvPython -m pip install --no-index --prefer-binary -r (Join-Path $src 'requirements.txt') 'pyinstaller>=6,<7' 'python-bidi>=0.4.2,<0.6'
+          if ($LASTEXITCODE -eq 0) {
+            $offlineOk = $true
+            Write-Host 'Dependencies resolved offline from installed packages/cache.'
           }
-          if (-not $installed) { throw 'Dependency downloads failed from every configured PyPI index.' }
+
+          if (-not $offlineOk) {
+            $mirrors = @(
+              'https://pypi.org/simple',
+              'https://mirrors.aliyun.com/pypi/simple/',
+              'https://pypi.tuna.tsinghua.edu.cn/simple'
+            )
+            $installed = $false
+            foreach ($mirror in $mirrors) {
+              Write-Host "Trying dependency mirror: $mirror"
+              & $venvPython -m pip install --disable-pip-version-check --prefer-binary --default-timeout=25 --retries=2 --index-url $mirror -r (Join-Path $src 'requirements.txt') 'pyinstaller>=6,<7' 'python-bidi>=0.4.2,<0.6'
+              if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+            }
+            if (-not $installed) { throw 'Dependencies are missing from the local Python environment and every package index is unreachable. No EXE or installer was published.' }
+          }
+
+          & $venvPython -c "import PyInstaller; print('PyInstaller', PyInstaller.__version__)"
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller is not importable after dependency setup.' }
 
       - name: Test and package the standalone Windows EXE
         shell: powershell
