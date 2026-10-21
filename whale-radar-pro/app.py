@@ -457,6 +457,7 @@ class RadarApp(tk.Tk):
                     if stop_event.is_set():
                         break
                     try:
+                        fill["_trader_name"] = name
                         state = load_copy_state()
                         result = process_copy_fill(client, fill, address, settings, state)
                         detail = "{0} · {1} · {2}".format(name, fill.get("coin", "?"), result)
