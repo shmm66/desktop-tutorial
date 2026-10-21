@@ -156,6 +156,8 @@ def local_response(question: str, rows, profile: dict | None = None, goals=None,
         worst_setup = _top_group(metrics["by_setup"], "avg_r", smallest=True)
         best_setup = _top_group(metrics["by_setup"], "avg_r", smallest=False)
         weak_session = _top_group(metrics["by_session"], "avg_r", smallest=True)
+        if best_setup and worst_setup and best_setup.get("name") == worst_setup.get("name"):
+            worst_setup = None
         mistakes = metrics["mistakes"][:3]
         if fa:
             lines = [
