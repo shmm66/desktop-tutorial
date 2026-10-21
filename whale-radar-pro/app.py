@@ -8,6 +8,7 @@ from radar.bitunix import test_connection
 from radar.credentials import delete_profile, get_profile_secrets, list_profiles, save_profile
 from radar.hyperliquid import fetch_leaderboard
 from radar.models import Trader, rank_traders
+from radar.monitor import fetch_recent_fills, fill_identity
 from radar.risk import calculate_position_size
 
 BG = "#10151f"
@@ -26,9 +27,12 @@ class RadarApp(tk.Tk):
         self.traders: list[Trader] = []
         self._test_in_progress = False
         self._scan_in_progress = False
+        self._monitor_stop: threading.Event | None = None
+        self._watched_address: str | None = None
         self._style()
         self._build()
         self.refresh_profiles()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _style(self) -> None:
         style = ttk.Style(self)
@@ -82,11 +86,17 @@ class RadarApp(tk.Tk):
         ttk.Label(filters, textvariable=self.status, style="Muted.TLabel").pack(side="right", padx=8)
         cols = ("name", "address", "return", "win", "trades")
         self.table = ttk.Treeview(p2, columns=cols, show="headings", height=7)
-        for col, label, width in [("name", "Trader", 180), ("address", "Wallet / Address", 300), ("return", "Return %", 100), ("win", "Closed-fill win % (7d proxy)", 165), ("trades", "Trades / sample", 100)]:
+        for col, label, width in [("name", "Trader", 160), ("address", "Wallet / Address", 280), ("return", "Return %", 85), ("win", "Closed-fill win % (7d proxy)", 165), ("trades", "Trades / sample", 100)]:
             self.table.heading(col, text=label)
             self.table.column(col, width=width, anchor="w" if col in ("name", "address") else "center")
         self.table.pack(fill="both", expand=True)
-        ttk.Button(p2, text="Review selected trade alert", command=self.review_alert).pack(anchor="e", pady=(8, 0))
+        controls = ttk.Frame(p2)
+        controls.pack(fill="x", pady=(8, 0))
+        self.watch_button = ttk.Button(controls, text="Watch selected wallet", command=self.start_monitor)
+        self.watch_button.pack(side="left")
+        self.stop_button = ttk.Button(controls, text="Stop watching", command=self.stop_monitor, state="disabled")
+        self.stop_button.pack(side="left", padx=8)
+        ttk.Button(controls, text="Review selected", command=self.review_alert).pack(side="right")
 
         p3 = ttk.LabelFrame(root, text="  03  MARGIN & RISK  ", padding=12)
         p3.pack(fill="x")
@@ -99,7 +109,7 @@ class RadarApp(tk.Tk):
         ttk.Button(p3, text="Calculate leverage", style="Accent.TButton", command=self.calculate).grid(row=0, column=6, padx=6)
         self.sizing_result = tk.StringVar(value="Enter margin, risk, and stop distance.")
         ttk.Label(p3, textvariable=self.sizing_result, style="Muted.TLabel").grid(row=1, column=0, columnspan=7, sticky="w", pady=(10, 0))
-        ttk.Label(root, text="Monitoring only • Copying is not enabled • Sizing excludes fees, slippage, funding and liquidation rules", style="Muted.TLabel").pack(anchor="w", pady=(12, 0))
+        ttk.Label(root, text="Opt-in public-wallet alerts • Copy orders are not enabled • Sizing excludes fees, slippage, funding and liquidation rules", style="Muted.TLabel").pack(anchor="w", pady=(12, 0))
 
     def refresh_profiles(self) -> None:
         names = [p["name"] for p in list_profiles()]
@@ -108,8 +118,7 @@ class RadarApp(tk.Tk):
             self.profile_var.set(names[0])
 
     def edit_profile(self) -> None:
-        current = self.profile_var.get()
-        name = simpledialog.askstring("API profile", "Profile name:", initialvalue=current, parent=self)
+        name = simpledialog.askstring("API profile", "Profile name:", initialvalue=self.profile_var.get(), parent=self)
         if not name:
             return
         key = simpledialog.askstring("API profile", "Paste API key:", parent=self)
@@ -203,6 +212,78 @@ class RadarApp(tk.Tk):
             self.table.insert("", "end", values=(t.display_name, t.address, fmt(t.return_pct), fmt(t.win_rate_pct), sample))
         self.status.set(f"Received {total}; {len(traders)} matched. Closed-fill win rate is an approximation, not position-level win rate.")
 
+    def start_monitor(self) -> None:
+        selected = self.table.selection()
+        if not selected:
+            messagebox.showinfo("Select a wallet", "Scan Hyperliquid and select a trader row first.", parent=self)
+            return
+        values = self.table.item(selected[0], "values")
+        name, address = str(values[0]), str(values[1])
+        if self._monitor_stop is not None:
+            self.stop_monitor()
+        stop_event = threading.Event()
+        self._monitor_stop = stop_event
+        self._watched_address = address
+        self.watch_button.configure(state="disabled", text="Watching…")
+        self.stop_button.configure(state="normal")
+        self.status.set(f"Connecting monitor for {name}…")
+        threading.Thread(target=self._monitor_worker, args=(name, address, stop_event), daemon=True).start()
+
+    def _monitor_worker(self, name: str, address: str, stop_event: threading.Event) -> None:
+        seen: set[str] = set()
+        try:
+            initial = fetch_recent_fills(address, lookback_seconds=600)
+            seen.update(fill_identity(fill) for fill in initial)
+            self.after(0, lambda: self.status.set(f"Watching {name}; polling public fills every 20 seconds."))
+        except Exception as exc:
+            detail = str(exc)
+            self.after(0, lambda detail=detail: self._monitor_error(detail))
+            return
+        while not stop_event.wait(20):
+            try:
+                fills = fetch_recent_fills(address, lookback_seconds=120)
+                fresh = []
+                for fill in fills:
+                    identity = fill_identity(fill)
+                    if identity not in seen:
+                        seen.add(identity)
+                        fresh.append(fill)
+                if len(seen) > 2500:
+                    seen = {fill_identity(fill) for fill in fills}
+                if fresh:
+                    fresh.sort(key=lambda f: int(f.get("time", 0) or 0))
+                    self.after(0, self._on_new_fills, name, address, fresh[-3:])
+            except Exception as exc:
+                detail = str(exc)
+                self.after(0, lambda detail=detail: self.status.set(f"Monitor temporarily failed: {detail}"))
+
+    def _monitor_error(self, detail: str) -> None:
+        self.stop_monitor()
+        self.status.set(f"Monitor failed: {detail}")
+
+    def _on_new_fills(self, name: str, address: str, fills: list[dict]) -> None:
+        for fill in fills:
+            direction = str(fill.get("dir") or "Fill")
+            coin = str(fill.get("coin") or "Unknown asset")
+            price = str(fill.get("px") or "unknown")
+            size = str(fill.get("sz") or "unknown")
+            pnl = str(fill.get("closedPnl") or "n/a")
+            prompt = (f"Trader: {name}\nWallet: {address}\nAction: {direction}\nAsset: {coin}\n"
+                      f"Price: {price}\nSize: {size}\nRealized PnL: {pnl}\n\n"
+                      "Review this fill for a possible copy? This build cannot submit orders; no trade will be placed.")
+            if messagebox.askyesno("New Hyperliquid trade fill", prompt, parent=self):
+                self.status.set(f"Fill reviewed: {name} · {coin} · {direction}. No order was sent.")
+
+    def stop_monitor(self) -> None:
+        if self._monitor_stop is not None:
+            self._monitor_stop.set()
+        self._monitor_stop = None
+        self._watched_address = None
+        self.watch_button.configure(state="normal", text="Watch selected wallet")
+        self.stop_button.configure(state="disabled")
+        if self.winfo_exists():
+            self.status.set("Wallet monitor stopped.")
+
     def calculate(self) -> None:
         try:
             result = calculate_position_size(float(self.margin.get()), float(self.risk.get()), float(self.stop.get()))
@@ -213,10 +294,15 @@ class RadarApp(tk.Tk):
     def review_alert(self) -> None:
         selected = self.table.selection()
         if not selected:
-            messagebox.showinfo("No trader selected", "Select a trader row first. Live trade-event detection is not yet enabled in this build.", parent=self)
+            messagebox.showinfo("No trader selected", "Select a trader row first.", parent=self)
             return
         values = self.table.item(selected[0], "values")
-        messagebox.showinfo("Trade alert review", f"Selected trader: {values[0]}\nWallet: {values[1]}\n\nLive trade-event detection and copy execution are not enabled in this build. No order was sent.", parent=self)
+        messagebox.showinfo("Trade alert review", f"Selected trader: {values[0]}\nWallet: {values[1]}\n\nUse 'Watch selected wallet' to receive alerts for newly observed public fills. Copy order submission is not enabled.", parent=self)
+
+    def _on_close(self) -> None:
+        if self._monitor_stop is not None:
+            self._monitor_stop.set()
+        self.destroy()
 
 
 if __name__ == "__main__":
