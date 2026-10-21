@@ -32,10 +32,7 @@ def test_local_performance_agent_uses_saved_metrics_and_has_no_chat_controls():
     assert "def export_trader_resume(self):" in app
     assert "answer_coach" not in insights and "coach_question" not in insights and "coach_entry" not in insights
 
-def test_training_routes_and_assets_removed_from_app_and_package():
-    app = read("TraderPlannerPro_v7_0_3.py")
-    launcher = read("launcher.py")
-    workflow = read(".gidef test_offline_academy_is_bundled_and_does_not_fetch_remote_images():
+def test_offline_academy_is_bundled_and_does_not_fetch_remote_images():
     app = read("TraderPlannerPro_v7_0_3.py")
     content = read("academy_content.py")
     generator = read("prepare_academy_assets.py")
@@ -53,13 +50,17 @@ def test_training_routes_and_assets_removed_from_app_and_package():
     assert "academy_content.py" in workflow and "trading_coach.py" in workflow
 
 
-ange(self, period, reference=None):" in app
+def test_goal_manager_keeps_week_month_year_dates_and_editing():
+    app = read("TraderPlannerPro_v7_0_3.py")
+    assert '"goals": []' in app
+    assert "def _goal_period_range(self, period, reference=None):" in app
     assert "def goal_dialog(self, goal=None):" in app
     assert "def edit_goal(self):" in app
     assert 'self.tr("goal_weekly")' in app
     assert 'self.tr("goal_monthly")' in app
     assert 'self.tr("goal_yearly")' in app
     assert "date.fromisoformat(start_var.get().strip())" in app
+
 
 def test_profiles_remain_in_topbar_and_settings():
     app = read("TraderPlannerPro_v7_0_3.py")
