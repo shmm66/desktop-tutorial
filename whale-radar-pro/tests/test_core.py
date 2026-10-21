@@ -1,20 +1,23 @@
 import unittest
-from radar.bitunix import make_signature, sha256_hex
+from radar.bitunix import make_signature
 from radar.models import Trader, rank_traders
 from radar.risk import calculate_position_size
 
 
 class BitunixSigningTests(unittest.TestCase):
-    def test_double_sha256_signature_matches_documented_formula(self):
-        nonce = "123456"
-        timestamp = "20241120123045"
-        api_key = "yourApiKey"
-        secret = "yourSecretKey"
-        query = "id1uid200"
-        body = '{"uid":"2899","arr":[{"id":1,"name":"maple"},{"id":2,"name":"lily"}]}'
-        digest = sha256_hex(nonce + timestamp + api_key + query + body)
-        expected = sha256_hex(digest + secret)
-        self.assertEqual(make_signature(nonce, timestamp, api_key, secret, query, body), expected)
+    def test_double_sha256_signature_matches_reference_vector(self):
+        signature = make_signature(
+            nonce="123456",
+            timestamp="20241120123045",
+            api_key="yourApiKey",
+            secret_key="yourSecretKey",
+            query_params="id1uid200",
+            body='{"uid":"2899","arr":[{"id":1,"name":"maple"},{"id":2,"name":"lily"}]}',
+        )
+        self.assertEqual(
+            signature,
+            "00397cd1e52c7dce3258067324363b6361fabc9178a0912b330c138db8745655",
+        )
 
 
 class RiskTests(unittest.TestCase):
