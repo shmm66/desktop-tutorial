@@ -6,21 +6,22 @@ ROOT = Path(__file__).resolve().parents[1]
 def read(name):
     return (ROOT / name).read_text(encoding="utf-8")
 
-def test_primary_routes_remove_training_chatbot_and_tradingview_but_keep_journal_agent():
+def test_primary_routes_include_offline_academy_and_trading_coach():
     app = read("TraderPlannerPro_v7_0_3.py")
     launcher = read("launcher.py")
     for method in ("def home(self):", "def daily(self):", "def weekly(self):", "def plan(self):",
-                   "def check(self):", "def journal(self):", "def insights(self):", "def resources(self):",
-                   "def news(self):", "def calculators(self):", "def settings(self):"):
+                   "def check(self):", "def journal(self):", "def academy(self):", "def coach(self):",
+                   "def insights(self):", "def resources(self):", "def news(self):",
+                   "def calculators(self):", "def settings(self):"):
         assert method in app
-    for removed in ("def academy(self):", "def chart(self):", "def ai_page(self):", "def open_ai_chat(self):",
-                    "def open_tradingview(", "from academy_content import", "from academy_visuals import",
-                    "AIOrchestrator", "from native_trading_desk import"):
+    for removed in ("def chart(self):", "def open_tradingview(", "from native_trading_desk import"):
         assert removed not in app
+    assert "from academy_content import" in app and "from trading_coach import" in app
     pages = launcher.split("    pages = (", 1)[1].split("    )", 1)[0]
-    assert "academy" not in pages and '"--tradingview"' not in launcher and '"--webview"' not in launcher
-    assert '"insights","resources","news","calculators","settings"' in app
-    assert "answer_coach" not in app and "coach_entry" not in app
+    assert '"academy"' in pages and '"coach"' in pages
+    assert 'VERSION = "10.3.0"' in launcher
+    assert 'openai_api_key_enc' in app
+
 
 def test_local_performance_agent_uses_saved_metrics_and_has_no_chat_controls():
     app = read("TraderPlannerPro_v7_0_3.py")
@@ -34,17 +35,25 @@ def test_local_performance_agent_uses_saved_metrics_and_has_no_chat_controls():
 def test_training_routes_and_assets_removed_from_app_and_package():
     app = read("TraderPlannerPro_v7_0_3.py")
     launcher = read("launcher.py")
-    workflow = read(".github/workflows/build-windows.yml")
-    assert "def academy(self):" not in app
-    assert "from academy_content import" not in app and "from academy_visuals import" not in app
-    pages = launcher.split("    pages = (", 1)[1].split("    )", 1)[0]
-    assert "academy" not in pages
-    assert "prepare_education_assets.py" not in workflow and "education_sources" not in workflow
-    assert "academy_content" not in workflow and "academy_diagrams" not in workflow and "academy_visuals" not in workflow
-def test_goal_manager_keeps_week_month_year_dates_and_editing():
+    workflow = read(".gidef test_offline_academy_is_bundled_and_does_not_fetch_remote_images():
     app = read("TraderPlannerPro_v7_0_3.py")
-    assert '"goals": []' in app
-    assert "def _goal_period_range(self, period, reference=None):" in app
+    content = read("academy_content.py")
+    generator = read("prepare_academy_assets.py")
+    workflow = read(".github/workflows/build-windows.yml")
+    academy_method = app.split("    def academy(self):", 1)[1].split("\\n    def coach(self):", 1)[0]
+    assert "ACADEMY_FAMILY_RULES" in app and "SMART_MONEY_STRATEGIES" in app
+    assert "GLOSSARY" in app and "CANDLE_PLAYBOOK" in app
+    assert "urlopen" not in academy_method and "requests.get" not in academy_method
+    assert "build_assets" in academy_method
+    assert "no network requests" in generator.lower()
+    assert "def build_assets(" in generator
+    assert "ACADEMY_NOTE_FA" in content and "ACADEMY_NOTE_EN" in content
+    assert "prepare_academy_assets.py" in workflow
+    assert '--add-data "assets/academy;assets/academy"' in workflow
+    assert "academy_content.py" in workflow and "trading_coach.py" in workflow
+
+
+ange(self, period, reference=None):" in app
     assert "def goal_dialog(self, goal=None):" in app
     assert "def edit_goal(self):" in app
     assert 'self.tr("goal_weekly")' in app
@@ -229,3 +238,44 @@ def test_trader_resume_exports_pdf_and_visual_report(tmp_path):
     assert result["pdf"].is_file() and result["pdf"].stat().st_size > 1000
     assert result["png"].is_file() and result["png"].stat().st_size > 1000
     assert result["stats"]["count"] == 3 and math.isclose(result["stats"]["net_r"], 2.5)
+
+def test_trading_coach_analyzes_journal_locally_without_network():
+    from trading_coach import local_response, build_ai_context
+    rows = [
+        {"Date": "2026-10-01", "Symbol": "BTCUSDT", "Result (R)": "2", "Result": "WIN", "Setup": "FVG", "Session": "London"},
+        {"Date": "2026-10-02", "Symbol": "ETHUSDT", "Result (R)": "-1", "Result": "LOSS", "Setup": "FVG", "Session": "London", "Mistake": "Early entry"},
+        {"Date": "2026-10-03", "Symbol": "SOLUSDT", "Result (R)": "1", "Result": "WIN", "Setup": "BOS", "Session": "New York"},
+    ]
+    answer = local_response("risk management", rows, {"name": "QA", "goals": []}, market="Crypto", language="en")
+    assert "3 trades" in answer
+    assert "expectancy" in answer.lower()
+    assert "FVG" in answer
+    assert "risk control" in answer.lower()
+    context = build_ai_context("review", rows, {"name": "QA", "goals": []}, "Crypto")
+    assert '"recent_journal_rows"' in context and '"journal_metrics"' in context
+    assert "OPENAI_API_KEY" not in context
+
+
+def test_api_key_storage_roundtrips_and_uses_protection_marker():
+    import os
+    from trading_coach import seal_api_key, unseal_api_key
+    saved = seal_api_key("tpp-test-secret-not-a-real-key")
+    assert saved
+    if os.name == "nt":
+        assert saved.startswith("dpapi:")
+        assert "tpp-test-secret-not-a-real-key" not in saved
+    else:
+        assert saved.startswith("local-plain:")
+    assert unseal_api_key(saved) == "tpp-test-secret-not-a-real-key"
+
+
+def test_offline_academy_asset_builder_generates_chart_illustrations(tmp_path):
+    from PIL import Image
+    from prepare_academy_assets import build_assets
+    paths = build_assets(tmp_path / "academy")
+    assert len(paths) >= 8
+    for path in paths:
+        assert path.is_file() and path.stat().st_size > 3000
+        with Image.open(path) as image:
+            assert image.size == (1100, 620)
+
