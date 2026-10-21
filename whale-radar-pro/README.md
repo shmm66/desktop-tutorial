@@ -1,11 +1,12 @@
 # Whale Radar Pro
 
-A Windows desktop rebuild focused on three areas: exchange connection profiles, a ranked watchlist of up to 10 Hyperliquid traders, and per-trade margin/risk sizing. The interface is English-only and uses a dark theme.
+An English-only Windows desktop app with three primary sections: exchange connection profiles, a ranked watchlist of up to 10 Hyperliquid traders, and margin/risk sizing. The current interface uses a dark theme.
 
 ## Current implementation status
 - **Hyperliquid screening:** reads the public leaderboard, then requests recent fill history for at most 15 higher-return wallets with a small concurrency cap. Missing leaderboard win rates are estimated from non-zero realized `closedPnl` values on close/liquidation fills over the last 7 days. This is a **closed-fill win-rate proxy**, not a true position-level win rate: partial exits may count as multiple fills. The UI labels it accordingly and shows the proxy sample size. API failures or no closed fills leave the metric Unknown rather than fabricating zero.
-- **Bitunix profiles:** create/edit, select, paste, and delete are supported. Secrets are stored through Windows Credential Manager (`keyring`) when available. The connection test signs a read-only request to the pending-positions endpoint using the official double-SHA256 signing procedure, runs in a background thread, and does not place, edit, or cancel orders. See the [official signature guide](https://www.bitunix.com/api-docs/futures/common/sign.html) and [read-only endpoint](https://www.bitunix.com/api-docs/futures/position/get_pending_positions.html).
-- **Live trade alerts and copy execution:** not implemented yet. The alert-review control explicitly states this limitation; no order is sent. Do not treat this version as an automated copy-trading product.
+- **Public wallet alerts:** select a row and click **Watch selected wallet**. The app polls that public wallet's recent fills every 20 seconds and prompts for review when new fills appear. Monitoring is opt-in and read-only. The first poll establishes a baseline to avoid alerting on old fills already visible at startup.
+- **Copy orders:** not implemented. The alert explicitly states that no order can be submitted by this build. This is not yet a complete copy-trading product.
+- **Bitunix profiles:** create/edit, select, paste, and delete are supported. Secrets are stored through Windows Credential Manager (`keyring`) when available. The connection test signs a read-only request to the pending-positions endpoint using the official double-SHA256 signing procedure and runs in a background thread. It never places, edits, or cancels orders. See the [official signature guide](https://www.bitunix.com/api-docs/futures/common/sign.html) and [read-only endpoint](https://www.bitunix.com/api-docs/futures/position/get_pending_positions.html).
 - **Risk sizing:** estimates notional and leverage from margin, risk amount and entry-to-stop distance. It excludes fees, slippage, funding, lot/tick sizes, exchange leverage caps and liquidation constraints.
 - **Themes:** dark theme only; light-theme toggle is not yet implemented.
 
@@ -25,7 +26,7 @@ python app.py
 python -m unittest discover -s tests -v
 ```
 
-Tests mock network-dependent performance enrichment; they do not require API credentials or send live requests.
+Tests mock network-dependent API calls; they do not require credentials or send live orders.
 
 ## Build
 
@@ -33,7 +34,7 @@ The GitHub Actions workflow `Windows Build` builds `WhaleRadarPro.exe` and an In
 
 ## Repository layout
 - `app.py` — compact desktop UI (three main sections)
-- `radar/` — models, risk calculations, Bitunix read-only authentication, Hyperliquid data adapter, credential profile storage
+- `radar/` — models, risk calculations, Bitunix read-only authentication, Hyperliquid screening and wallet monitor, credential profile storage
 - `tests/` — deterministic unit tests
 - `.github/workflows/windows-build.yml` — reproducible Windows build
 
