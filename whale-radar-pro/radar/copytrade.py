@@ -210,56 +210,78 @@ def set_copy_history_status(state: dict[str, Any], history_id: str, status: str,
     return row
 
 
+def _verify_or_attach_stop_loss(client: BitunixClient, symbol: str, position_id: str,
+                                stop_price: str) -> bool:
+    """Return True only when Bitunix lists the expected active stop trigger."""
+    expected = float(stop_price)
+    for _ in range(2):
+        rows = client.pending_tpsl(symbol, position_id)
+        if any(str(item.get("positionId") or "") == position_id
+               and float(item.get("slPrice") or 0) > 0
+               and abs(float(item.get("slPrice") or 0) - expected) <= max(expected * 0.0005, 1e-8)
+               for item in rows):
+            return True
+        time.sleep(0.25)
+    # The stop attached to entry may not be visible immediately. Add a position-scoped fallback.
+    client.place_position_stop_loss(symbol, position_id, stop_price)
+    for _ in range(4):
+        time.sleep(0.35)
+        rows = client.pending_tpsl(symbol, position_id)
+        if any(str(item.get("positionId") or "") == position_id
+               and float(item.get("slPrice") or 0) > 0
+               and abs(float(item.get("slPrice") or 0) - expected) <= max(expected * 0.0005, 1e-8)
+               for item in rows):
+            return True
+    return False
+
+
 def refresh_copy_history(client: BitunixClient, state: dict[str, Any]) -> None:
     """Reconcile tracked positions and verify that exchange-side SL orders actually exist."""
-    positions = client.positions()
-    by_id = {str(p.get("positionId")): p for p in positions if p.get("positionId")}
+    _reconcile_active(client, state)
     for key, record in list(state.get("active_trades", {}).items()):
         history_id = str(record.get("history_id") or "")
         pid = str(record.get("position_id") or "")
-        position = by_id.get(pid) if pid else None
+        if not history_id or not pid:
+            continue
+        row = next((item for item in state.get("copy_history", [])
+                    if str(item.get("history_id")) == history_id), None)
+        if row is None:
+            continue
+        if row.get("status") == "Failed":
+            try:
+                client.close_position(pid)
+            except CopyTradeError:
+                pass
+            continue
+        position = next((p for p in client.positions()
+                         if str(p.get("positionId") or "") == pid), None)
         if not position:
-            matches = [
-                p for p in positions
-                if str(p.get("symbol", "")).upper() == str(record.get("symbol", "")).upper()
-                and str(p.get("side", "")).upper() == str(record.get("side", "")).upper()
-                and str(p.get("marginMode", "")).upper() == "ISOLATION"
-            ]
-            if len(matches) == 1:
-                position = matches[0]
-                pid = str(position.get("positionId") or "")
-                record["position_id"] = pid
-        if position and history_id:
-            set_copy_history_status(state, history_id, "Position Opened",
-                "Bitunix open-position endpoint confirms the isolated position.",
-                position_id=pid, margin=float(position.get("margin") or record.get("margin", 0)),
-                leverage=int(position.get("leverage") or record.get("leverage") or 0),
-                entry_price=float(position.get("avgOpenPrice") or record.get("entry_reference") or 0))
-            tpsl_rows = client.pending_tpsl(str(record.get("symbol") or ""), pid)
-            stop_price = float(record.get("stop_price") or 0)
-            confirmed = any(
-                str(item.get("positionId") or "") == pid
-                and float(item.get("slPrice") or 0) > 0
-                and abs(float(item.get("slPrice") or 0) - stop_price) <= max(stop_price * 0.0005, 1e-8)
-                for item in tpsl_rows
-            )
+            continue
+        set_copy_history_status(state, history_id, "Position Opened",
+            "Bitunix open-position endpoint confirms the isolated position.",
+            position_id=pid,
+            margin=float(position.get("margin") or record.get("margin", 0)),
+            leverage=int(position.get("leverage") or record.get("leverage") or 0),
+            entry_price=float(position.get("avgOpenPrice") or record.get("entry_reference") or 0))
+        stop_price = str(record.get("stop_price") or "")
+        if stop_price:
+            try:
+                confirmed = _verify_or_attach_stop_loss(client, str(record.get("symbol") or ""), pid, stop_price)
+            except CopyTradeError:
+                confirmed = False
             if confirmed:
                 set_copy_history_status(state, history_id, "SL Confirmed",
-                    "Bitunix pending TP/SL endpoint confirms the stop-loss trigger.",
-                    stop_price=stop_price)
-        elif pid and history_id:
-            # A position disappears only counts as Closed after the history endpoint confirms it.
-            closed_positions = client.history_position(pid)
-            if closed_positions:
-                closed = closed_positions[0]
-                pnl = float(closed.get("realizedPNL") or 0) - float(closed.get("fee") or 0) + float(closed.get("funding") or 0)
-                state.setdefault("closed_trades", []).append(record)
-                state["active_trades"].pop(key, None)
-                set_copy_history_status(state, history_id, "Closed",
-                    "Bitunix history endpoint confirms that the position is closed.",
-                    realized_pnl=pnl, fees=float(closed.get("fee") or 0),
-                    position_id=pid)
+                    "Bitunix pending TP/SL endpoint confirms the requested stop-loss trigger.",
+                    stop_price=float(stop_price))
+            else:
+                set_copy_history_status(state, history_id, "Failed",
+                    "Protective stop-loss could not be verified at Bitunix; emergency close requested.")
+                try:
+                    client.close_position(pid)
+                except CopyTradeError:
+                    pass
     save_copy_state(state)
+
 
 def reset_loss_halt() -> None:
     state = load_copy_state()
@@ -643,25 +665,51 @@ def _reconcile_active(client: BitunixClient, state: dict[str, Any]) -> None:
     active = state.setdefault("active_trades", {})
     for key, record in list(active.items()):
         pid = str(record.get("position_id") or "")
-        if pid and pid not in by_id:
-            state.setdefault("closed_trades", []).append(record)
-            active.pop(key, None)
-            continue
-        if not pid:
+        history_id = str(record.get("history_id") or "")
+        position = by_id.get(pid) if pid else None
+        if not position:
             symbol = str(record.get("symbol") or "")
             side = str(record.get("side") or "")
-            matches = [p for p in positions if p.get("symbol") == symbol
-                       and str(p.get("side", "")).upper() == side
+            matches = [p for p in positions if str(p.get("symbol", "")).upper() == symbol.upper()
+                       and str(p.get("side", "")).upper() == side.upper()
                        and str(p.get("marginMode", "")).upper() == "ISOLATION"]
             if len(matches) == 1:
-                record["position_id"] = str(matches[0].get("positionId") or "")
-                record["last_position_margin"] = float(matches[0].get("margin") or record.get("margin", 0))
-            elif len(matches) == 0 and record.get("order_id"):
-                # Market order may already have stopped out before the next poll.
-                detail = client.order_detail(str(record["order_id"]))
-                if detail and str(detail.get("status", "")).upper() in ("FILLED", "CANCELED"):
+                position = matches[0]
+                pid = str(position.get("positionId") or "")
+                record["position_id"] = pid
+                record["last_position_margin"] = float(position.get("margin") or record.get("margin", 0))
+            elif pid:
+                # Only mark Closed when Bitunix's history endpoint confirms the position is no longer open.
+                historical = client.history_position(pid)
+                if historical:
+                    item = historical[0]
+                    pnl = float(item.get("realizedPNL") or 0) - float(item.get("fee") or 0) + float(item.get("funding") or 0)
+                    if history_id:
+                        set_copy_history_status(state, history_id, "Closed",
+                            "Bitunix history endpoint confirms position closure.",
+                            realized_pnl=pnl, fees=float(item.get("fee") or 0), position_id=pid)
                     state.setdefault("closed_trades", []).append(record)
                     active.pop(key, None)
+                    continue
+            elif record.get("order_id"):
+                detail = client.order_detail(str(record["order_id"]))
+                if detail and str(detail.get("status", "")).upper() == "CANCELED":
+                    if history_id:
+                        set_copy_history_status(state, history_id, "Failed",
+                            "Bitunix canceled the order before a position could be confirmed.")
+                    state.setdefault("closed_trades", []).append(record)
+                    active.pop(key, None)
+                    continue
+        if position and history_id:
+            record["position_id"] = str(position.get("positionId") or pid)
+            if str(record.get("status", "")).upper() != "FAILED":
+                set_copy_history_status(state, history_id, "Position Opened",
+                    "Bitunix open-position endpoint confirms the isolated position.",
+                    position_id=record["position_id"],
+                    margin=float(position.get("margin") or record.get("margin", 0)),
+                    leverage=int(position.get("leverage") or record.get("leverage") or 0),
+                    entry_price=float(position.get("avgOpenPrice") or record.get("entry_reference") or 0))
+    save_copy_state(state)
 
 
 def check_loss_circuit_breaker(client: BitunixClient, settings: dict[str, Any],
@@ -705,6 +753,35 @@ def check_loss_circuit_breaker(client: BitunixClient, settings: dict[str, Any],
         return str(state["halt_reason"])
     save_copy_state(state)
     return None
+
+
+def process_copy_fill(client: BitunixClient, fill: dict[str, Any], wallet: str,
+                      settings: dict[str, Any], state: dict[str, Any]) -> str:
+    """Create a durable history row, then process a fresh fill with stage tracking."""
+    identity = fill_identity(fill)
+    if not settings.get("live_copy_enabled"):
+        return "Live copy is disabled in settings."
+    if _seen(state, identity):
+        return "Duplicate fill ignored."
+    action = interpret_fill(fill)
+    history_row = None
+    if action and action[0] == "OPEN":
+        history_row = ensure_copy_history(state, fill, wallet)
+    try:
+        result = _process_copy_fill_impl(client, fill, wallet, settings, state)
+    except Exception as exc:
+        if history_row is not None:
+            set_copy_history_status(state, identity, "Failed",
+                "Copy order failed before all required milestones: {0}".format(str(exc)[:260]))
+        raise
+    if history_row is not None:
+        current = next((item for item in state.get("copy_history", [])
+                        if str(item.get("history_id")) == identity), history_row)
+        if current.get("status") == "Pending":
+            set_copy_history_status(state, identity, "Failed", str(result)[:280])
+        elif current.get("status") in ("Order Confirmed", "Position Opened"):
+            set_copy_history_status(state, identity, str(current.get("status") or "Order Confirmed"), str(result)[:280])
+    return result
 
 
 def _process_copy_fill_impl(client: BitunixClient, fill: dict[str, Any], wallet: str,
@@ -756,8 +833,16 @@ def _process_copy_fill_impl(client: BitunixClient, fill: dict[str, Any], wallet:
                 return "Close deferred: the copy position ID is not confirmed yet."
             client.close_position(pid)
             record["closed_by_source"] = True
-            state.setdefault("closed_trades", []).append(record)
-            state["active_trades"].pop(trade_key, None)
+            record["close_requested"] = True
+            record["close_source_fill_id"] = identity
+            history_id = str(record.get("history_id") or "")
+            if history_id:
+                current_row = next((item for item in state.get("copy_history", [])
+                                    if str(item.get("history_id")) == history_id), None)
+                if current_row and current_row.get("status") not in ("Failed", "Closed"):
+                    set_copy_history_status(state, history_id, str(current_row.get("status") or "Position Opened"),
+                        "Source close detected; waiting for Bitunix history to confirm final closure.")
+
         _remember(state, identity)
         save_copy_state(state)
         return "Copied source close for {0}; Bitunix position close requested.".format(symbol)
@@ -848,10 +933,16 @@ def _process_copy_fill_impl(client: BitunixClient, fill: dict[str, Any], wallet:
     if not isinstance(response, dict) or not response.get("orderId"):
         raise CopyTradeError("Bitunix did not return an order ID; inspect order history before retrying.")
     order_id = str(response["orderId"])
-    time.sleep(0.25)
+    set_copy_history_status(state, identity, "Order Confirmed",
+        "Bitunix accepted the order request and returned an order ID; waiting for a confirmed position.",
+        order_id=order_id, margin=float(plan["margin"]), leverage=effective_leverage,
+        risk_usdt=float(plan["risk_usdt"]), entry_price=float(plan["entry_reference"]),
+        stop_price=float(plan["stop_price"]))
+    time.sleep(0.35)
     confirmed_positions = client.positions(symbol)
     position = next((p for p in confirmed_positions
-                     if str(p.get("side", "")).upper() == side), None)
+                     if str(p.get("side", "")).upper() == side
+                     and str(p.get("marginMode", "")).upper() == "ISOLATION"), None)
     if position:
         if str(position.get("marginMode", "")).upper() != "ISOLATION":
             try:
@@ -868,6 +959,7 @@ def _process_copy_fill_impl(client: BitunixClient, fill: dict[str, Any], wallet:
         "side": side,
         "order_id": order_id,
         "client_id": client_id,
+        "history_id": identity,
         "position_id": position_id,
         "entry_reference": float(plan["entry_reference"]),
         "qty": str(plan["qty"]),
@@ -879,6 +971,31 @@ def _process_copy_fill_impl(client: BitunixClient, fill: dict[str, Any], wallet:
         "created_at": int(time.time() * 1000),
     }
     state.setdefault("active_trades", {})[key] = record
+    _remember(state, identity)
+    save_copy_state(state)
+    if position and position_id:
+        set_copy_history_status(state, identity, "Position Opened",
+            "Bitunix positions endpoint confirms the position is open in ISOLATED mode.",
+            position_id=position_id,
+            margin=float(position.get("margin") or plan["margin"]),
+            leverage=int(position.get("leverage") or effective_leverage),
+            entry_price=float(position.get("avgOpenPrice") or plan["entry_reference"]))
+        try:
+            stop_ok = _verify_or_attach_stop_loss(client, symbol, position_id, str(plan["stop_price"]))
+        except CopyTradeError:
+            stop_ok = False
+        if stop_ok:
+            set_copy_history_status(state, identity, "SL Confirmed",
+                "Bitunix pending TP/SL endpoint confirms the stop-loss trigger is active.",
+                stop_price=float(plan["stop_price"]))
+        else:
+            set_copy_history_status(state, identity, "Failed",
+                "Position opened but the protective stop could not be verified. Emergency close requested.")
+            try:
+                client.close_position(position_id)
+            except CopyTradeError:
+                pass
+            raise CopyTradeError("Stop-loss was not confirmed by Bitunix; emergency close requested.")
     _remember(state, identity)
     save_copy_state(state)
     return (
