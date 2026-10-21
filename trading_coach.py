@@ -100,7 +100,7 @@ def unseal_api_key(stored: str) -> str:
         return ctypes.string_at(output_blob.pbData, output_blob.cbData).decode("utf-8")
     finally:
         kernel32.LocalFree(ctypes.cast(output_blob.pbData, ctypes.c_void_p))
-        if description:
+        if description.value:
             kernel32.LocalFree(ctypes.cast(description, ctypes.c_void_p))
 
 
