@@ -37,12 +37,12 @@ def test_offline_academy_is_bundled_and_does_not_fetch_remote_images():
     content = read("academy_content.py")
     generator = read("prepare_academy_assets.py")
     workflow = read(".github/workflows/build-windows.yml")
-    academy_method = app.split("    def academy(self):", 1)[1].split("\\n    def coach(self):", 1)[0]
+    academy_method = app.split("    def academy(self):", 1)[1].split("\n    def coach(self):", 1)[0]
     assert "ACADEMY_FAMILY_RULES" in app and "SMART_MONEY_STRATEGIES" in app
     assert "GLOSSARY" in app and "CANDLE_PLAYBOOK" in app
     assert "urlopen" not in academy_method and "requests.get" not in academy_method
     assert "build_assets" in academy_method
-    assert "no network requests" in generator.lower()
+    assert "urlopen" not in generator and "urllib.request" not in generator and "http://" not in generator
     assert "def build_assets(" in generator
     assert "ACADEMY_NOTE_FA" in content and "ACADEMY_NOTE_EN" in content
     assert "prepare_academy_assets.py" in workflow
