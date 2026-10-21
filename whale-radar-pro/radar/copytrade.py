@@ -153,7 +153,7 @@ def ensure_copy_history(state: dict[str, Any], fill: dict[str, Any], wallet: str
     row = {
         "history_id": identity,
         "wallet": wallet,
-        "trader": wallet,
+        "trader": str(fill.get("_trader_name") or wallet),
         "symbol": symbol,
         "side": side,
         "source_time": int(fill.get("time") or now),
