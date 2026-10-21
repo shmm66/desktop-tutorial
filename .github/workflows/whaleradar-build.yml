@@ -1,4 +1,4 @@
-name: Build Whale Radar Pro 1.5.0 (English, Windows)
+name: Build Whale Radar Pro 1.5.1 (English, Windows)
 
 on:
   push:
@@ -11,12 +11,12 @@ permissions:
   contents: write
 
 env:
-  # The reviewed 1.5.0 source payload lives on its own branch so the build
+  # The reviewed 1.5.1 source payload lives on its own branch so the build
   # always consumes one verified archive instead of a chain of patch stages.
-  PAYLOAD_BRANCH: whaleradarpro-v150-payload
-  PAYLOAD_SHA256: 58a9d8e8cdfd1adf6bc00f73e0fbb41132cdd0174a462d9b45c1b6e892cef85e
-  SOURCE_VERSION: 1.5.0
-  RELEASE_TAG: whaleradarpro-v1.5.0
+  PAYLOAD_BRANCH: whaleradarpro-v151-payload
+  PAYLOAD_SHA256: 5c4f176715f488235b80322f86c192c1591ac6481f2c5998141ea49ea49ff9a4
+  SOURCE_VERSION: 1.5.1
+  RELEASE_TAG: whaleradarpro-v1.5.1
 
 jobs:
   build:
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Prepare the reviewed Whale Radar Pro 1.5.0 source
+      - name: Prepare the reviewed Whale Radar Pro 1.5.1 source
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -90,7 +90,7 @@ jobs:
             Accept = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
           }
-          $manifestItem = Invoke-RestMethod -Uri "$api/contents/build-source-patch/v1.5.0.manifest.json`?ref=$env:PAYLOAD_BRANCH" -Headers $headers
+          $manifestItem = Invoke-RestMethod -Uri "$api/contents/build-source-patch/v1.5.1.manifest.json`?ref=$env:PAYLOAD_BRANCH" -Headers $headers
           $manifestText = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($manifestItem.content -replace '\s','')))
           $manifest = $manifestText | ConvertFrom-Json
           if ($manifest.sha256 -ne $env:PAYLOAD_SHA256) {
@@ -147,13 +147,14 @@ jobs:
           $required = @(
             'app.py', 'setup.iss', 'requirements.txt', 'BUILD_VERSION.txt',
             'README_EN.md', 'START_HERE_EN.txt', 'CHANGELOG.md',
-            'docs\NETWORK_FIX_1.5.0.md',
+            'docs\NETWORK_FIX_1.5.1.md',
             'whaleradar\__init__.py', 'whaleradar\http.py', 'whaleradar\hyperliquid.py',
             'whaleradar\traders.py', 'whaleradar\copycalc.py', 'whaleradar\risk_profile.py',
-            'whaleradar\rtl.py', 'whaleradar\trade_manager.py',
+            'whaleradar\rtl.py', 'whaleradar\trade_manager.py', 'whaleradar\connections.py',
             'tests\test_import_smoke.py', 'tests\test_trader_discovery.py',
             'tests\test_http_safety.py', 'tests\test_trade_manager_startup_binding.py',
             'tests\test_rtl.py', 'tests\test_copycalc.py', 'tests\test_risk_profile.py',
+            'tests\test_connection_profiles.py',
             'tests\test_network_diagnostics.py', 'tests\test_trade_manager.py'
           )
           foreach ($relative in $required) {
@@ -161,6 +162,25 @@ jobs:
               throw "The source payload is incomplete: '$relative' is missing."
             }
           }
+
+          # The payload is an overlay on the runner's baseline tree. It must never
+          # contain a baseline module, or it would silently replace the real
+          # implementation with a placeholder and break the installed application.
+          $baselineModules = @(
+            'analysis.py', 'backtest.py', 'bitunix.py', 'evm.py', 'exchanges.py',
+            'marketdata.py', 'models.py', 'notifications.py', 'risk.py', 'storage.py'
+          )
+          foreach ($module in $baselineModules) {
+            $path = Join-Path $buildSrc "whaleradar\$module"
+            if (Test-Path $path) {
+              $stamp = (Get-Item $path).LastWriteTimeUtc
+              $expanded = (Get-Item $payloadZip).LastWriteTimeUtc
+              if ($stamp -ge $expanded) {
+                throw "The source payload must not contain the baseline module 'whaleradar\$module'; it would replace the real implementation on the runner."
+              }
+            }
+          }
+          Write-Host 'The payload does not replace any baseline module.'
 
           # Remove guides from earlier versions so only the current one ships.
           Get-ChildItem -Path (Join-Path $buildSrc 'docs') -Filter 'NETWORK_FIX_*.md' -ErrorAction SilentlyContinue |
@@ -365,7 +385,7 @@ jobs:
               tag_name = $tag
               target_commitish = $env:GITHUB_SHA
               name = "Whale Radar Pro $env:SOURCE_VERSION - Windows x64"
-              body = "English-only Whale Radar Pro $env:SOURCE_VERSION. Fixes the Successful Traders screen, where the trader service was missing the discover method the screen calls, so the ranking could not be refreshed. A trading order is now submitted with one client ID that is stored in the local history, and an order that the exchange accepted but that could not be recorded locally is reported explicitly instead of looking like a failed copy. A trading POST is attempted exactly once; timeouts, resets and HTTP 408/425/5xx raise an explicit ambiguous-submission error. Credential-shaped values are redacted from every error message and diagnostic entry, response bodies are size-capped, and the leaderboard cache no longer blocks the user interface. Copy sizing uses exact decimal arithmetic and refuses a protective level at or below zero. An optional account equity derives automatic leverage, daily loss and open risk guardrails. The previous transport module and the Trade Manager position renderer contained syntax errors that the build used to repair silently at package time; both are fixed in the source. The full test suite now runs, including the trader-discovery test the previous build deleted. Hyperliquid remains read-only, every copy trade still requires individual approval, and this app does not bypass regional or service restrictions."
+              body = "English-only Whale Radar Pro $env:SOURCE_VERSION. The Successful Traders screen builds its list again: the public Hyperliquid leaderboard answers with about 38 MB of ranked wallets in one document, and the 8 MB response ceiling rejected every valid response, so the ranking could never be built. The response ceiling is now per request and the leaderboard passes a limit of its own. Wallets that did not trade in the selected window, or that hold less than 1 000 USDT of equity, are no longer ranked, because their return is an artefact of a near-zero account value. The ranking honours the one hour cache instead of downloading the document on every search. The Trade Manager account picker is never empty: the main window now registers the account when the credentials are saved, an account id can be typed to reach a credential-vault profile that is not listed, the credential fields show a focus ring, the API secret can be revealed to verify a pasted value, and the panel states which credentials are stored without revealing them. A trading order is submitted with one client ID that is stored in the local history, and an order that the exchange accepted but that could not be recorded locally is reported explicitly instead of looking like a failed copy. A trading POST is attempted exactly once; timeouts, resets and HTTP 408/425/5xx raise an explicit ambiguous-submission error. Credential-shaped values are redacted from every error message and diagnostic entry. Copy sizing uses exact decimal arithmetic and refuses a protective level at or below zero. The full test suite runs. Hyperliquid remains read-only, every copy trade still requires individual approval, and this app does not bypass regional or service restrictions."
               draft = $true
               prerelease = $false
             } | ConvertTo-Json -Compress
