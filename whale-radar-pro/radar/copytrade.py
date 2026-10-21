@@ -105,6 +105,7 @@ def load_copy_state() -> dict[str, Any]:
         "seen_fills": [],
         "active_trades": {},
         "closed_trades": [],
+        "copy_history": [],
         "halted": False,
         "halt_reason": "",
         "started_at": int(time.time() * 1000),
@@ -120,9 +121,145 @@ def load_copy_state() -> dict[str, Any]:
 
 def save_copy_state(state: dict[str, Any]) -> None:
     state["seen_fills"] = list(dict.fromkeys(str(x) for x in state.get("seen_fills", [])))[-5000:]
-    state["closed_trades"] = list(state.get("closed_trades", []))[-500:]
+    state["closed_trades"] = list(state.get("closed_trades", []))[-1000:]
+    state["copy_history"] = list(state.get("copy_history", []))[-2000:]
     _write_json(_app_dir() / "copy_state.json", state)
 
+
+
+
+COPY_HISTORY_STATUSES = ("Pending", "Order Confirmed", "Position Opened", "SL Confirmed", "Closed", "Failed")
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def ensure_copy_history(state: dict[str, Any], fill: dict[str, Any], wallet: str) -> dict[str, Any]:
+    """Create a durable per-source-fill history row before any copy-order side effect."""
+    identity = fill_identity(fill)
+    history = state.setdefault("copy_history", [])
+    for item in history:
+        if str(item.get("history_id")) == identity:
+            return item
+    action = interpret_fill(fill)
+    side = action[1] if action and action[0] == "OPEN" else ""
+    coin = str(fill.get("coin") or "").upper()
+    try:
+        symbol = futures_symbol(coin)
+    except CopyTradeError:
+        symbol = coin or "Unknown"
+    now = _now_ms()
+    row = {
+        "history_id": identity,
+        "wallet": wallet,
+        "trader": wallet,
+        "symbol": symbol,
+        "side": side,
+        "source_time": int(fill.get("time") or now),
+        "created_at": now,
+        "updated_at": now,
+        "status": "Pending",
+        "detail": "New source fill detected; waiting for exchange checks.",
+        "order_id": "",
+        "position_id": "",
+        "margin": 0.0,
+        "leverage": 0,
+        "risk_usdt": 0.0,
+        "entry_price": float(fill.get("px") or 0),
+        "stop_price": 0.0,
+        "realized_pnl": None,
+        "fees": 0.0,
+        "milestones": {status: (now if status == "Pending" else None) for status in COPY_HISTORY_STATUSES},
+        "events": [{"status": "Pending", "time": now, "detail": "New source fill detected."}],
+    }
+    history.append(row)
+    save_copy_state(state)
+    return row
+
+
+def set_copy_history_status(state: dict[str, Any], history_id: str, status: str,
+                            detail: str = "", **fields: Any) -> dict[str, Any] | None:
+    """Update status, per-stage timestamp and append a permanent event."""
+    if status not in COPY_HISTORY_STATUSES:
+        raise ValueError("Unknown copy-history status: " + str(status))
+    row = next((item for item in state.setdefault("copy_history", [])
+                if str(item.get("history_id")) == str(history_id)), None)
+    if row is None:
+        return None
+    now = _now_ms()
+    prior_status = row.get("status")
+    prior_detail = row.get("detail", "")
+    row.update(fields)
+    row["status"] = status
+    row["detail"] = detail or prior_detail
+    row["updated_at"] = now
+    row.setdefault("milestones", {value: None for value in COPY_HISTORY_STATUSES})
+    if status == "Pending" and not row["milestones"].get(status):
+        row["milestones"][status] = now
+    elif not row["milestones"].get(status):
+        row["milestones"][status] = now
+    if prior_status != status or (detail and prior_detail != detail):
+        row.setdefault("events", []).append({
+            "status": status,
+            "time": now,
+            "detail": detail or "",
+        })
+        row["events"] = row["events"][-100:]
+    save_copy_state(state)
+    return row
+
+
+def refresh_copy_history(client: BitunixClient, state: dict[str, Any]) -> None:
+    """Reconcile tracked positions and verify that exchange-side SL orders actually exist."""
+    positions = client.positions()
+    by_id = {str(p.get("positionId")): p for p in positions if p.get("positionId")}
+    for key, record in list(state.get("active_trades", {}).items()):
+        history_id = str(record.get("history_id") or "")
+        pid = str(record.get("position_id") or "")
+        position = by_id.get(pid) if pid else None
+        if not position:
+            matches = [
+                p for p in positions
+                if str(p.get("symbol", "")).upper() == str(record.get("symbol", "")).upper()
+                and str(p.get("side", "")).upper() == str(record.get("side", "")).upper()
+                and str(p.get("marginMode", "")).upper() == "ISOLATION"
+            ]
+            if len(matches) == 1:
+                position = matches[0]
+                pid = str(position.get("positionId") or "")
+                record["position_id"] = pid
+        if position and history_id:
+            set_copy_history_status(state, history_id, "Position Opened",
+                "Bitunix open-position endpoint confirms the isolated position.",
+                position_id=pid, margin=float(position.get("margin") or record.get("margin", 0)),
+                leverage=int(position.get("leverage") or record.get("leverage") or 0),
+                entry_price=float(position.get("avgOpenPrice") or record.get("entry_reference") or 0))
+            tpsl_rows = client.pending_tpsl(str(record.get("symbol") or ""), pid)
+            stop_price = float(record.get("stop_price") or 0)
+            confirmed = any(
+                str(item.get("positionId") or "") == pid
+                and float(item.get("slPrice") or 0) > 0
+                and abs(float(item.get("slPrice") or 0) - stop_price) <= max(stop_price * 0.0005, 1e-8)
+                for item in tpsl_rows
+            )
+            if confirmed:
+                set_copy_history_status(state, history_id, "SL Confirmed",
+                    "Bitunix pending TP/SL endpoint confirms the stop-loss trigger.",
+                    stop_price=stop_price)
+        elif pid and history_id:
+            # A position disappears only counts as Closed after the history endpoint confirms it.
+            closed_positions = client.history_position(pid)
+            if closed_positions:
+                closed = closed_positions[0]
+                pnl = float(closed.get("realizedPNL") or 0) - float(closed.get("fee") or 0) + float(closed.get("funding") or 0)
+                state.setdefault("closed_trades", []).append(record)
+                state["active_trades"].pop(key, None)
+                set_copy_history_status(state, history_id, "Closed",
+                    "Bitunix history endpoint confirms that the position is closed.",
+                    realized_pnl=pnl, fees=float(closed.get("fee") or 0),
+                    position_id=pid)
+    save_copy_state(state)
 
 def reset_loss_halt() -> None:
     state = load_copy_state()
@@ -309,6 +446,24 @@ class BitunixClient:
     def order_detail(self, order_id: str) -> dict[str, Any] | None:
         data = self._private("GET", "/api/v1/futures/trade/get_order_detail", {"orderId": order_id})
         return data if isinstance(data, dict) else None
+
+    def pending_tpsl(self, symbol: str, position_id: str = "") -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"symbol": symbol, "limit": 100}
+        if position_id:
+            params["positionId"] = position_id
+        data = self._private("GET", "/api/v1/futures/tpsl/get_pending_orders", params)
+        if isinstance(data, list):
+            return [x for x in data if isinstance(x, dict)]
+        if isinstance(data, dict):
+            rows = data.get("orderList", [])
+            return [x for x in rows if isinstance(x, dict)]
+        return []
+
+    def place_position_stop_loss(self, symbol: str, position_id: str, stop_price: str) -> Any:
+        return self._private("POST", "/api/v1/futures/tpsl/position/place_order", body={
+            "symbol": symbol, "positionId": position_id,
+            "slPrice": stop_price, "slStopType": "MARK_PRICE",
+        })
 
     def history_position(self, position_id: str) -> list[dict[str, Any]]:
         data = self._private("GET", "/api/v1/futures/position/get_history_positions",
@@ -552,8 +707,8 @@ def check_loss_circuit_breaker(client: BitunixClient, settings: dict[str, Any],
     return None
 
 
-def process_copy_fill(client: BitunixClient, fill: dict[str, Any], wallet: str,
-                      settings: dict[str, Any], state: dict[str, Any]) -> str:
+def _process_copy_fill_impl(client: BitunixClient, fill: dict[str, Any], wallet: str,
+                            settings: dict[str, Any], state: dict[str, Any]) -> str:
     """Process one fresh public fill. Repeated fills are deduplicated across restarts."""
     if not settings.get("live_copy_enabled"):
         return "Live copy is disabled in settings."
