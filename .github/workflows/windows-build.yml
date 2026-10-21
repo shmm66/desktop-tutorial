@@ -1,0 +1,48 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [whale-radar-pro-rebuild]
+    paths:
+      - 'whale-radar-pro/**'
+      - '.github/workflows/windows-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: whale-radar-pro
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: whale-radar-pro/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Build standalone executable
+        run: pyinstaller --noconfirm --clean --windowed --onefile --name WhaleRadarPro app.py
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Build installer
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer.iss'
+      - name: Upload EXE and Setup installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhaleRadarPro-Windows-${{ github.run_number }}
+          path: |
+            whale-radar-pro/dist/WhaleRadarPro.exe
+            whale-radar-pro/dist/WhaleRadarPro-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
