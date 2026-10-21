@@ -1,5 +1,8 @@
 import unittest
+from unittest.mock import Mock, patch
+
 from radar.bitunix import make_signature
+from radar.hyperliquid import closed_fill_stats, enrich_missing_win_rates
 from radar.models import Trader, rank_traders
 from radar.risk import calculate_position_size
 
@@ -53,6 +56,39 @@ class RankingTests(unittest.TestCase):
     def test_limit_over_ten_rejected(self):
         with self.assertRaises(ValueError):
             rank_traders([], 0, 0, 11)
+
+
+class HyperliquidClosedFillTests(unittest.TestCase):
+    def test_closed_fill_proxy_counts_only_nonzero_realized_close_fills(self):
+        fills = [
+            {"dir": "Close Long", "closedPnl": "12.5"},
+            {"dir": "Close Short", "closedPnl": "-4"},
+            {"dir": "Open Long", "closedPnl": "100"},
+            {"dir": "Close Long", "closedPnl": "0"},
+            {"dir": "Liquidated Isolated Position", "closedPnl": "-1"},
+            "bad-row",
+        ]
+        win_rate, sample = closed_fill_stats(fills)
+        self.assertEqual(sample, 3)
+        self.assertAlmostEqual(win_rate, 100 / 3)
+
+    def test_no_closed_fills_means_unknown_not_zero(self):
+        self.assertEqual(closed_fill_stats([{"dir": "Open Long", "closedPnl": "9"}]), (None, 0))
+
+    @patch("radar.hyperliquid._fetch_closed_fill_stats")
+    def test_enrichment_labels_proxy_and_preserves_unknown_on_failure(self, fetch_stats):
+        fetch_stats.side_effect = [(75.0, 4), RuntimeError("network failed")]
+        traders = [Trader("0x1", "A", 20, None, None), Trader("0x2", "B", 15, None, None)]
+        # Keep this test independent of network and wall-clock values.
+        with patch("radar.hyperliquid.datetime") as fake_datetime:
+            from datetime import datetime, timezone
+            fake_datetime.now.return_value = datetime(2026, 10, 22, tzinfo=timezone.utc)
+            result = enrich_missing_win_rates(traders, max_wallets=2)
+        self.assertEqual(result[0].win_rate_pct, 75.0)
+        self.assertEqual(result[0].trades, 4)
+        self.assertIn("closed-fill proxy", result[0].source)
+        self.assertIsNone(result[1].win_rate_pct)
+        self.assertIsNone(result[1].trades)
 
 
 if __name__ == "__main__":
