@@ -24,6 +24,15 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(len(rank_traders(traders, 10, 55, 10)), 10)
         self.assertEqual(len(rank_traders(traders, 30, 55, 10)), 0)
 
+    def test_unknown_win_rate_is_not_fabricated(self):
+        traders = [
+            Trader("0xknown", "Known", 20, 60, 12),
+            Trader("0xunknown", "Unknown", 500, None, 1000),
+            Trader("0xno-return", "No return", None, 99, 10),
+        ]
+        result = rank_traders(traders, 10, 55)
+        self.assertEqual([trader.address for trader in result], ["0xknown"])
+
     def test_limit_over_ten_rejected(self):
         with self.assertRaises(ValueError):
             rank_traders([], 0, 0, 11)
