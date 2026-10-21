@@ -24,6 +24,8 @@ class RadarApp(tk.Tk):
         self.minsize(900, 620)
         self.configure(bg=BG)
         self.traders: list[Trader] = []
+        self._test_in_progress = False
+        self._scan_in_progress = False
         self._style()
         self._build()
         self.refresh_profiles()
@@ -60,8 +62,9 @@ class RadarApp(tk.Tk):
         self.profile_combo.grid(row=0, column=0, padx=(0, 8), pady=4, sticky="w")
         ttk.Button(p1, text="Add / Edit", command=self.edit_profile).grid(row=0, column=1, padx=4)
         ttk.Button(p1, text="Delete", command=self.remove_profile).grid(row=0, column=2, padx=4)
-        ttk.Button(p1, text="Test selected", command=self.test_profile).grid(row=0, column=3, padx=4)
-        ttk.Label(p1, text="Secrets are stored in Windows Credential Manager; paste into the editor.", style="Muted.TLabel").grid(row=1, column=0, columnspan=4, sticky="w", pady=(5, 0))
+        self.test_button = ttk.Button(p1, text="Test selected", command=self.test_profile)
+        self.test_button.grid(row=0, column=3, padx=4)
+        ttk.Label(p1, text="Paste credentials into the editor; secrets are stored in Windows Credential Manager.", style="Muted.TLabel").grid(row=1, column=0, columnspan=4, sticky="w", pady=(5, 0))
 
         p2 = ttk.LabelFrame(root, text="  02  SUCCESSFUL TRADERS  •  MAX 10  ", padding=12)
         p2.pack(fill="both", expand=True, pady=(0, 12))
@@ -73,12 +76,13 @@ class RadarApp(tk.Tk):
         ttk.Entry(filters, textvariable=self.min_return, width=8).pack(side="left", padx=(5, 14))
         ttk.Label(filters, text="Min win rate %").pack(side="left")
         ttk.Entry(filters, textvariable=self.min_win, width=8).pack(side="left", padx=(5, 14))
-        ttk.Button(filters, text="Scan Hyperliquid", style="Accent.TButton", command=self.scan).pack(side="left")
+        self.scan_button = ttk.Button(filters, text="Scan Hyperliquid", style="Accent.TButton", command=self.scan)
+        self.scan_button.pack(side="left")
         self.status = tk.StringVar(value="Not scanned yet — live results are never simulated.")
         ttk.Label(filters, textvariable=self.status, style="Muted.TLabel").pack(side="right", padx=8)
         cols = ("name", "address", "return", "win", "trades")
         self.table = ttk.Treeview(p2, columns=cols, show="headings", height=7)
-        for col, label, width in [("name", "Trader", 180), ("address", "Wallet / Address", 300), ("return", "Return %", 100), ("win", "Win rate %", 100), ("trades", "Trades", 80)]:
+        for col, label, width in [("name", "Trader", 180), ("address", "Wallet / Address", 300), ("return", "Return %", 100), ("win", "Closed-fill win % (7d proxy)", 165), ("trades", "Trades / sample", 100)]:
             self.table.heading(col, text=label)
             self.table.column(col, width=width, anchor="w" if col in ("name", "address") else "center")
         self.table.pack(fill="both", expand=True)
@@ -95,7 +99,7 @@ class RadarApp(tk.Tk):
         ttk.Button(p3, text="Calculate leverage", style="Accent.TButton", command=self.calculate).grid(row=0, column=6, padx=6)
         self.sizing_result = tk.StringVar(value="Enter margin, risk, and stop distance.")
         ttk.Label(p3, textvariable=self.sizing_result, style="Muted.TLabel").grid(row=1, column=0, columnspan=7, sticky="w", pady=(10, 0))
-        ttk.Label(root, text="Monitoring only • Copying is never automatic • Risk estimate excludes fees, slippage and funding", style="Muted.TLabel").pack(anchor="w", pady=(12, 0))
+        ttk.Label(root, text="Monitoring only • Copying is not enabled • Sizing excludes fees, slippage, funding and liquidation rules", style="Muted.TLabel").pack(anchor="w", pady=(12, 0))
 
     def refresh_profiles(self) -> None:
         names = [p["name"] for p in list_profiles()]
@@ -104,7 +108,8 @@ class RadarApp(tk.Tk):
             self.profile_var.set(names[0])
 
     def edit_profile(self) -> None:
-        name = simpledialog.askstring("API profile", "Profile name (e.g. Bitunix Main):", parent=self)
+        current = self.profile_var.get()
+        name = simpledialog.askstring("API profile", "Profile name:", initialvalue=current, parent=self)
         if not name:
             return
         key = simpledialog.askstring("API profile", "Paste API key:", parent=self)
@@ -137,14 +142,29 @@ class RadarApp(tk.Tk):
         if not name:
             messagebox.showwarning("Select profile", "Add or select a Bitunix profile first.", parent=self)
             return
+        if self._test_in_progress:
+            return
         try:
             key, secret = get_profile_secrets(name)
-            ok, detail = test_connection(key, secret)
-            messagebox.showinfo("Bitunix connection status", detail, parent=self)
         except Exception as exc:
             messagebox.showerror("Profile error", str(exc), parent=self)
+            return
+        self._test_in_progress = True
+        self.test_button.configure(state="disabled", text="Testing…")
+        threading.Thread(target=self._test_profile_worker, args=(key, secret), daemon=True).start()
+
+    def _test_profile_worker(self, key: str, secret: str) -> None:
+        ok, detail = test_connection(key, secret)
+        self.after(0, lambda: self._finish_profile_test(ok, detail))
+
+    def _finish_profile_test(self, ok: bool, detail: str) -> None:
+        self._test_in_progress = False
+        self.test_button.configure(state="normal", text="Test selected")
+        (messagebox.showinfo if ok else messagebox.showerror)("Bitunix connection status", detail, parent=self)
 
     def scan(self) -> None:
+        if self._scan_in_progress:
+            return
         try:
             low_ret, low_win = float(self.min_return.get()), float(self.min_win.get())
             if not 0 <= low_win <= 100:
@@ -152,7 +172,9 @@ class RadarApp(tk.Tk):
         except ValueError as exc:
             messagebox.showerror("Invalid filters", str(exc) or "Return and win-rate filters must be numbers.", parent=self)
             return
-        self.status.set("Fetching public leaderboard…")
+        self._scan_in_progress = True
+        self.scan_button.configure(state="disabled", text="Scanning…")
+        self.status.set("Fetching leaderboard and recent closed fills (7 days)…")
         threading.Thread(target=self._scan_worker, args=(low_ret, low_win), daemon=True).start()
 
     def _scan_worker(self, low_ret: float, low_win: float) -> None:
@@ -162,19 +184,24 @@ class RadarApp(tk.Tk):
             self.after(0, lambda: self._show_traders(ranked, len(data)))
         except Exception as exc:
             detail = str(exc)
-            self.after(0, lambda detail=detail: self.status.set(f"Scan failed: {detail}"))
+            self.after(0, lambda detail=detail: self._finish_scan_error(detail))
+
+    def _finish_scan_error(self, detail: str) -> None:
+        self._scan_in_progress = False
+        self.scan_button.configure(state="normal", text="Scan Hyperliquid")
+        self.status.set(f"Scan failed: {detail}")
 
     def _show_traders(self, traders: list[Trader], total: int) -> None:
+        self._scan_in_progress = False
+        self.scan_button.configure(state="normal", text="Scan Hyperliquid")
         self.traders = traders
         for item in self.table.get_children():
             self.table.delete(item)
         for t in traders:
             fmt = lambda value: "Unknown" if value is None else f"{value:.2f}"
-            self.table.insert("", "end", values=(
-                t.display_name, t.address, fmt(t.return_pct), fmt(t.win_rate_pct),
-                "Unknown" if t.trades is None else t.trades,
-            ))
-        self.status.set(f"Received {total}; {len(traders)} matched filters. Unknown metrics are excluded.")
+            sample = "Unknown" if t.trades is None else (f"7d n={t.trades}" if "closed-fill proxy" in t.source else str(t.trades))
+            self.table.insert("", "end", values=(t.display_name, t.address, fmt(t.return_pct), fmt(t.win_rate_pct), sample))
+        self.status.set(f"Received {total}; {len(traders)} matched. Closed-fill win rate is an approximation, not position-level win rate.")
 
     def calculate(self) -> None:
         try:
@@ -186,7 +213,7 @@ class RadarApp(tk.Tk):
     def review_alert(self) -> None:
         selected = self.table.selection()
         if not selected:
-            messagebox.showinfo("No trader selected", "Select a trader row first. This build does not have verified live trade-event detection yet.", parent=self)
+            messagebox.showinfo("No trader selected", "Select a trader row first. Live trade-event detection is not yet enabled in this build.", parent=self)
             return
         values = self.table.item(selected[0], "values")
         messagebox.showinfo("Trade alert review", f"Selected trader: {values[0]}\nWallet: {values[1]}\n\nLive trade-event detection and copy execution are not enabled in this build. No order was sent.", parent=self)
