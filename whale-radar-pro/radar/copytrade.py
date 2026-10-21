@@ -191,15 +191,23 @@ def set_copy_history_status(state: dict[str, Any], history_id: str, status: str,
     prior_status = row.get("status")
     prior_detail = row.get("detail", "")
     row.update(fields)
-    row["status"] = status
-    row["detail"] = detail or prior_detail
+    stage_rank = {"Pending": 0, "Order Confirmed": 1, "Position Opened": 2, "SL Confirmed": 3, "Closed": 4, "Failed": 5}
+    # Polling can discover earlier milestones after a later one was already recorded.
+    # Keep the visible state monotonic while still filling each individual milestone timestamp.
+    keep_prior = (
+        prior_status in stage_rank
+        and status in stage_rank
+        and stage_rank[prior_status] > stage_rank[status]
+        and not (status == "Closed" and prior_status == "Failed")
+    )
+    visible_status = prior_status if keep_prior else status
+    row["status"] = visible_status
+    row["detail"] = prior_detail if keep_prior else (detail or prior_detail)
     row["updated_at"] = now
     row.setdefault("milestones", {value: None for value in COPY_HISTORY_STATUSES})
-    if status == "Pending" and not row["milestones"].get(status):
+    if not row["milestones"].get(status):
         row["milestones"][status] = now
-    elif not row["milestones"].get(status):
-        row["milestones"][status] = now
-    if prior_status != status or (detail and prior_detail != detail):
+    if (prior_status != visible_status or (detail and prior_detail != detail and not keep_prior)):
         row.setdefault("events", []).append({
             "status": status,
             "time": now,
