@@ -84,10 +84,14 @@ def test_news_service_exposes_cache_and_source_fallbacks():
 def test_main_navigation_contains_only_the_redesigned_pages():
     app = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     launcher = (ROOT / "launcher.py").read_text(encoding="utf-8")
-    assert '("home","daily","weekly","plan","check","journal","insights","resources","news","calculators","settings")' in app
+    route_list = app.split("allowed={", 1)[1].split("}", 1)[0]
+    for required in ('"academy"', '"coach"', '"weekly"', '"settings"'):
+        assert required in route_list
     for obsolete in ('"ai"', '"chart"'):
-        route_list = app.split('allowed={', 1)[1].split('}', 1)[0]
         assert obsolete not in route_list
+    pages = launcher.split('    pages = (', 1)[1].split('    )', 1)[0]
+    for required in ('"academy"', '"coach"', '"weekly"', '"settings"'):
+        assert required in pages
     for removed_route in ('"--tradingview"', '"--webview"'):
         assert removed_route not in launcher
 
@@ -128,8 +132,8 @@ def test_google_and_statement_services_stay_separately_available():
 
 def test_installer_is_update_safe_and_non_admin():
     installer = (ROOT / "TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'MyAppVersion "10.2.0"' in installer
-    assert 'OutputBaseFilename=TraderPlannerPro_Setup_v10.2.0' in installer
+    assert 'MyAppVersion "10.3.0"' in installer
+    assert 'OutputBaseFilename=TraderPlannerPro_Setup_v10.3.0' in installer
     assert "PrivilegesRequired=lowest" in installer
     assert "UsePreviousAppDir=yes" in installer
     assert 'DefaultDirName={localappdata}\\Programs\\Trader Planner Pro' in installer
@@ -180,6 +184,6 @@ def test_versions_are_consistent():
     app = (ROOT / "TraderPlannerPro_v7_0_3.py").read_text(encoding="utf-8")
     launcher = (ROOT / "launcher.py").read_text(encoding="utf-8")
     installer = (ROOT / "TraderPlannerPro.iss").read_text(encoding="utf-8")
-    assert 'VERSION = "10.2.0"' in app
-    assert 'VERSION = "10.2.0"' in launcher
-    assert 'MyAppVersion "10.2.0"' in installer
+    assert 'VERSION = "10.3.0"' in app
+    assert 'VERSION = "10.3.0"' in launcher
+    assert 'MyAppVersion "10.3.0"' in installer
