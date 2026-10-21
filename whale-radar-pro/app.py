@@ -53,7 +53,6 @@ class RadarApp(tk.Tk):
         ttk.Label(header, text="WHALE RADAR", style="Title.TLabel").pack(side="left")
         ttk.Label(header, text="PRO 2.0  •  HYPERLIQUID × BITUNIX", style="Muted.TLabel").pack(side="right", pady=10)
 
-        # Section 1 — exchange connection profiles
         p1 = ttk.LabelFrame(root, text="  01  EXCHANGE CONNECTION  ", padding=12)
         p1.pack(fill="x", pady=(0, 12))
         self.profile_var = tk.StringVar()
@@ -64,7 +63,6 @@ class RadarApp(tk.Tk):
         ttk.Button(p1, text="Test selected", command=self.test_profile).grid(row=0, column=3, padx=4)
         ttk.Label(p1, text="Secrets are stored in Windows Credential Manager; paste into the editor.", style="Muted.TLabel").grid(row=1, column=0, columnspan=4, sticky="w", pady=(5, 0))
 
-        # Section 2 — trader radar
         p2 = ttk.LabelFrame(root, text="  02  SUCCESSFUL TRADERS  •  MAX 10  ", padding=12)
         p2.pack(fill="both", expand=True, pady=(0, 12))
         filters = ttk.Frame(p2)
@@ -86,7 +84,6 @@ class RadarApp(tk.Tk):
         self.table.pack(fill="both", expand=True)
         ttk.Button(p2, text="Review selected trade alert", command=self.review_alert).pack(anchor="e", pady=(8, 0))
 
-        # Section 3 — sizing
         p3 = ttk.LabelFrame(root, text="  03  MARGIN & RISK  ", padding=12)
         p3.pack(fill="x")
         self.margin = tk.StringVar(value="100")
@@ -150,8 +147,10 @@ class RadarApp(tk.Tk):
     def scan(self) -> None:
         try:
             low_ret, low_win = float(self.min_return.get()), float(self.min_win.get())
-        except ValueError:
-            messagebox.showerror("Invalid filters", "Return and win-rate filters must be numbers.", parent=self)
+            if not 0 <= low_win <= 100:
+                raise ValueError("Win-rate filter must be between 0 and 100.")
+        except ValueError as exc:
+            messagebox.showerror("Invalid filters", str(exc) or "Return and win-rate filters must be numbers.", parent=self)
             return
         self.status.set("Fetching public leaderboard…")
         threading.Thread(target=self._scan_worker, args=(low_ret, low_win), daemon=True).start()
@@ -170,8 +169,12 @@ class RadarApp(tk.Tk):
         for item in self.table.get_children():
             self.table.delete(item)
         for t in traders:
-            self.table.insert("", "end", values=(t.display_name, t.address, f"{t.return_pct:.2f}", f"{t.win_rate_pct:.2f}", t.trades))
-        self.status.set(f"Received {total}; {len(traders)} matched filters. Verify metric definitions before use.")
+            fmt = lambda value: "Unknown" if value is None else f"{value:.2f}"
+            self.table.insert("", "end", values=(
+                t.display_name, t.address, fmt(t.return_pct), fmt(t.win_rate_pct),
+                "Unknown" if t.trades is None else t.trades,
+            ))
+        self.status.set(f"Received {total}; {len(traders)} matched filters. Unknown metrics are excluded.")
 
     def calculate(self) -> None:
         try:
