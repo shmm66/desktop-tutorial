@@ -780,7 +780,11 @@ def process_copy_fill(client: BitunixClient, fill: dict[str, Any], wallet: str,
     except Exception as exc:
         if history_row is not None:
             set_copy_history_status(state, identity, "Failed",
-                "Copy order failed before all required milestones: {0}".format(str(exc)[:260]))
+                "Copy attempt stopped: {0}".format(str(exc)[:260]))
+            # The outcome of a timed-out exchange request may be ambiguous. Never re-submit
+            # the same source fill automatically; inspect the durable history before retrying.
+            _remember(state, identity)
+            save_copy_state(state)
         raise
     if history_row is not None:
         current = next((item for item in state.get("copy_history", [])
@@ -946,6 +950,8 @@ def _process_copy_fill_impl(client: BitunixClient, fill: dict[str, Any], wallet:
         order_id=order_id, margin=float(plan["margin"]), leverage=effective_leverage,
         risk_usdt=float(plan["risk_usdt"]), entry_price=float(plan["entry_reference"]),
         stop_price=float(plan["stop_price"]))
+    _remember(state, identity)
+    save_copy_state(state)
     time.sleep(0.35)
     confirmed_positions = client.positions(symbol)
     position = next((p for p in confirmed_positions
