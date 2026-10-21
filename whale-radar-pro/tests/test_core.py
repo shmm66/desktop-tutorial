@@ -4,7 +4,8 @@ import requests
 
 from radar.bitunix import explain_api_error, make_signature
 from radar.copytrade import (
-    calculate_order_plan, calculate_risk_headroom, futures_symbol, interpret_fill, process_copy_fill, validate_settings,
+    CopyTradeError, calculate_order_plan, calculate_risk_headroom, check_loss_circuit_breaker,
+    futures_symbol, interpret_fill, process_copy_fill, validate_settings,
 )
 from radar.hyperliquid import closed_fill_stats, enrich_missing_win_rates
 from radar.models import Trader, rank_traders
@@ -158,6 +159,36 @@ class IsolatedCopyRiskTests(unittest.TestCase):
         settings = {"authorized_capital_usdt": 20, "max_total_loss_pct": 10}
         state = {"active_trades": {"one": {"risk_usdt": 2.0}}}
         self.assertAlmostEqual(calculate_risk_headroom(settings, state, 1.0), 1.0)
+
+    def test_loss_halt_keeps_position_tracked_if_close_request_fails(self):
+        class FakeClient:
+            close_calls = 0
+            def positions(self, symbol=None):
+                return [{
+                    "positionId": "pos1", "symbol": "BTCUSDT", "side": "LONG",
+                    "marginMode": "ISOLATION", "unrealizedPNL": "-2",
+                    "realizedPNL": "0", "fee": "0", "funding": "0",
+                }]
+            def close_position(self, position_id):
+                self.close_calls += 1
+                raise CopyTradeError("temporary close failure")
+        client = FakeClient()
+        settings = {"authorized_capital_usdt": 20, "max_total_loss_pct": 10}
+        state = {
+            "halted": False, "halt_reason": "", "started_at": 0,
+            "active_trades": {"copy1": {
+                "position_id": "pos1", "symbol": "BTCUSDT", "side": "LONG",
+                "margin": 4, "risk_usdt": 2, "created_at": 1,
+            }},
+            "closed_trades": [],
+        }
+        result = check_loss_circuit_breaker(client, settings, state)
+        self.assertIn("Loss limit reached", result)
+        self.assertTrue(state["halted"])
+        self.assertIn("copy1", state["active_trades"])
+        check_loss_circuit_breaker(client, settings, state)
+        self.assertGreaterEqual(client.close_calls, 2)
+        self.assertIn("copy1", state["active_trades"])
 
     def test_halted_bot_never_places_new_orders(self):
         class ForbiddenClient:
