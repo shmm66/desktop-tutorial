@@ -261,6 +261,7 @@ I18N["en"].update({
  "api_key_missing":"No API key is configured; the built-in assistant or Ollama will be used.",
  "api_key_placeholder":"Enter your OpenAI API key here","api_key_security":"The key is stored in a local settings file; never paste it into chat.",
  "api_key_empty":"Enter an API key first."
+});
 I18N["fa"].update({
   "academy":"◉  آموزش آفلاین","academy_title":"کتابخانه آموزش آفلاین","academy_sub":"درس‌های جستجوپذیر SMC، مدل‌های ICT، کندل‌شناسی و لغتنامه؛ بدون دانلود هنگام اجرا.",
   "academy_all":"همه موضوع‌ها","academy_smc":"چارچوب SMC","academy_ict":"مدل‌های ICT","academy_candles":"کندل‌شناسی","academy_glossary":"لغتنامه",
@@ -1733,12 +1734,22 @@ class App(tk.Tk):
                           [r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf"])
             candidates += ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else
                            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+            # Cache font objects; the four high-resolution clocks redraw frequently.
+            cache = globals().setdefault("_TP_CLOCK_FONT_CACHE", {})
             for candidate in candidates:
+                key = (candidate, q(size))
+                if key in cache:
+                    return cache[key]
                 try:
-                    return ImageFont.truetype(candidate, q(size))
+                    loaded = ImageFont.truetype(candidate, q(size))
+                    cache[key] = loaded
+                    return loaded
                 except OSError:
                     continue
-            return ImageFont.load_default()
+            key = ("__default__", q(size))
+            if key not in cache:
+                cache[key] = ImageFont.load_default()
+            return cache[key]
 
         active = C["accent"] if is_open else C["muted"]
         if style == "digital":
