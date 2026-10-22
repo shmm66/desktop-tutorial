@@ -1,5 +1,5 @@
 #define AppName "Whale Radar Pro"
-#define AppVersion "2.3.1"
+#define AppVersion "2.3.2"
 #define AppExeName "WhaleRadarPro.exe"
 
 [Setup]
