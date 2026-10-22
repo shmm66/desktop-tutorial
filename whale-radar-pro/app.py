@@ -43,6 +43,7 @@ class RadarApp(tk.Tk):
         self.configure(bg=BG)
         self.traders: list[Trader] = []
         self._test_in_progress = False
+        self._verify_in_progress = False
         self._scan_in_progress = False
         self._monitor_stop: threading.Event | None = None
         self._watched_address: str | None = None
@@ -97,7 +98,7 @@ class RadarApp(tk.Tk):
         header.pack(fill="x", pady=(0, 14))
         ttk.Label(header, text="🐋  WHALE RADAR PRO", style="Title.TLabel").pack(side="left")
         ttk.Button(header, text="Copy Trade History", command=self.open_copy_history).pack(side="right", padx=(10, 0))
-        ttk.Label(header, text="2.3.1  •  HYPERLIQUID × BITUNIX",
+        ttk.Label(header, text="2.3.2  •  HYPERLIQUID × BITUNIX",
                    style="Muted.TLabel").pack(side="right", pady=10)
 
         # 01 — Bitunix credentials and connection test.
@@ -137,13 +138,16 @@ class RadarApp(tk.Tk):
         ttk.Button(action_row, text="Save / update profile", style="Accent.TButton",
                    command=self.save_current_profile).pack(side="left")
         ttk.Button(action_row, text="Delete selected", command=self.remove_profile).pack(side="left", padx=7)
-        self.test_button = ttk.Button(action_row, text="Test read-only connection",
+        self.test_button = ttk.Button(action_row, text="Test API credentials (no order)",
                                       command=self.test_profile, style="Accent.TButton")
-        self.test_button.pack(side="left", padx=(0, 10))
+        self.test_button.pack(side="left", padx=(0, 8))
+        self.verify_button = ttk.Button(action_row, text="Verify Futures account",
+                                        command=self.verify_futures_account)
+        self.verify_button.pack(side="left", padx=(0, 10))
         ttk.Label(p1, textvariable=self.profile_status, style="Muted.TLabel",
-                  wraplength=760).grid(row=4, column=0, columnspan=4, sticky="w", pady=(4, 0))
-        ttk.Label(p1, text="The test below is read-only and never sends an order. Auto-copy needs a Trading API key with Futures trading permission (not a Read-only / third-party-app key). Never enable withdrawals.",
-                  style="Muted.TLabel", wraplength=950).grid(row=5, column=0, columnspan=4, sticky="w", pady=(7, 0))
+                  wraplength=900).grid(row=4, column=0, columnspan=4, sticky="w", pady=(4, 0))
+        ttk.Label(p1, text="The credential test reads only. Verify Futures account checks signed account balance, open positions and pending orders without placing an order. For actual automated entries, the API key needs Futures Trade permission, live copy must be enabled, traders selected, and Start auto-copy running. Never enable withdrawals.",
+                  style="Muted.TLabel", wraplength=1000).grid(row=5, column=0, columnspan=4, sticky="w", pady=(7, 0))
 
         # 02 — Hyperliquid discovery and one-wallet opt-in alerts.
         p2 = ttk.LabelFrame(root, text="  02  SUCCESSFUL TRADERS · MAX 10  ", padding=12,
@@ -335,9 +339,51 @@ class RadarApp(tk.Tk):
 
     def _finish_profile_test(self, ok: bool, detail: str) -> None:
         self._test_in_progress = False
-        self.test_button.configure(state="normal", text="Test read-only connection")
+        self.test_button.configure(state="normal", text="Test API credentials (no order)")
         self.profile_status.set(detail)
-        (messagebox.showinfo if ok else messagebox.showerror)("Bitunix connection status", detail, parent=self)
+        (messagebox.showinfo if ok else messagebox.showerror)("Bitunix credential status", detail, parent=self)
+
+    def verify_futures_account(self) -> None:
+        """Read actual private Futures account data without sending or modifying an order."""
+        key, secret = self.api_key_var.get().strip(), self.api_secret_var.get().strip()
+        if not key or not secret:
+            messagebox.showwarning(
+                "Credentials required",
+                "Select a saved profile or paste both API Key and API Secret first.",
+                parent=self,
+            )
+            return
+        if self._verify_in_progress:
+            return
+        self._verify_in_progress = True
+        self.verify_button.configure(state="disabled", text="Verifying account…")
+        self.profile_status.set("Reading signed Bitunix Futures account, positions and pending orders. No order will be sent.")
+        threading.Thread(
+            target=self._verify_futures_account_worker, args=(key, secret), daemon=True
+        ).start()
+
+    def _verify_futures_account_worker(self, key: str, secret: str) -> None:
+        try:
+            snapshot = BitunixClient(key, secret).verify_futures_account()
+            detail = (
+                "Futures account connection verified. Available USDT: {0:.4f}; open positions: {1}; "
+                "pending orders: {2}. No order was sent. Important: Bitunix does not expose order "
+                "permission through this read check. Actual automatic entries require a Futures Trading "
+                "API key; the first copied order will confirm whether Bitunix accepts order permission."
+            ).format(snapshot["available_usdt"], snapshot["open_positions"], snapshot["pending_orders"])
+            ok = True
+        except Exception as exc:
+            detail = "Futures account verification failed: {0}".format(str(exc))
+            ok = False
+        self.after(0, lambda: self._finish_futures_account_verify(ok, detail))
+
+    def _finish_futures_account_verify(self, ok: bool, detail: str) -> None:
+        self._verify_in_progress = False
+        self.verify_button.configure(state="normal", text="Verify Futures account")
+        self.profile_status.set(detail)
+        (messagebox.showinfo if ok else messagebox.showerror)(
+            "Bitunix Futures account status", detail, parent=self
+        )
 
     def scan(self) -> None:
         if self._scan_in_progress:
@@ -431,15 +477,16 @@ class RadarApp(tk.Tk):
                 initial = fetch_recent_fills(address, lookback_seconds=600)
                 seen_by_address[address] = {fill_identity(fill) for fill in initial}
             client = BitunixClient(api_key, api_secret)
-            # Safe private-account preflight: this verifies signed Futures account access, not order permission.
-            # A read-only key can pass this check; we do not place a speculative live order to test permissions.
-            account = client.account()
-            available = float(account.get("available") or 0)
-            names = ", ".join(name for name, _ in traders)
-            self.after(0, lambda available=available: self.status.set(
-                "Auto-copy armed for {0} trader(s). Signed Futures account access OK; available USDT: {1:.4f}. "
-                "Order permission is not proven by read-only checks: enable Futures trading permission on the API key. "
-                "Waiting for NEW source fills; old fills are ignored.".format(len(traders), available)))
+            # Verify private account connectivity using actual balances, positions and orders.
+            # This deliberately avoids a speculative live order; the first copied entry tests order permission.
+            snapshot = client.verify_futures_account()
+            available = float(snapshot["available_usdt"])
+            self.after(0, lambda snapshot=snapshot, available=available: self.status.set(
+                "Futures account connected for {0} trader(s). Available: {1:.4f} USDT; "
+                "open positions: {2}; pending orders: {3}. Waiting for NEW source fills. "
+                "A read-only key will be rejected when an actual order is attempted; check Copy Trade History for the exact error. "
+                "Existing fills are intentionally ignored.".format(
+                    len(traders), available, snapshot["open_positions"], snapshot["pending_orders"])))
         except Exception as exc:
             detail = str(exc)
             self.after(0, lambda detail=detail: self._monitor_error(detail))
