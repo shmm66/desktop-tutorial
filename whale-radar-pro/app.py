@@ -6,6 +6,7 @@ import html
 import os
 import tempfile
 import threading
+import time
 import tkinter as tk
 import webbrowser
 from pathlib import Path
