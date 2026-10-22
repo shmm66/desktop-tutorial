@@ -183,7 +183,13 @@ class RadarApp(tk.Tk):
                   style="Muted.TLabel").pack(anchor="w", pady=(5, 0))
         controls = ttk.Frame(p2)
         controls.pack(fill="x", pady=(8, 0))
-        self.watch_button = ttk.Button(controls, text="Start auto-copy", command=self.start_monitor)
+        self.execution_mode_var = tk.StringVar(value="Manual")
+        ttk.Label(controls, text="Execution mode:").pack(side="left", padx=(0, 6))
+        ttk.Radiobutton(controls, text="Manual · approve each trade",
+                        variable=self.execution_mode_var, value="Manual").pack(side="left", padx=(0, 8))
+        ttk.Radiobutton(controls, text="Automatic · no confirmation",
+                        variable=self.execution_mode_var, value="Automatic").pack(side="left", padx=(0, 12))
+        self.watch_button = ttk.Button(controls, text="Start monitoring", command=self.start_monitor)
         self.watch_button.pack(side="left")
         self.stop_button = ttk.Button(controls, text="Stop auto-copy", command=self.stop_monitor, state="disabled")
         self.stop_button.pack(side="left", padx=8)
@@ -211,7 +217,7 @@ class RadarApp(tk.Tk):
                    command=self.calculate).pack(side="left")
         ttk.Label(p3, textvariable=self.sizing_result, style="Muted.TLabel",
                   wraplength=960).grid(row=2, column=0, sticky="w", pady=(8, 0))
-        ttk.Label(root, text="Every new entry triggers an approval prompt before a real Bitunix order is sent. Approved trades use saved capital/risk settings; copied-position exits continue to be managed automatically. The built-in stop targets 50% of allocated margin; gaps, fees and slippage can change the result.",
+        ttk.Label(root, text="Manual mode asks before each new entry. Automatic mode submits eligible new entries without a prompt while the monitor is running. Monitoring checks every 5 seconds and deduplicates fills; if the app is closed, offline fills are not backfilled. Risk limits and the loss circuit breaker still apply. The built-in stop targets 50% of allocated margin; gaps, fees, API outages and slippage can change the result.",
                   style="Muted.TLabel", wraplength=980).pack(anchor="w", pady=(0, 8))
         self._refresh_copy_summary()
 
@@ -467,11 +473,13 @@ class RadarApp(tk.Tk):
         names = ", ".join(name for name, _ in traders)
         self.status.set("Monitoring {0} trader(s). Existing fills are ignored; each new entry will ask for your approval.".format(len(traders)))
         settings = dict(self.copy_settings)
+        mode = self.execution_mode_var.get()
+        self.status.set("{0} mode enabled for {1} trader(s). Monitoring runs every 5 seconds while this app remains open.".format(mode, len(traders)))
         threading.Thread(target=self._monitor_worker,
-            args=(traders, stop_event, key, secret, settings), daemon=True).start()
+            args=(traders, stop_event, key, secret, settings, mode), daemon=True).start()
 
     def _monitor_worker(self, traders: list[tuple[str, str]], stop_event: threading.Event,
-                        api_key: str, api_secret: str, settings: dict) -> None:
+                        api_key: str, api_secret: str, settings: dict, mode: str = "Manual") -> None:
         seen_by_address: dict[str, set[str]] = {}
         try:
             for name, address in traders:
@@ -492,12 +500,14 @@ class RadarApp(tk.Tk):
             detail = str(exc)
             self.after(0, lambda detail=detail: self._monitor_error(detail))
             return
-        while not stop_event.wait(20):
+        while not stop_event.wait(5):
             try:
                 settings = load_copy_settings()
                 all_fresh = []
                 for name, address in traders:
-                    fills = fetch_recent_fills(address, lookback_seconds=120)
+                    # Overlap the poll window so short API/network hiccups are less likely to drop a fill.
+                    # fill_identity deduplicates overlapping results before execution.
+                    fills = fetch_recent_fills(address, lookback_seconds=300)
                     seen = seen_by_address.setdefault(address, set())
                     for fill in fills:
                         identity = fill_identity(fill)
@@ -513,24 +523,26 @@ class RadarApp(tk.Tk):
                     fill["_trader_name"] = name
                     action = interpret_fill(fill)
                     if action and action[0] == "OPEN":
-                        decision_event = threading.Event()
-                        decision = {"approved": False}
-                        fill_for_prompt = dict(fill)
-                        self.after(0, lambda n=name, a=address, f=fill_for_prompt,
-                                   e=decision_event, d=decision:
-                                   self._ask_copy_entry(n, a, f, e, d))
-                        # Never place an entry if the approval prompt is ignored or unavailable.
-                        if not decision_event.wait(timeout=60):
-                            detail = "{0} · {1} · approval timed out; no order sent.".format(
-                                name, fill.get("coin", "?"))
-                            self.after(0, lambda detail=detail: self.status.set(detail))
-                            continue
-                        if not decision.get("approved"):
-                            detail = "{0} · {1} · declined; no order sent.".format(
-                                name, fill.get("coin", "?"))
-                            self.after(0, lambda detail=detail: self.status.set(detail))
-                            continue
-                        # Reject delayed approvals instead of copying a stale source entry.
+                        # Manual mode asks for explicit approval. Automatic mode bypasses only the prompt,
+                        # not exchange checks, sizing rules, loss limits, or stale-entry protection.
+                        if mode == "Manual":
+                            decision_event = threading.Event()
+                            decision = {"approved": False}
+                            fill_for_prompt = dict(fill)
+                            self.after(0, lambda n=name, a=address, f=fill_for_prompt,
+                                       e=decision_event, d=decision:
+                                       self._ask_copy_entry(n, a, f, e, d))
+                            if not decision_event.wait(timeout=60):
+                                detail = "{0} · {1} · approval timed out; no order sent.".format(
+                                    name, fill.get("coin", "?"))
+                                self.after(0, lambda detail=detail: self.status.set(detail))
+                                continue
+                            if not decision.get("approved"):
+                                detail = "{0} · {1} · declined; no order sent.".format(
+                                    name, fill.get("coin", "?"))
+                                self.after(0, lambda detail=detail: self.status.set(detail))
+                                continue
+                        # Reject stale source entries in both modes instead of copying an outdated price.
                         try:
                             source_time = int(fill.get("time") or 0)
                             if source_time and int(time.time() * 1000) - source_time > 90000:
@@ -605,7 +617,7 @@ class RadarApp(tk.Tk):
         self._monitor_stop = None
         self._watched_address = None
         self._watched_traders = []
-        self.watch_button.configure(state="normal", text="Start auto-copy")
+        self.watch_button.configure(state="normal", text="Start monitoring")
         self.stop_button.configure(state="disabled")
         self.status.set("Auto-copy monitor stopped. Any already-open isolated position and its exchange-side stop remain active.")
 
