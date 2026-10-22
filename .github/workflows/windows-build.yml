@@ -45,6 +45,6 @@ jobs:
           name: WhaleRadarPro-Windows-${{ github.run_number }}
           path: |
             whale-radar-pro/dist/WhaleRadarPro.exe
-            whale-radar-pro/dist/WhaleRadarPro-Setup-v2.3.5.exe
+            whale-radar-pro/dist/WhaleRadarPro-Setup-v2.3.6.exe
           if-no-files-found: error
           retention-days: 14
