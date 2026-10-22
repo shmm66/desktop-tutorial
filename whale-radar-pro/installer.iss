@@ -1,5 +1,5 @@
 #define AppName "Whale Radar Pro"
-#define AppVersion "2.3.2"
+#define AppVersion "2.3.3"
 #define AppExeName "WhaleRadarPro.exe"
 
 [Setup]
@@ -9,7 +9,8 @@ AppVersion={#AppVersion}
 DefaultDirName={autopf}\Whale Radar Pro
 DefaultGroupName={#AppName}
 OutputDir=dist
-OutputBaseFilename=WhaleRadarPro-Setup
+OutputBaseFilename=WhaleRadarPro-Setup-v2.3.3
+SetupIconFile=assets\whaleradar.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -24,7 +25,7 @@ Name: "{group}\Whale Radar Pro"; Filename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\Whale Radar Pro"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch Whale Radar Pro"; Flags: postinstall nowait skipifsilent
