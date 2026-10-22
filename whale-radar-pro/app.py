@@ -483,9 +483,7 @@ class RadarApp(tk.Tk):
         self.watch_button.configure(state="disabled", text="Auto-copy running…")
         self.stop_button.configure(state="normal")
         names = ", ".join(name for name, _ in traders)
-        self.status.set("Monitoring {0} trader(s). Existing fills are ignored; each new entry will ask for your approval.".format(len(traders)))
         settings = dict(self.copy_settings)
-        mode = self.execution_mode_var.get()
         self.status.set("{0} mode enabled for {1} trader(s). Monitoring runs every 5 seconds while this app remains open.".format(mode, len(traders)))
         threading.Thread(target=self._monitor_worker,
             args=(traders, stop_event, key, secret, settings, mode), daemon=True).start()
