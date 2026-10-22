@@ -37,8 +37,21 @@ ERROR_GUIDANCE = {
     ),
     "10005": "Bitunix rate limit was reached. Wait briefly before trying again.",
     "403": (
-        "This API key does not have permission for the read-only Futures positions endpoint. "
-        "Check key status and permissions in Bitunix API Management."
+        "Bitunix says this API key does not support the requested operation. For automatic orders, "
+        "create/use an API key with Futures trading permission; a Read-only or third-party-app key "
+        "cannot submit orders. Keep withdrawals disabled and verify the key IP whitelist."
+    ),
+    "20011": (
+        "Bitunix reports that this account is not allowed to trade. Check Futures account restrictions "
+        "and API trading permissions in Bitunix; contact Bitunix support if the account itself is restricted."
+    ),
+    "20012": (
+        "Bitunix says this futures contract does not allow trading. The app will skip this symbol; "
+        "check the contract status and supported API trading pairs."
+    ),
+    "30040": (
+        "Bitunix reports that futures trading is prohibited for this account. No new order can be placed; "
+        "check account restrictions or contact Bitunix support."
     ),
 }
 
@@ -109,7 +122,10 @@ def test_connection(api_key: str, api_secret: str, timeout: float = 10.0) -> tup
             return False, "Bitunix returned an unexpected response format."
         code = payload.get("code")
         if str(code) == "0":
-            return True, "Bitunix authentication succeeded using a read-only positions request. No order was sent."
+            return True, ("Read-only API authentication succeeded (key, signature and IP accepted). "
+                          "This does NOT verify Futures trading permission and no order was sent. "
+                          "Automatic copy trading requires an API key with Futures trading permission; "
+                          "keep withdrawals disabled.")
         return False, explain_api_error(code, payload.get("msg") or payload.get("message"))
     except requests.Timeout:
         return False, "Bitunix connection timed out. Check network access and try again."
