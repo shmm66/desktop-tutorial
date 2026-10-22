@@ -4,7 +4,7 @@ import requests
 
 from radar.bitunix import explain_api_error, make_signature
 from radar.copytrade import (
-    CopyTradeError, calculate_order_plan, calculate_risk_headroom, check_loss_circuit_breaker,
+    BitunixClient, CopyTradeError, calculate_order_plan, calculate_risk_headroom, check_loss_circuit_breaker,
     futures_symbol, interpret_fill, process_copy_fill, validate_settings,
 )
 from radar.hyperliquid import closed_fill_stats, enrich_missing_win_rates
@@ -38,6 +38,17 @@ class BitunixSigningTests(unittest.TestCase):
         message = explain_api_error("20011")
         self.assertIn("not allowed to trade", message.casefold())
         self.assertIn("Bitunix", message)
+
+    def test_verify_futures_account_reads_balance_positions_and_orders_without_ordering(self):
+        client = BitunixClient("unit-test-key", "unit-test-secret")
+        with patch.object(client, "account", return_value={"available": "12.50"}) as account:
+            with patch.object(client, "positions", return_value=[{"positionId": "p1"}]) as positions:
+                with patch.object(client, "pending_orders", return_value=[{"orderId": "o1"}, {"orderId": "o2"}]) as orders:
+                    result = client.verify_futures_account()
+        self.assertEqual(result, {"available_usdt": 12.5, "open_positions": 1, "pending_orders": 2})
+        account.assert_called_once_with()
+        positions.assert_called_once_with()
+        orders.assert_called_once_with()
 
 
 class RiskTests(unittest.TestCase):
