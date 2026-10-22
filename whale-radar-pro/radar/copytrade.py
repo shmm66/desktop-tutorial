@@ -373,19 +373,36 @@ class BitunixClient:
                 data=body_text if body is not None else None,
                 headers=headers, timeout=self.timeout,
             )
-            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise CopyTradeError("Could not reach Bitunix; no safe confirmation was received.") from exc
+
+        # Bitunix commonly returns application error codes inside HTTP 200 JSON responses.
+        # Parse that payload before considering the HTTP status so permission errors keep
+        # their actionable message instead of being collapsed into a generic HTTP failure.
+        try:
             payload = response.json()
-        except (requests.RequestException, ValueError) as exc:
-            raise CopyTradeError("Bitunix request failed; no safe confirmation was received.") from exc
+        except ValueError as exc:
+            if not response.ok:
+                raise CopyTradeError(
+                    "Bitunix HTTP error {0}; its response was not JSON.".format(response.status_code)
+                ) from exc
+            raise CopyTradeError("Bitunix returned a non-JSON response.") from exc
+
         if not isinstance(payload, dict):
+            if not response.ok:
+                raise CopyTradeError("Bitunix HTTP error {0}.".format(response.status_code))
             raise CopyTradeError("Bitunix returned an unexpected response.")
         code = payload.get("code")
         if str(code) != "0":
+            if code is None and not response.ok:
+                code = response.status_code
             # Never include or log API credentials in diagnostics.
-            # Translate common permission/account restrictions into actionable guidance.
+            # Translate permission/account restrictions into actionable guidance.
             raise CopyTradeError(explain_api_error(
                 code, str(payload.get("msg") or payload.get("message") or "unknown error")[:240]
             ))
+        if not response.ok:
+            raise CopyTradeError("Bitunix HTTP error {0}.".format(response.status_code))
         return payload.get("data")
 
     @staticmethod
@@ -417,6 +434,20 @@ class BitunixClient:
         if isinstance(data, list):
             return [x for x in data if isinstance(x, dict)]
         raise CopyTradeError("Bitunix returned an unexpected open-positions response.")
+
+    def verify_futures_account(self) -> dict[str, Any]:
+        """Read private Futures account, positions and pending orders without trading."""
+        account = self.account()
+        positions = self.positions()
+        orders = self.pending_orders()
+        available = _safe_float(account.get("available"))
+        if available is None or available < 0:
+            raise CopyTradeError("Bitunix returned an invalid available USDT Futures balance.")
+        return {
+            "available_usdt": available,
+            "open_positions": len(positions),
+            "pending_orders": len(orders),
+        }
 
     def pending_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         params = {"symbol": symbol, "limit": 100} if symbol else {"limit": 100}
