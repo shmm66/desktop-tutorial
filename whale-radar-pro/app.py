@@ -13,7 +13,7 @@ from tkinter import ttk, messagebox, filedialog
 
 from radar.bitunix import test_connection
 from radar.copytrade import (
-    BitunixClient, CopyTradeError, check_loss_circuit_breaker, load_copy_settings,
+    BitunixClient, CopyTradeError, check_loss_circuit_breaker, interpret_fill, load_copy_settings,
     load_copy_state, process_copy_fill, refresh_copy_history, reset_loss_halt, save_copy_settings,
 )
 from radar.credentials import delete_profile, get_profile_secrets, list_profiles, save_profile
@@ -210,7 +210,7 @@ class RadarApp(tk.Tk):
                    command=self.calculate).pack(side="left")
         ttk.Label(p3, textvariable=self.sizing_result, style="Muted.TLabel",
                   wraplength=960).grid(row=2, column=0, sticky="w", pady=(8, 0))
-        ttk.Label(root, text="New fills from the selected wallet are copied automatically after the one-time setup. No per-trade confirmation is shown. The built-in stop targets 50% of each trade's allocated margin; execution gaps, fees and slippage may change the result.",
+        ttk.Label(root, text="Every new entry triggers an approval prompt before a real Bitunix order is sent. Approved trades use saved capital/risk settings; copied-position exits continue to be managed automatically. The built-in stop targets 50% of allocated margin; gaps, fees and slippage can change the result.",
                   style="Muted.TLabel", wraplength=980).pack(anchor="w", pady=(0, 8))
         self._refresh_copy_summary()
 
@@ -464,7 +464,7 @@ class RadarApp(tk.Tk):
         self.watch_button.configure(state="disabled", text="Auto-copy running…")
         self.stop_button.configure(state="normal")
         names = ", ".join(name for name, _ in traders)
-        self.status.set("Starting automatic copy for {0} trader(s). Existing fills will be ignored.".format(len(traders)))
+        self.status.set("Monitoring {0} trader(s). Existing fills are ignored; each new entry will ask for your approval.".format(len(traders)))
         settings = dict(self.copy_settings)
         threading.Thread(target=self._monitor_worker,
             args=(traders, stop_event, key, secret, settings), daemon=True).start()
@@ -509,8 +509,40 @@ class RadarApp(tk.Tk):
                 for name, address, fill in all_fresh:
                     if stop_event.is_set():
                         break
+                    fill["_trader_name"] = name
+                    action = interpret_fill(fill)
+                    if action and action[0] == "OPEN":
+                        decision_event = threading.Event()
+                        decision = {"approved": False}
+                        fill_for_prompt = dict(fill)
+                        self.after(0, lambda n=name, a=address, f=fill_for_prompt,
+                                   e=decision_event, d=decision:
+                                   self._ask_copy_entry(n, a, f, e, d))
+                        # Never place an entry if the approval prompt is ignored or unavailable.
+                        if not decision_event.wait(timeout=60):
+                            detail = "{0} · {1} · approval timed out; no order sent.".format(
+                                name, fill.get("coin", "?"))
+                            self.after(0, lambda detail=detail: self.status.set(detail))
+                            continue
+                        if not decision.get("approved"):
+                            detail = "{0} · {1} · declined; no order sent.".format(
+                                name, fill.get("coin", "?"))
+                            self.after(0, lambda detail=detail: self.status.set(detail))
+                            continue
+                        # Reject delayed approvals instead of copying a stale source entry.
+                        try:
+                            source_time = int(fill.get("time") or 0)
+                            if source_time and int(time.time() * 1000) - source_time > 90000:
+                                detail = "{0} · {1} · source entry is stale; no order sent.".format(
+                                    name, fill.get("coin", "?"))
+                                self.after(0, lambda detail=detail: self.status.set(detail))
+                                continue
+                        except (TypeError, ValueError):
+                            detail = "{0} · {1} · source timestamp invalid; no order sent.".format(
+                                name, fill.get("coin", "?"))
+                            self.after(0, lambda detail=detail: self.status.set(detail))
+                            continue
                     try:
-                        fill["_trader_name"] = name
                         state = load_copy_state()
                         result = process_copy_fill(client, fill, address, settings, state)
                         detail = "{0} · {1} · {2}".format(name, fill.get("coin", "?"), result)
@@ -532,6 +564,30 @@ class RadarApp(tk.Tk):
             except Exception as exc:
                 detail = "Hyperliquid monitor temporarily failed: {0}".format(exc)
                 self.after(0, lambda detail=detail: self.status.set(detail))
+
+    def _ask_copy_entry(self, name: str, address: str, fill: dict, decision_event: threading.Event,
+                        decision: dict) -> None:
+        """Ask the user on the Tk main thread before sending a new copied entry."""
+        direction = str(fill.get("dir") or "Unknown")
+        coin = str(fill.get("coin") or "Unknown").upper()
+        try:
+            approved = messagebox.askyesno(
+                "New Hyperliquid entry detected",
+                "Trader: {0}\\nAsset: {1}\\nDirection: {2}\\nSource price: {3}\\nSize: {4}\\n\\n"
+                "Copy this entry to Bitunix Futures now using your saved margin and risk limits?\\n\\n"
+                "Choosing Yes sends a REAL order. Choosing No skips this entry.".format(
+                    name, coin, direction, fill.get("px", "Unknown"), fill.get("sz", "Unknown")),
+                parent=self,
+            )
+            decision["approved"] = bool(approved)
+            self.status.set(
+                "{0} · {1} · {2}".format(name, coin,
+                    "entry approved; submitting with risk checks" if approved else "entry declined; no order sent"))
+        except Exception as exc:
+            decision["approved"] = False
+            self.status.set("Could not show trade approval dialog; entry skipped: {0}".format(exc))
+        finally:
+            decision_event.set()
 
     def _monitor_error(self, detail: str) -> None:
         self.stop_monitor()
@@ -752,7 +808,7 @@ th,td{border:1px solid #ccd5de;padding:6px;text-align:left;overflow-wrap:anywher
         ttk.Label(outer, text="AUTO-COPY RISK SETTINGS", style="Title.TLabel").grid(
             row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
         ttk.Label(outer,
-            text="These values are saved locally and reused automatically. You are not asked to approve every trade.",
+            text="These values are saved locally and reused for any trade entry you approve in the confirmation prompt.",
             style="Muted.TLabel", wraplength=460
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 12))
         fields = [
@@ -768,7 +824,7 @@ th,td{border:1px solid #ccd5de;padding:6px;text-align:left;overflow-wrap:anywher
             variables[key] = variable
             ttk.Entry(outer, textvariable=variable, width=16).grid(row=row, column=1, sticky="e", pady=5)
         enabled_var = tk.BooleanVar(value=bool(current.get("live_copy_enabled")))
-        ttk.Checkbutton(outer, text="Enable unattended real-money copy trades", variable=enabled_var).grid(
+        ttk.Checkbutton(outer, text="Enable live order copying (approval required for each new entry)", variable=enabled_var).grid(
             row=6, column=0, columnspan=2, sticky="w", pady=(9, 3))
         ttk.Label(outer,
             text="For each position, requested margin is capped by these settings and the free futures balance. "
