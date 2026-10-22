@@ -137,12 +137,12 @@ class RadarApp(tk.Tk):
         ttk.Button(action_row, text="Save / update profile", style="Accent.TButton",
                    command=self.save_current_profile).pack(side="left")
         ttk.Button(action_row, text="Delete selected", command=self.remove_profile).pack(side="left", padx=7)
-        self.test_button = ttk.Button(action_row, text="Test Bitunix connection",
+        self.test_button = ttk.Button(action_row, text="Test read-only connection",
                                       command=self.test_profile, style="Accent.TButton")
         self.test_button.pack(side="left", padx=(0, 10))
         ttk.Label(p1, textvariable=self.profile_status, style="Muted.TLabel",
                   wraplength=760).grid(row=4, column=0, columnspan=4, sticky="w", pady=(4, 0))
-        ttk.Label(p1, text="Keys are stored in Windows Credential Manager. Live copy needs Futures trading permission; never enable withdrawals.",
+        ttk.Label(p1, text="The test below is read-only and never sends an order. Auto-copy needs a Trading API key with Futures trading permission (not a Read-only / third-party-app key). Never enable withdrawals.",
                   style="Muted.TLabel", wraplength=950).grid(row=5, column=0, columnspan=4, sticky="w", pady=(7, 0))
 
         # 02 — Hyperliquid discovery and one-wallet opt-in alerts.
@@ -325,8 +325,8 @@ class RadarApp(tk.Tk):
         if self._test_in_progress:
             return
         self._test_in_progress = True
-        self.test_button.configure(state="disabled", text="Testing connection…")
-        self.profile_status.set("Testing signed read-only request to Bitunix…")
+        self.test_button.configure(state="disabled", text="Testing read-only access…")
+        self.profile_status.set("Checking API key, signature and IP with a read-only request…")
         threading.Thread(target=self._test_profile_worker, args=(key, secret), daemon=True).start()
 
     def _test_profile_worker(self, key: str, secret: str) -> None:
@@ -335,7 +335,7 @@ class RadarApp(tk.Tk):
 
     def _finish_profile_test(self, ok: bool, detail: str) -> None:
         self._test_in_progress = False
-        self.test_button.configure(state="normal", text="Test Bitunix connection")
+        self.test_button.configure(state="normal", text="Test read-only connection")
         self.profile_status.set(detail)
         (messagebox.showinfo if ok else messagebox.showerror)("Bitunix connection status", detail, parent=self)
 
@@ -431,9 +431,15 @@ class RadarApp(tk.Tk):
                 initial = fetch_recent_fills(address, lookback_seconds=600)
                 seen_by_address[address] = {fill_identity(fill) for fill in initial}
             client = BitunixClient(api_key, api_secret)
+            # Safe private-account preflight: this verifies signed Futures account access, not order permission.
+            # A read-only key can pass this check; we do not place a speculative live order to test permissions.
+            account = client.account()
+            available = float(account.get("available") or 0)
             names = ", ".join(name for name, _ in traders)
-            self.after(0, lambda: self.status.set(
-                "Auto-copy active for {0} trader(s); checking every 20 seconds.".format(len(traders))))
+            self.after(0, lambda available=available: self.status.set(
+                "Auto-copy armed for {0} trader(s). Signed Futures account access OK; available USDT: {1:.4f}. "
+                "Order permission is not proven by read-only checks: enable Futures trading permission on the API key. "
+                "Waiting for NEW source fills; old fills are ignored.".format(len(traders), available)))
         except Exception as exc:
             detail = str(exc)
             self.after(0, lambda detail=detail: self._monitor_error(detail))
