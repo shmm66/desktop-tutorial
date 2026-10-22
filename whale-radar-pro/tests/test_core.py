@@ -29,6 +29,16 @@ class BitunixSigningTests(unittest.TestCase):
         self.assertIn("signature", message.casefold())
         self.assertNotIn("whitelist", message.casefold())
 
+    def test_read_only_api_key_error_explains_futures_trade_permission(self):
+        message = explain_api_error(403)
+        self.assertIn("Futures trading permission", message)
+        self.assertIn("withdrawals", message.casefold())
+
+    def test_account_trade_restriction_has_actionable_guidance(self):
+        message = explain_api_error("20011")
+        self.assertIn("not allowed to trade", message.casefold())
+        self.assertIn("Bitunix", message)
+
 
 class RiskTests(unittest.TestCase):
     def test_position_size(self):
