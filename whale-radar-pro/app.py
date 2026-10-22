@@ -548,7 +548,7 @@ class RadarApp(tk.Tk):
                                         name, fill.get("coin", "?"))
                                     self.after(0, lambda detail=detail: self.status.set(detail))
                                     entry_blocked = True
-                                if action and mode == "Manual":
+                                if action and not entry_blocked and mode == "Manual":
                                     decision_event = threading.Event()
                                     decision = {"approved": False}
                                     fill_for_prompt = dict(fill)
