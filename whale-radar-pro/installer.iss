@@ -1,5 +1,5 @@
 #define AppName "Whale Radar Pro"
-#define AppVersion "2.3.5"
+#define AppVersion "2.3.6"
 #define AppExeName "WhaleRadarPro.exe"
 
 [Setup]
@@ -9,7 +9,7 @@ AppVersion={#AppVersion}
 DefaultDirName={autopf}\Whale Radar Pro
 DefaultGroupName={#AppName}
 OutputDir=dist
-OutputBaseFilename=WhaleRadarPro-Setup-v2.3.5
+OutputBaseFilename=WhaleRadarPro-Setup-v2.3.6
 SetupIconFile=assets\whaleradar.ico
 Compression=lzma2
 SolidCompression=yes
