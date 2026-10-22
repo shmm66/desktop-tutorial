@@ -18,7 +18,7 @@ import time
 
 import requests
 
-from .bitunix import BASE_URL, make_signature
+from .bitunix import BASE_URL, explain_api_error, make_signature
 from .monitor import fill_identity
 from .statement import record_note, record_stage, update_trade
 
@@ -364,7 +364,7 @@ class BitunixClient:
             "sign": signature,
             "language": "en-US",
             "Content-Type": "application/json",
-            "User-Agent": "WhaleRadarPro/2.2",
+            "User-Agent": "WhaleRadarPro/2.3",
         }
         url = BASE_URL + path
         try:
@@ -382,7 +382,8 @@ class BitunixClient:
         code = payload.get("code")
         if str(code) != "0":
             # Never include or log API credentials in diagnostics.
-            raise CopyTradeError("Bitunix rejected the request (code {0}): {1}".format(
+            # Translate common permission/account restrictions into actionable guidance.
+            raise CopyTradeError(explain_api_error(
                 code, str(payload.get("msg") or payload.get("message") or "unknown error")[:240]
             ))
         return payload.get("data")
