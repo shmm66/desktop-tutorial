@@ -486,7 +486,7 @@ class RadarApp(tk.Tk):
         self.stop_button.configure(state="normal")
         names = ", ".join(name for name, _ in traders)
         settings = dict(self.copy_settings)
-        self.status.set("{0} mode enabled for {1} trader(s). Monitoring runs every 5 seconds while this app remains open.".format(mode, len(traders)))
+        self.status.set("{0} mode enabled for {1} trader(s). Connecting to the live Hyperliquid fill stream; automatic reconnect is enabled.".format(mode, len(traders)))
         stream = HyperliquidFillStream(traders, status_callback=self._stream_status)
         self._fill_stream = stream
         threading.Thread(target=self._monitor_worker,
@@ -528,6 +528,7 @@ class RadarApp(tk.Tk):
                                 seen.add(identity)
                             fill["_trader_name"] = name
                             action = interpret_fill(fill)
+                            entry_blocked = False
                             if action and action[0] == "OPEN":
                                 # Never open a stale copy after a disconnect/reconnect or dialog delay.
                                 try:
@@ -536,17 +537,17 @@ class RadarApp(tk.Tk):
                                         detail = "{0} · {1} · source entry is stale; no order sent.".format(
                                             name, fill.get("coin", "?"))
                                         self.after(0, lambda detail=detail: self.status.set(detail))
-                                        action = None
+                                        entry_blocked = True
                                     elif not source_time:
                                         detail = "{0} · {1} · source timestamp missing; no order sent.".format(
                                             name, fill.get("coin", "?"))
                                         self.after(0, lambda detail=detail: self.status.set(detail))
-                                        action = None
+                                        entry_blocked = True
                                 except (TypeError, ValueError):
                                     detail = "{0} · {1} · source timestamp invalid; no order sent.".format(
                                         name, fill.get("coin", "?"))
                                     self.after(0, lambda detail=detail: self.status.set(detail))
-                                    action = None
+                                    entry_blocked = True
                                 if action and mode == "Manual":
                                     decision_event = threading.Event()
                                     decision = {"approved": False}
@@ -558,17 +559,15 @@ class RadarApp(tk.Tk):
                                         detail = "{0} · {1} · approval timed out; no order sent.".format(
                                             name, fill.get("coin", "?"))
                                         self.after(0, lambda detail=detail: self.status.set(detail))
-                                        action = None
+                                        entry_blocked = True
                                     elif not decision.get("approved"):
                                         detail = "{0} · {1} · declined; no order sent.".format(
                                             name, fill.get("coin", "?"))
                                         self.after(0, lambda detail=detail: self.status.set(detail))
-                                        action = None
+                                        entry_blocked = True
                             # Only entry opens need approval/staleness filtering. Distinct closes and
                             # reductions still flow through the copy engine for position management.
-                            if action is not None or not interpret_fill(fill) or (
-                                interpret_fill(fill) and interpret_fill(fill)[0] != "OPEN"
-                            ):
+                            if not (action and action[0] == "OPEN" and entry_blocked):
                                 try:
                                     current_settings = load_copy_settings()
                                     state = load_copy_state()
