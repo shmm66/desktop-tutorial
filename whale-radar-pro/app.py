@@ -20,7 +20,8 @@ from radar.copytrade import (
 from radar.credentials import delete_profile, get_profile_secrets, list_profiles, save_profile
 from radar.hyperliquid import fetch_leaderboard
 from radar.models import Trader, rank_traders
-from radar.monitor import fetch_recent_fills, fill_identity
+from radar.monitor import fill_identity
+from radar.hyperliquid_stream import HyperliquidFillStream
 from radar.risk import calculate_position_size
 
 BG = "#10151f"
@@ -47,6 +48,7 @@ class RadarApp(tk.Tk):
         self._verify_in_progress = False
         self._scan_in_progress = False
         self._monitor_stop: threading.Event | None = None
+        self._fill_stream: HyperliquidFillStream | None = None
         self._watched_address: str | None = None
         self._watched_traders: list[tuple[str, str]] = []
         self._history_window: tk.Toplevel | None = None
@@ -99,7 +101,7 @@ class RadarApp(tk.Tk):
         header.pack(fill="x", pady=(0, 14))
         ttk.Label(header, text="🐋  WHALE RADAR PRO", style="Title.TLabel").pack(side="left")
         ttk.Button(header, text="Copy Trade History", command=self.open_copy_history).pack(side="right", padx=(10, 0))
-        ttk.Label(header, text="2.3.5  •  HYPERLIQUID × BITUNIX",
+        ttk.Label(header, text="2.3.6  •  HYPERLIQUID × BITUNIX",
                    style="Muted.TLabel").pack(side="right", pady=10)
 
         # 01 — Bitunix credentials and connection test.
@@ -485,119 +487,122 @@ class RadarApp(tk.Tk):
         names = ", ".join(name for name, _ in traders)
         settings = dict(self.copy_settings)
         self.status.set("{0} mode enabled for {1} trader(s). Monitoring runs every 5 seconds while this app remains open.".format(mode, len(traders)))
+        stream = HyperliquidFillStream(traders, status_callback=self._stream_status)
+        self._fill_stream = stream
         threading.Thread(target=self._monitor_worker,
-            args=(traders, stop_event, key, secret, settings, mode), daemon=True).start()
+            args=(traders, stop_event, key, secret, settings, mode, stream), daemon=True).start()
+
+    def _stream_status(self, detail: str) -> None:
+        """Safely surface stream connection/reconnect state from its background thread."""
+        try:
+            self.after(0, lambda detail=detail: self.status.set(detail))
+        except tk.TclError:
+            pass
 
     def _monitor_worker(self, traders: list[tuple[str, str]], stop_event: threading.Event,
-                        api_key: str, api_secret: str, settings: dict, mode: str = "Manual") -> None:
-        seen_by_address: dict[str, set[str]] = {}
+                        api_key: str, api_secret: str, settings: dict, mode: str,
+                        stream: HyperliquidFillStream) -> None:
+        seen: set[str] = set()
+        last_risk_check = 0.0
         try:
-            for name, address in traders:
-                initial = fetch_recent_fills(address, lookback_seconds=300)
-                # Keep fills from the last 90 seconds eligible for the first poll so a trade
-                # opened just before monitoring started is less likely to be missed.
-                now_ms = int(time.time() * 1000)
-                already_old = set()
-                for fill in initial:
-                    try:
-                        fill_time = int(fill.get("time") or 0)
-                    except (TypeError, ValueError):
-                        fill_time = 0
-                    if not fill_time or now_ms - fill_time > 90000:
-                        already_old.add(fill_identity(fill))
-                seen_by_address[address] = already_old
             client = BitunixClient(api_key, api_secret)
-            # Verify private account connectivity using actual balances, positions and orders.
-            # This deliberately avoids a speculative live order; the first copied entry tests order permission.
+            # Verify Bitunix before activating the live source stream. This is read-only.
             snapshot = client.verify_futures_account()
             available = float(snapshot["available_usdt"])
             self.after(0, lambda snapshot=snapshot, available=available: self.status.set(
-                "Futures account connected for {0} trader(s). Available: {1:.4f} USDT; "
-                "open positions: {2}; pending orders: {3}. Waiting for NEW source fills. "
-                "A read-only key will be rejected when an actual order is attempted; check Copy Trade History for the exact error. "
-                "Existing fills are intentionally ignored.".format(
-                    len(traders), available, snapshot["open_positions"], snapshot["pending_orders"])))
+                "Bitunix Futures account verified. Available: {0:.4f} USDT; open positions: {1}; "
+                "pending orders: {2}. Connecting to Hyperliquid live fills…".format(
+                    available, snapshot["open_positions"], snapshot["pending_orders"])))
+            stream.start()
+            while not stop_event.is_set():
+                try:
+                    event = stream.get_fill(timeout=0.5)
+                    if event is not None:
+                        name, address, fill = event
+                        identity = fill_identity(fill)
+                        if identity not in seen:
+                            seen.add(identity)
+                            if len(seen) > 50000:
+                                # Bound memory for a long-running desktop session.
+                                seen.clear()
+                                seen.add(identity)
+                            fill["_trader_name"] = name
+                            action = interpret_fill(fill)
+                            if action and action[0] == "OPEN":
+                                # Never open a stale copy after a disconnect/reconnect or dialog delay.
+                                try:
+                                    source_time = int(fill.get("time") or 0)
+                                    if source_time and int(time.time() * 1000) - source_time > 90000:
+                                        detail = "{0} · {1} · source entry is stale; no order sent.".format(
+                                            name, fill.get("coin", "?"))
+                                        self.after(0, lambda detail=detail: self.status.set(detail))
+                                        action = None
+                                    elif not source_time:
+                                        detail = "{0} · {1} · source timestamp missing; no order sent.".format(
+                                            name, fill.get("coin", "?"))
+                                        self.after(0, lambda detail=detail: self.status.set(detail))
+                                        action = None
+                                except (TypeError, ValueError):
+                                    detail = "{0} · {1} · source timestamp invalid; no order sent.".format(
+                                        name, fill.get("coin", "?"))
+                                    self.after(0, lambda detail=detail: self.status.set(detail))
+                                    action = None
+                                if action and mode == "Manual":
+                                    decision_event = threading.Event()
+                                    decision = {"approved": False}
+                                    fill_for_prompt = dict(fill)
+                                    self.after(0, lambda n=name, a=address, f=fill_for_prompt,
+                                               e=decision_event, d=decision:
+                                               self._ask_copy_entry(n, a, f, e, d))
+                                    if not decision_event.wait(timeout=60):
+                                        detail = "{0} · {1} · approval timed out; no order sent.".format(
+                                            name, fill.get("coin", "?"))
+                                        self.after(0, lambda detail=detail: self.status.set(detail))
+                                        action = None
+                                    elif not decision.get("approved"):
+                                        detail = "{0} · {1} · declined; no order sent.".format(
+                                            name, fill.get("coin", "?"))
+                                        self.after(0, lambda detail=detail: self.status.set(detail))
+                                        action = None
+                            # Only entry opens need approval/staleness filtering. Distinct closes and
+                            # reductions still flow through the copy engine for position management.
+                            if action is not None or not interpret_fill(fill) or (
+                                interpret_fill(fill) and interpret_fill(fill)[0] != "OPEN"
+                            ):
+                                try:
+                                    current_settings = load_copy_settings()
+                                    state = load_copy_state()
+                                    result = process_copy_fill(client, fill, address, current_settings, state)
+                                    detail = "{0} · {1} · {2}".format(name, fill.get("coin", "?"), result)
+                                except Exception as exc:
+                                    detail = "{0} · Copy skipped / guarded: {1}".format(name, str(exc))
+                                self.after(0, lambda detail=detail: self.status.set(detail))
+                                self.after(0, self._refresh_history_table)
+
+                    if time.monotonic() - last_risk_check >= 5:
+                        try:
+                            current_settings = load_copy_settings()
+                            state = load_copy_state()
+                            refresh_copy_history(client, state)
+                            loss_status = check_loss_circuit_breaker(client, current_settings, state)
+                            if loss_status:
+                                self.after(0, lambda msg=loss_status: self.status.set(msg))
+                            self.after(0, self._refresh_copy_summary)
+                            self.after(0, self._refresh_history_table)
+                        except Exception as exc:
+                            detail = "Risk monitor could not verify positions: {0}. Review Bitunix connectivity before continuing.".format(exc)
+                            self.after(0, lambda detail=detail: self.status.set(detail))
+                        last_risk_check = time.monotonic()
+                except Exception as exc:
+                    detail = "Monitor loop recovered from a temporary issue: {0}".format(exc)
+                    self.after(0, lambda detail=detail: self.status.set(detail))
+                    stop_event.wait(0.5)
         except Exception as exc:
             detail = str(exc)
             self.after(0, lambda detail=detail: self._monitor_error(detail))
             return
-        while not stop_event.wait(5):
-            try:
-                settings = load_copy_settings()
-                all_fresh = []
-                for name, address in traders:
-                    # Overlap the poll window so short API/network hiccups are less likely to drop a fill.
-                    # fill_identity deduplicates overlapping results before execution.
-                    fills = fetch_recent_fills(address, lookback_seconds=300)
-                    seen = seen_by_address.setdefault(address, set())
-                    for fill in fills:
-                        identity = fill_identity(fill)
-                        if identity not in seen:
-                            seen.add(identity)
-                            all_fresh.append((name, address, fill))
-                    if len(seen) > 2500:
-                        seen_by_address[address] = {fill_identity(fill) for fill in fills}
-                all_fresh.sort(key=lambda item: int(item[2].get("time", 0) or 0))
-                for name, address, fill in all_fresh:
-                    if stop_event.is_set():
-                        break
-                    fill["_trader_name"] = name
-                    action = interpret_fill(fill)
-                    if action and action[0] == "OPEN":
-                        # Manual mode asks for explicit approval. Automatic mode bypasses only the prompt,
-                        # not exchange checks, sizing rules, loss limits, or stale-entry protection.
-                        if mode == "Manual":
-                            decision_event = threading.Event()
-                            decision = {"approved": False}
-                            fill_for_prompt = dict(fill)
-                            self.after(0, lambda n=name, a=address, f=fill_for_prompt,
-                                       e=decision_event, d=decision:
-                                       self._ask_copy_entry(n, a, f, e, d))
-                            if not decision_event.wait(timeout=60):
-                                detail = "{0} · {1} · approval timed out; no order sent.".format(
-                                    name, fill.get("coin", "?"))
-                                self.after(0, lambda detail=detail: self.status.set(detail))
-                                continue
-                            if not decision.get("approved"):
-                                detail = "{0} · {1} · declined; no order sent.".format(
-                                    name, fill.get("coin", "?"))
-                                self.after(0, lambda detail=detail: self.status.set(detail))
-                                continue
-                        # Reject stale source entries in both modes instead of copying an outdated price.
-                        try:
-                            source_time = int(fill.get("time") or 0)
-                            if source_time and int(time.time() * 1000) - source_time > 90000:
-                                detail = "{0} · {1} · source entry is stale; no order sent.".format(
-                                    name, fill.get("coin", "?"))
-                                self.after(0, lambda detail=detail: self.status.set(detail))
-                                continue
-                        except (TypeError, ValueError):
-                            detail = "{0} · {1} · source timestamp invalid; no order sent.".format(
-                                name, fill.get("coin", "?"))
-                            self.after(0, lambda detail=detail: self.status.set(detail))
-                            continue
-                    try:
-                        state = load_copy_state()
-                        result = process_copy_fill(client, fill, address, settings, state)
-                        detail = "{0} · {1} · {2}".format(name, fill.get("coin", "?"), result)
-                    except Exception as exc:
-                        detail = "{0} · Copy skipped / guarded: {1}".format(name, str(exc))
-                    self.after(0, lambda detail=detail: self.status.set(detail))
-                    self.after(0, self._refresh_history_table)
-                try:
-                    state = load_copy_state()
-                    refresh_copy_history(client, state)
-                    loss_status = check_loss_circuit_breaker(client, settings, state)
-                    if loss_status:
-                        self.after(0, lambda msg=loss_status: self.status.set(msg))
-                    self.after(0, self._refresh_copy_summary)
-                    self.after(0, self._refresh_history_table)
-                except Exception as exc:
-                    detail = "Risk monitor could not verify positions: {0}. No additional copy orders are sent while checks fail.".format(exc)
-                    self.after(0, lambda detail=detail: self.status.set(detail))
-            except Exception as exc:
-                detail = "Hyperliquid monitor temporarily failed: {0}".format(exc)
-                self.after(0, lambda detail=detail: self.status.set(detail))
+        finally:
+            stream.stop()
 
     def _ask_copy_entry(self, name: str, address: str, fill: dict, decision_event: threading.Event,
                         decision: dict) -> None:
@@ -635,6 +640,9 @@ class RadarApp(tk.Tk):
     def stop_monitor(self) -> None:
         if self._monitor_stop is not None:
             self._monitor_stop.set()
+        if self._fill_stream is not None:
+            self._fill_stream.stop()
+        self._fill_stream = None
         self._monitor_stop = None
         self._watched_address = None
         self._watched_traders = []
@@ -949,6 +957,8 @@ th,td{border:1px solid #ccd5de;padding:6px;text-align:left;overflow-wrap:anywher
     def _on_close(self) -> None:
         if self._monitor_stop is not None:
             self._monitor_stop.set()
+        if self._fill_stream is not None:
+            self._fill_stream.stop()
         try:
             self.canvas.unbind_all("<MouseWheel>")
         except tk.TclError:
