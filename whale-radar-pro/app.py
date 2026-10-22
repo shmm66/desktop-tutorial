@@ -456,8 +456,20 @@ class RadarApp(tk.Tk):
         if not self.copy_settings.get("live_copy_enabled", False):
             self.edit_copy_settings(require_enable=True)
         if not self.copy_settings.get("live_copy_enabled", False):
-            self.status.set("Auto-copy was not enabled; no order will be sent.")
+            self.status.set("Live copy was not enabled; no order will be sent.")
             return
+        mode = self.execution_mode_var.get()
+        if mode == "Automatic":
+            confirmed = messagebox.askyesno(
+                "Confirm automatic trading",
+                "Automatic mode can submit REAL Bitunix Futures orders without asking for each entry. "
+                "Your configured risk limits and loss stop still apply, but losses, slippage and API errors remain possible. "
+                "Use only an amount you can afford to lose. Continue in automatic mode?",
+                parent=self,
+            )
+            if not confirmed:
+                self.status.set("Automatic mode cancelled; choose Manual or confirm Automatic mode to continue.")
+                return
         traders = []
         for item in selected:
             values = self.table.item(item, "values")
@@ -483,8 +495,19 @@ class RadarApp(tk.Tk):
         seen_by_address: dict[str, set[str]] = {}
         try:
             for name, address in traders:
-                initial = fetch_recent_fills(address, lookback_seconds=600)
-                seen_by_address[address] = {fill_identity(fill) for fill in initial}
+                initial = fetch_recent_fills(address, lookback_seconds=300)
+                # Keep fills from the last 90 seconds eligible for the first poll so a trade
+                # opened just before monitoring started is less likely to be missed.
+                now_ms = int(time.time() * 1000)
+                already_old = set()
+                for fill in initial:
+                    try:
+                        fill_time = int(fill.get("time") or 0)
+                    except (TypeError, ValueError):
+                        fill_time = 0
+                    if not fill_time or now_ms - fill_time > 90000:
+                        already_old.add(fill_identity(fill))
+                seen_by_address[address] = already_old
             client = BitunixClient(api_key, api_secret)
             # Verify private account connectivity using actual balances, positions and orders.
             # This deliberately avoids a speculative live order; the first copied entry tests order permission.
