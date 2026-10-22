@@ -99,7 +99,7 @@ class RadarApp(tk.Tk):
         header.pack(fill="x", pady=(0, 14))
         ttk.Label(header, text="🐋  WHALE RADAR PRO", style="Title.TLabel").pack(side="left")
         ttk.Button(header, text="Copy Trade History", command=self.open_copy_history).pack(side="right", padx=(10, 0))
-        ttk.Label(header, text="2.3.4  •  HYPERLIQUID × BITUNIX",
+        ttk.Label(header, text="2.3.5  •  HYPERLIQUID × BITUNIX",
                    style="Muted.TLabel").pack(side="right", pady=10)
 
         # 01 — Bitunix credentials and connection test.
