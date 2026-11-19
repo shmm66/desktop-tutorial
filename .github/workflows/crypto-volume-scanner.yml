@@ -1,5 +1,8 @@
 name: Crypto Volume Telegram Scanner
 on:
+  push:
+    paths:
+      - ".github/workflows/crypto-volume-scanner.yml"
   workflow_dispatch:
   schedule:
     - cron: "7 * * * *"
